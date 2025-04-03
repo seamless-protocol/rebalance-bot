@@ -1,7 +1,7 @@
 import LeverageManagerAbi from "../../abis/LeverageManager";
 import { encodeEventTopics } from "viem";
 import { getAlchemyClient } from "../utils/client";
-import { getContractAddressesByChainId } from "../constants/contracts";
+import { getContractAddressesByChainId } from "../utils/transactionHelpers";
 
 const subscribeToCreateNewLeverageToken = async (chainId: number): Promise<void> => {
   console.log("Listening for CreateNewLeverageToken events...");

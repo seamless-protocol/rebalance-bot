@@ -25,15 +25,3 @@ export const CHAINS: Chain[] = [
     viemChain: base,
   },
 ];
-
-export const findChainById = (chainId: number): Chain => {
-  const chain = CHAINS.find((chain) => {
-    return chain.chainId === chainId;
-  });
-
-  if (!chain) {
-    throw new Error(`Failed to find chain with id ${chainId}`);
-  }
-
-  return chain;
-};

@@ -4,5 +4,4 @@ import subscribeToCreateNewLeverageToken from "./subscribers/createNewLeverageTo
 
 dotenv.config();
 
-console.log("Hello World");
 subscribeToCreateNewLeverageToken(CHAIN_IDS.BASE);

@@ -1,7 +1,7 @@
 import { PublicClient, createPublicClient, http } from "viem";
 
 import { Alchemy } from "alchemy-sdk";
-import { findChainById } from "../constants/chains";
+import { findChainById } from "./transactionHelpers";
 
 export const getPublicClient = (chainId: number): PublicClient => {
   const chain = findChainById(chainId);
