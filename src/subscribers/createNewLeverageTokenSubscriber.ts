@@ -1,23 +1,27 @@
+import LeverageManagerAbi from "../../abis/LeverageManager";
 import { encodeEventTopics } from "viem";
-import erc20Abi from "../../abis/ERC20";
-import { getAlchemyClient } from "../helpers/client";
+import { getAlchemyClient } from "../utils/client";
+import { getContractAddressesByChainId } from "../constants/contracts";
 
-const subscribeToCreateNewLeverageToken = async () => {
-    console.log("Listening for CreateNewLeverageToken events...");
+const subscribeToCreateNewLeverageToken = async (chainId: number) => {
+  console.log("Listening for CreateNewLeverageToken events...");
 
-    const alchemy = getAlchemyClient();
+  const alchemy = getAlchemyClient(chainId);
+  const leverageManagerAddress = getContractAddressesByChainId(chainId).LEVERAGE_MANAGER;
+  const encodedTopic = encodeEventTopics({
+    abi: LeverageManagerAbi,
+    eventName: "LeverageTokenCreated",
+  });
 
-    const encodedTopic = encodeEventTopics({
-        abi: erc20Abi,
-        eventName: "Transfer",
-    });
-
-    alchemy.ws.on({
-        address: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
-        topics: [...encodedTopic],
-    }, (event) => {
-        console.log(event);
-    });
+  alchemy.ws.on(
+    {
+      address: leverageManagerAddress,
+      topics: [...encodedTopic],
+    },
+    (event) => {
+      console.log(event);
+    }
+  );
 };
 
 export default subscribeToCreateNewLeverageToken;

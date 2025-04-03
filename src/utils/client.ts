@@ -1,29 +1,24 @@
-import { Alchemy, Network } from "alchemy-sdk";
 import { PublicClient, createPublicClient, http } from "viem";
 
-import { base } from "viem/chains";
-import dotenv from "dotenv";
+import { Alchemy } from "alchemy-sdk";
+import { findChainById } from "../constants/chains";
 
-dotenv.config();
+export const getPublicClient = (chainId: number): PublicClient => {
+  const chain = findChainById(chainId);
 
-export const getPublicClient = (): PublicClient | null => {
   const publicClient = createPublicClient({
-    chain: base,
-    transport: http(process.env.BASE_RPC_URL),
+    chain: chain.viemChain,
+    transport: http(chain.rpcUrl),
   });
 
   return publicClient as PublicClient;
 };
 
-export const getAlchemyClient = () => {
+export const getAlchemyClient = (chainId: number): Alchemy => {
+  const chain = findChainById(chainId);
+
   return new Alchemy({
     apiKey: process.env.ALCHEMY_API_KEY,
-    network: Network.BASE_MAINNET,
-  });
-};
-
-export const findChainById = (chainId: number) => {
-  return CHAINS.find((chain) => {
-    return chain.chainId === chainId;
+    network: chain.alchemyNetwork,
   });
 };
