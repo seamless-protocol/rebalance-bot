@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "license": "MIT",
-  "type": "module",
   "main": "src/index.ts",
   "scripts": {
     "dev": "npm run type-check && tsx src/index.ts",
