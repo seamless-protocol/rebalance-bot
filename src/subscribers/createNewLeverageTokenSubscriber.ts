@@ -20,6 +20,8 @@ const subscribeToCreateNewLeverageToken = async (chainId: number): Promise<void>
     },
     (event) => {
       console.log(event);
+
+      // TODO: parse event, add leverage token with rebalance adapter to JSON file
     }
   );
 };
