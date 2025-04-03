@@ -1,0 +1,75 @@
+{
+  "ignorePatterns": ["dist/**/*"],
+  "root": true,
+  "env": {
+    "node": true,
+    "es2021": true
+  },
+  "plugins": ["@typescript-eslint", "prettier"],
+  "extends": ["airbnb-base", "airbnb-typescript/base", "prettier"],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module",
+    "project": "./tsconfig.json",
+    "warnOnUnsupportedTypeScriptVersion": false
+  },
+  "settings": {
+    "import/resolver": {
+      "typescript": {
+        "alwaysTryTypes": true
+      }
+    }
+  },
+  "rules": {
+    // eslint
+    "@typescript-eslint/no-empty-function": "off",
+    "no-nested-ternary": "off",
+    "no-underscore-dangle": "off",
+    "global-require": "off",
+    "@typescript-eslint/no-throw-literal": "off",
+    "import/no-extraneous-dependencies": "off",
+    "import/prefer-default-export": "off",
+    "@typescript-eslint/no-shadow": "off",
+    "@typescript-eslint/naming-convention": "off",
+    "@typescript-eslint/no-use-before-define": "off",
+    "import/export": "off",
+    "import/no-named-as-default": "off",
+    "no-plusplus": "off",
+    "import/order": "off",
+    "arrow-body-style": "off",
+    "no-continue": "off",
+    "no-sparse-arrays": "off",
+    "no-restricted-syntax": "off",
+    "no-await-in-loop": "off",
+    "no-console": [
+      "warn",
+      {
+        "allow": ["error"]
+      }
+    ],
+    "no-param-reassign": "warn",
+    "eqeqeq": ["warn", "smart"],
+    "@typescript-eslint/no-unused-expressions": "warn",
+    "no-unsafe-optional-chaining": "warn",
+    "no-unused-vars": [
+      "warn",
+      {
+        "args": "none"
+      }
+    ],
+    "prefer-destructuring": [
+      "error",
+      {
+        "object": true,
+        "array": false
+      }
+    ],
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "args": "none"
+      }
+    ]
+  }
+}
