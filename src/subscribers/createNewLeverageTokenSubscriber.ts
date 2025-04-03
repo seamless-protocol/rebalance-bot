@@ -21,7 +21,10 @@ const subscribeToCreateNewLeverageToken = async (chainId: number): Promise<void>
     (event) => {
       console.log(event);
 
-      // TODO: parse event, save leverage token and rebalance adapter addresses somewhere
+      // TODO: parse event, save leverage token and rebalance adapter addresses somewhere:
+      //       1. it should be persistent
+      //       2. we should be able to read it while updates are occurring to the data set
+      //       3. we should be able to backfill the data set in case of outages
     }
   );
 };
