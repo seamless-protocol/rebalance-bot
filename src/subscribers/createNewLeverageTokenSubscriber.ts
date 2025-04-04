@@ -3,7 +3,7 @@ import { encodeEventTopics } from "viem";
 import { getAlchemyClient } from "../utils/client";
 import { getContractAddressesByChainId } from "../utils/transactionHelpers";
 
-const subscribeToCreateNewLeverageToken = async (chainId: number): Promise<void> => {
+const subscribeToCreateNewLeverageToken = (chainId: number): void => {
   console.log("Listening for CreateNewLeverageToken events...");
 
   const alchemy = getAlchemyClient(chainId);
