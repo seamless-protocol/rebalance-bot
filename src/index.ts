@@ -1,7 +1,7 @@
 import { CHAIN_IDS } from "./constants/chains";
 import dotenv from "dotenv";
-import subscribeToCreateNewLeverageToken from "./subscribers/createNewLeverageTokenSubscriber";
+import subscribeToLeverageTokenCreated from "./subscribers/leverageTokenCreatedSubscriber";
 
 dotenv.config();
 
-subscribeToCreateNewLeverageToken(CHAIN_IDS.BASE);
+subscribeToLeverageTokenCreated(CHAIN_IDS.BASE);

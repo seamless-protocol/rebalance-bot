@@ -1,13 +1,6 @@
+import { Chain } from "../types";
 import { Network } from "alchemy-sdk";
-import { Chain as ViemChain } from "viem";
 import { base } from "viem/chains";
-
-export interface Chain {
-  alchemyNetwork: Network;
-  chainId: number;
-  rpcUrl: string;
-  viemChain: ViemChain;
-}
 
 export const CHAIN_IDS: Record<string, number> = {
   BASE: 8453,
