@@ -9,6 +9,10 @@ export interface Chain {
   viemChain: ViemChain;
 }
 
+export interface ContractAddresses {
+  LEVERAGE_MANAGER: Address;
+}
+
 export interface LeverageToken {
   address: Address;
   collateralAsset: Address;

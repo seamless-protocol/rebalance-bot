@@ -1,9 +1,9 @@
 import { CHAINS, CHAIN_IDS } from "../constants/chains";
+import { Chain, ContractAddresses } from "../types";
 import { PublicClient, createPublicClient, http } from "viem";
 
 import { Alchemy } from "alchemy-sdk";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
-import { Chain } from "../types";
 
 export const getPublicClient = (chainId: number): PublicClient => {
   const chain = findChainById(chainId);
@@ -37,7 +37,7 @@ export const findChainById = (chainId: number): Chain => {
   return chain;
 };
 
-export const getContractAddressesByChainId = (chainId: number): Record<string, string> => {
+export const getContractAddressesByChainId = (chainId: number): ContractAddresses => {
   if (chainId === CHAIN_IDS.BASE) {
     return CONTRACT_ADDRESSES.BASE;
   }
