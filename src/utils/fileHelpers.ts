@@ -43,10 +43,10 @@ const writeJsonArrayToFile = (filePath: string, jsonArray: any[]): void => {
  */
 export const appendObjectToJsonFile = (filePath: string, newData: any): void => {
   try {
-    ensureDirectoryExists(filePath); // 1. Ensure directory
-    const currentArray = readJsonArrayFromFile(filePath); // 2. Read existing array
-    currentArray.push(newData); // 3. Push new data
-    writeJsonArrayToFile(filePath, currentArray); // 4. Write back
+    ensureDirectoryExists(filePath);
+    const currentArray = readJsonArrayFromFile(filePath);
+    currentArray.push(newData);
+    writeJsonArrayToFile(filePath, currentArray);
     console.log(`Data appended to file: ${filePath}`);
   } catch (error) {
     console.error("Error appending object to JSON file:", error);
