@@ -2,6 +2,7 @@ import { Address, Chain as ViemChain } from "viem";
 
 export interface Chain {
   chainId: number;
+  leverageTokensFilePath: string;
   rpcUrl: string;
   viemChain: ViemChain;
 }

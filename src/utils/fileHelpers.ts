@@ -5,7 +5,7 @@ import path from "path";
  * Ensures that the directory for a given file path exists.
  * It creates any subdirectories if necessary.
  */
-const ensureDirectoryExists = (filePath: string): void => {
+export const ensureDirectoryExists = (filePath: string): void => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 };
 
@@ -13,7 +13,7 @@ const ensureDirectoryExists = (filePath: string): void => {
  * Reads the contents of a file and returns it as a JSON array.
  * If the file doesn't exist or if parsing fails, returns an empty array.
  */
-const readJsonArrayFromFile = (filePath: string): any[] => {
+export const readJsonArrayFromFile = (filePath: string): any[] => {
   if (!fs.existsSync(filePath)) {
     // File doesn’t exist, return empty array
     return [];
@@ -34,7 +34,7 @@ const readJsonArrayFromFile = (filePath: string): any[] => {
 /**
  * Writes the provided array to the file as JSON.
  */
-const writeJsonArrayToFile = (filePath: string, jsonArray: any[]): void => {
+export const writeJsonArrayToFile = (filePath: string, jsonArray: any[]): void => {
   fs.writeFileSync(filePath, JSON.stringify(jsonArray, null, 2));
 };
 

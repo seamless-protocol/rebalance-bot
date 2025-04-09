@@ -1,6 +1,7 @@
 import { Chain } from "../types";
 import { base } from "viem/chains";
 import dotenv from "dotenv";
+import path from "path";
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ export const CHAIN_RPC_URLS: Record<string, string> = {
 export const CHAINS: Chain[] = [
   {
     chainId: CHAIN_IDS.BASE,
+    leverageTokensFilePath: path.join(__dirname, "..", "data", CHAIN_IDS.BASE.toString(), "leverageTokens.json"),
     rpcUrl: CHAIN_RPC_URLS.BASE,
     viemChain: base,
   },

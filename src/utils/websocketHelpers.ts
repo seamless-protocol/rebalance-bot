@@ -23,7 +23,7 @@ export const createWebSocketConnection = (config: WebSocketConfig) => {
   });
 
   ws.on("open", () => {
-    logWithPrefix(eventName, "WebSocket connection established to", rpcUrl);
+    logWithPrefix(eventName, "WebSocket connection established");
 
     const subscriptionRequest = {
       jsonrpc: "2.0",

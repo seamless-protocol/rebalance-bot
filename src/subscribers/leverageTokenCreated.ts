@@ -1,14 +1,11 @@
 import { Log, decodeEventLog } from "viem";
+import { findChainById, getContractAddressesByChainId } from "../utils/transactionHelpers";
 
 import LeverageManagerAbi from "../../abis/LeverageManager";
 import { LeverageToken } from "@/types";
 import { appendObjectToJsonFile } from "../utils/fileHelpers";
 import { createWebSocketConnection } from "../utils/websocketHelpers";
-import { getContractAddressesByChainId } from "../utils/transactionHelpers";
 import { logWithPrefix } from "../utils/logHelpers";
-import path from "path";
-
-const LEVERAGE_TOKENS_FILE_PATH = path.join(__dirname, "..", "data", "leverageTokens.json");
 
 const subscribeToLeverageTokenCreated = (chainId: number) => {
   logWithPrefix("LeverageTokenCreated", "Listening for events...");
@@ -21,12 +18,14 @@ const subscribeToLeverageTokenCreated = (chainId: number) => {
     abi: LeverageManagerAbi,
     eventName: "LeverageTokenCreated",
     onEvent: (event: Log) => {
-      saveLeverageToken(event);
+      saveLeverageToken(event, chainId);
     },
   });
 };
 
-const saveLeverageToken = (event: Log) => {
+const saveLeverageToken = (event: Log, chainId: number) => {
+  const { leverageTokensFilePath } = findChainById(chainId);
+
   const decodedEvent = decodeEventLog({
     abi: LeverageManagerAbi,
     data: event.data,
@@ -44,7 +43,7 @@ const saveLeverageToken = (event: Log) => {
       rebalanceAdapter: decodedEvent.args[3].rebalanceAdapter,
     };
 
-    appendObjectToJsonFile(LEVERAGE_TOKENS_FILE_PATH, leverageToken);
+    appendObjectToJsonFile(leverageTokensFilePath, leverageToken);
   }
 };
 
