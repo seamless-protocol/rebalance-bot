@@ -49,6 +49,6 @@ export const appendObjectToJsonFile = (filePath: string, newData: any): void => 
     writeJsonArrayToFile(filePath, currentArray);
     console.log(`Data appended to file: ${filePath}`);
   } catch (error) {
-    console.error("Error appending object to JSON file:", error);
+    console.error(`Error appending object to file: ${filePath}`, error);
   }
 };
