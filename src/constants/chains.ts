@@ -1,6 +1,8 @@
 import { Chain } from "../types";
-import { Network } from "alchemy-sdk";
 import { base } from "viem/chains";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export const CHAIN_IDS: Record<string, number> = {
   BASE: 8453,
@@ -12,7 +14,6 @@ export const CHAIN_RPC_URLS: Record<string, string> = {
 
 export const CHAINS: Chain[] = [
   {
-    alchemyNetwork: Network.BASE_MAINNET,
     chainId: CHAIN_IDS.BASE,
     rpcUrl: CHAIN_RPC_URLS.BASE,
     viemChain: base,

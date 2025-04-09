@@ -2,7 +2,6 @@ import { CHAINS, CHAIN_IDS } from "../constants/chains";
 import { Chain, ContractAddresses } from "../types";
 import { PublicClient, createPublicClient, http } from "viem";
 
-import { Alchemy } from "alchemy-sdk";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 
 export const getPublicClient = (chainId: number): PublicClient => {
@@ -14,15 +13,6 @@ export const getPublicClient = (chainId: number): PublicClient => {
   });
 
   return publicClient as PublicClient;
-};
-
-export const getAlchemyClient = (chainId: number): Alchemy => {
-  const chain = findChainById(chainId);
-
-  return new Alchemy({
-    apiKey: process.env.ALCHEMY_API_KEY,
-    network: chain.alchemyNetwork,
-  });
 };
 
 export const findChainById = (chainId: number): Chain => {
