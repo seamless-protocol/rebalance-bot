@@ -18,12 +18,12 @@ const subscribeToLeverageTokenCreated = (chainId: number) => {
     abi: LeverageManagerAbi,
     eventName: "LeverageTokenCreated",
     onEvent: (event: Log) => {
-      saveLeverageToken(event, chainId);
+      handleLeverageTokenCreatedEvent(event, chainId);
     },
   });
 };
 
-const saveLeverageToken = (event: Log, chainId: number) => {
+const handleLeverageTokenCreatedEvent = (event: Log, chainId: number) => {
   const { leverageTokensFilePath } = findChainById(chainId);
 
   const decodedEvent = decodeEventLog({
