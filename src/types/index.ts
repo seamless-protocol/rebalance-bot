@@ -25,13 +25,6 @@ export interface LeverageToken {
   rebalanceAdapter: Address;
 }
 
-export interface LeverageTokenState {
-  collateralInDebtAsset: bigint;
-  debt: bigint;
-  equity: bigint;
-  collateralRatio: bigint;
-}
-
 export enum RebalanceStatus {
   NOT_ELIGIBLE = 0,
   DUTCH_ELIGIBLE = 1,
