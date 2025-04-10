@@ -1,36 +1,24 @@
-import { CHAINS, CHAIN_IDS } from "../constants/chains";
-import { Chain, ContractAddresses } from "../types";
-import { PublicClient, createPublicClient, http } from "viem";
+import { createPublicClient, createWalletClient, http } from "viem";
 
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import { CHAIN } from "../constants/chain";
+import dotenv from "dotenv";
+import { privateKeyToAccount } from "viem/accounts";
 
-export const getPublicClient = (chainId: number): PublicClient => {
-  const chain = findChainById(chainId);
+dotenv.config();
 
-  const publicClient = createPublicClient({
-    chain: chain.viemChain,
-    transport: http(chain.rpcUrl),
-  });
+const account = privateKeyToAccount("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
 
-  return publicClient as PublicClient;
-};
+export const walletClient = createWalletClient({
+  account,
+  chain: CHAIN.viemChain,
+  transport: http(CHAIN.rpcUrl),
+});
 
-export const findChainById = (chainId: number): Chain => {
-  const chain = CHAINS.find((chain) => {
-    return chain.chainId === chainId;
-  });
+export const publicClient = createPublicClient({
+  chain: CHAIN.viemChain,
+  transport: http(CHAIN.rpcUrl),
+});
 
-  if (!chain) {
-    throw new Error(`Failed to find chain with id ${chainId}`);
-  }
-
-  return chain;
-};
-
-export const getContractAddressesByChainId = (chainId: number): ContractAddresses => {
-  if (chainId === CHAIN_IDS.BASE) {
-    return CONTRACT_ADDRESSES.BASE;
-  }
-
-  throw new Error(`No contract addresses found for chain id ${chainId}`);
+export const getWebSocketUrl = () => {
+  return CHAIN.rpcUrl;
 };

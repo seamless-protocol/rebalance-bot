@@ -1,19 +1,17 @@
 import { Log, encodeEventTopics } from "viem";
 
 import WebSocket from "ws";
-import { findChainById } from "./transactionHelpers";
 
 export interface WebSocketConfig {
-  chainId: number;
   contractAddress: string;
   abi: any;
   eventName: string;
   onEvent: (event: Log) => void;
+  rpcUrl: string;
 }
 
 export const subscribeToEventWithWebSocket = (config: WebSocketConfig) => {
-  const { chainId, contractAddress, abi, eventName, onEvent } = config;
-  const { rpcUrl } = findChainById(chainId);
+  const { contractAddress, abi, eventName, onEvent, rpcUrl } = config;
   const ws = new WebSocket(rpcUrl);
 
   const encodedTopics = encodeEventTopics({

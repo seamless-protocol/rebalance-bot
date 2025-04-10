@@ -1,9 +1,7 @@
-import { zeroAddress } from "viem";
 import { ContractAddresses } from "../types";
+import { zeroAddress } from "viem";
 
-export const CONTRACT_ADDRESSES: Record<string, ContractAddresses> = {
-  BASE: {
-    LEVERAGE_MANAGER: zeroAddress,
-    REBALANCER: zeroAddress,
-  },
+export const CONTRACT_ADDRESSES: ContractAddresses = {
+  LEVERAGE_MANAGER: zeroAddress,
+  REBALANCER: zeroAddress,
 };

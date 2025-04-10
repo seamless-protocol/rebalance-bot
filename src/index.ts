@@ -1,7 +1,6 @@
-import { CHAIN_IDS } from "./constants/chains";
-import { findChainById } from "./utils/transactionHelpers";
+import { CHAIN } from "./constants/chain";
 import monitorDutchAuctionRebalanceEligibility from "./services/monitorDutchAuctionRebalanceEligibility";
 import subscribeToLeverageTokenCreated from "./subscribers/leverageTokenCreated";
 
-subscribeToLeverageTokenCreated(CHAIN_IDS.BASE);
-monitorDutchAuctionRebalanceEligibility(findChainById(CHAIN_IDS.BASE).rebalanceEligibilityPollInterval);
+subscribeToLeverageTokenCreated();
+monitorDutchAuctionRebalanceEligibility(CHAIN.rebalanceEligibilityPollInterval);

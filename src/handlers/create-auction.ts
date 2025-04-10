@@ -1,11 +1,11 @@
 import { Address } from "viem";
-import { publicClient } from "../config/viemConfig";
 import { RebalanceStatus } from "../types";
 import {
   getLeverageTokenRebalanceAdapterContract,
   leverageManagerContract,
   rebalancerContract,
 } from "../utils/contractHelpers";
+import { publicClient } from "../utils/transactionHelpers";
 
 export async function tryCreateAuction(leverageToken: Address): Promise<RebalanceStatus> {
   // Get rebalance status of leverage token, token can be eligible for Dutch auction or pre-liquidation or not eligible at all
@@ -18,7 +18,7 @@ export async function tryCreateAuction(leverageToken: Address): Promise<Rebalanc
   console.log(`Rebalance status for leverage token (${leverageToken}):`, rebalanceStatus);
 
   // If token is eligible for Dutch auction, create auction so rebalancer can compete and rebalance token
-  if (rebalanceStatus === RebalanceStatus.DUTCH_ELIGIBLE) {
+  if (rebalanceStatus === RebalanceStatus.DUTCH_AUCTION_ELIGIBLE) {
     console.log(`Checking if leverage token (${leverageToken}) already has an active valid auction...`);
 
     // We need to check if valid auction already exists in case someone else already created auction

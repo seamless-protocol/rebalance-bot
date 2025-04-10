@@ -1,22 +1,18 @@
 import { LeverageToken, RebalanceStatus } from "../types";
-import { findChainById, getContractAddressesByChainId, getPublicClient } from "../utils/transactionHelpers";
 
-import { CHAIN_IDS } from "../constants/chains";
+import { CHAIN } from "../constants/chain";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import { publicClient } from "../utils/transactionHelpers";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import rebalancerAbi from "../../abis/Rebalancer";
 
-const getLeverageTokensByRebalanceStatus = async (
-  chainId: number,
-  rebalanceStatuses: RebalanceStatus[]
-): Promise<LeverageToken[]> => {
-  const publicClient = getPublicClient(chainId);
-  const { leverageTokensFilePath } = findChainById(chainId);
-  const { LEVERAGE_MANAGER: leverageManagerAddress, REBALANCER: rebalancerAddress } =
-    getContractAddressesByChainId(chainId);
+const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceStatus[]): Promise<LeverageToken[]> => {
+  const { leverageTokensFilePath } = CHAIN;
+  const { LEVERAGE_MANAGER: leverageManagerAddress, REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
 
   const leverageTokens = readJsonArrayFromFile(leverageTokensFilePath) as LeverageToken[];
   if (!leverageTokens.length) {
-    console.log(`No LeverageTokens found in ${leverageTokensFilePath} for chain ${chainId}`);
+    console.log(`No LeverageTokens found in ${leverageTokensFilePath}`);
     return [];
   }
 
@@ -44,7 +40,7 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
     try {
       console.log("Checking rebalance eligibility of LeverageTokens...");
 
-      const eligibleTokens = await getLeverageTokensByRebalanceStatus(CHAIN_IDS.BASE, [RebalanceStatus.DUTCH_ELIGIBLE]);
+      const eligibleTokens = await getLeverageTokensByRebalanceStatus([RebalanceStatus.DUTCH_AUCTION_ELIGIBLE]);
 
       eligibleTokens.forEach(async (_leverageToken) => {
         // TODO: Handle dutch auction for the LeverageToken

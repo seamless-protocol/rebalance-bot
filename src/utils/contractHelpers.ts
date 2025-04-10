@@ -1,11 +1,11 @@
-import { getContract, Address } from "viem";
-import { walletClient } from "../config/viemConfig";
-import { readJsonArrayFromFile } from "./fileHelpers";
+import { Address, getContract } from "viem";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import leverageManagerAbi from "../../abis/LeverageManager";
+import path from "path";
+import { readJsonArrayFromFile } from "./fileHelpers";
 import rebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import rebalancerAbi from "../../abis/Rebalancer";
-import path from "path";
+import { walletClient } from "./transactionHelpers";
 
 // Gets address of rebalance adapter for a given leverage token from JSON file not from chain
 export function getLeverageTokenRebalanceAdapter(leverageToken: Address): Address {
@@ -33,13 +33,13 @@ export const getLeverageTokenRebalanceAdapterContract = (leverageToken: Address)
 };
 
 export const rebalancerContract = getContract({
-  address: CONTRACT_ADDRESSES.BASE.REBALANCER,
+  address: CONTRACT_ADDRESSES.REBALANCER,
   abi: rebalancerAbi,
   client: walletClient,
 });
 
 export const leverageManagerContract = getContract({
-  address: CONTRACT_ADDRESSES.BASE.LEVERAGE_MANAGER,
+  address: CONTRACT_ADDRESSES.LEVERAGE_MANAGER,
   abi: leverageManagerAbi,
   client: walletClient,
 });

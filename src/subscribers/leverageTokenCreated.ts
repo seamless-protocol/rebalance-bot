@@ -1,30 +1,31 @@
 import { Log, decodeEventLog } from "viem";
-import { findChainById, getContractAddressesByChainId } from "../utils/transactionHelpers";
 
+import { CHAIN } from "../constants/chain";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import LeverageManagerAbi from "../../abis/LeverageManager";
-import { LeverageToken } from "@/types";
+import { LeverageToken } from "../types";
 import { appendObjectToJsonFile } from "../utils/fileHelpers";
+import { getWebSocketUrl } from "../utils/transactionHelpers";
 import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
 
-const subscribeToLeverageTokenCreated = (chainId: number) => {
+const subscribeToLeverageTokenCreated = () => {
   console.log("Listening for LeverageTokenCreated events...");
 
-  const leverageManagerAddress = getContractAddressesByChainId(chainId).LEVERAGE_MANAGER;
+  const leverageManagerAddress = CONTRACT_ADDRESSES.LEVERAGE_MANAGER;
+  const rpcUrl = getWebSocketUrl();
 
   subscribeToEventWithWebSocket({
-    chainId,
     contractAddress: leverageManagerAddress,
     abi: LeverageManagerAbi,
     eventName: "LeverageTokenCreated",
     onEvent: (event: Log) => {
-      handleLeverageTokenCreatedEvent(event, chainId);
+      handleLeverageTokenCreatedEvent(event);
     },
+    rpcUrl,
   });
 };
 
-const handleLeverageTokenCreatedEvent = (event: Log, chainId: number) => {
-  const { leverageTokensFilePath } = findChainById(chainId);
-
+const handleLeverageTokenCreatedEvent = (event: Log) => {
   const decodedEvent = decodeEventLog({
     abi: LeverageManagerAbi,
     data: event.data,
@@ -42,7 +43,7 @@ const handleLeverageTokenCreatedEvent = (event: Log, chainId: number) => {
       rebalanceAdapter: decodedEvent.args[3].rebalanceAdapter,
     };
 
-    appendObjectToJsonFile(leverageTokensFilePath, leverageToken);
+    appendObjectToJsonFile(CHAIN.leverageTokensFilePath, leverageToken);
   }
 };
 
