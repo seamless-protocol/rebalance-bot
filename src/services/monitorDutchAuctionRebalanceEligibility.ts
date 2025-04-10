@@ -4,7 +4,6 @@ import { findChainById, getContractAddressesByChainId, getPublicClient } from ".
 import { CHAIN_IDS } from "../constants/chains";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import rebalancerAbi from "../../abis/Rebalancer";
-import spawnDutchAuctionRebalanceWorker from "../workers/spawnDutchAuctionRebalanceWorker";
 
 const getLeverageTokensByRebalanceStatus = async (
   chainId: number,
@@ -12,7 +11,8 @@ const getLeverageTokensByRebalanceStatus = async (
 ): Promise<LeverageToken[]> => {
   const publicClient = getPublicClient(chainId);
   const { leverageTokensFilePath } = findChainById(chainId);
-  const { LEVERAGE_MANAGER: leverageManagerAddress, REBALANCER: rebalancerAddress } = getContractAddressesByChainId(chainId);
+  const { LEVERAGE_MANAGER: leverageManagerAddress, REBALANCER: rebalancerAddress } =
+    getContractAddressesByChainId(chainId);
 
   const leverageTokens = readJsonArrayFromFile(leverageTokensFilePath) as LeverageToken[];
   if (!leverageTokens.length) {
@@ -46,8 +46,8 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
 
       const eligibleTokens = await getLeverageTokensByRebalanceStatus(CHAIN_IDS.BASE, [RebalanceStatus.DUTCH_ELIGIBLE]);
 
-      eligibleTokens.forEach((token) => {
-        spawnDutchAuctionRebalanceWorker(token);
+      eligibleTokens.forEach((_leverageToken) => {
+        // TODO: Handle dutch auction for the LeverageToken
       });
     } catch (err) {
       console.error("Error monitoring rebalance eligibility:", err);
