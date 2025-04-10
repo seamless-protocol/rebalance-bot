@@ -13,11 +13,6 @@ export interface ContractAddresses {
   REBALANCER: Address;
 }
 
-export interface DutchAuctionRebalanceWorkerMessage {
-  status: "done" | "error";
-  error?: string;
-}
-
 export interface LeverageToken {
   address: Address;
   collateralAsset: Address;
