@@ -6,7 +6,10 @@ import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import rebalancerAbi from "../../abis/Rebalancer";
 import spawnDutchAuctionRebalanceWorker from "../workers/spawnDutchAuctionRebalanceWorker";
 
-const getDutchAuctionRebalanceEligibleLeverageTokens = async (chainId: number): Promise<LeverageToken[]> => {
+const getLeverageTokensByRebalanceStatus = async (
+  chainId: number,
+  rebalanceStatuses: RebalanceStatus[]
+): Promise<LeverageToken[]> => {
   const publicClient = getPublicClient(chainId);
   const { leverageTokensFilePath } = findChainById(chainId);
   const leverageManagerAddress = getContractAddressesByChainId(chainId).LEVERAGE_MANAGER;
@@ -19,7 +22,7 @@ const getDutchAuctionRebalanceEligibleLeverageTokens = async (chainId: number): 
   }
 
   // Get rebalance status for all LeverageTokens
-  const rebalanceStatuses = await publicClient.multicall({
+  const tokenRebalanceStatuses = await publicClient.multicall({
     contracts: leverageTokens.map((token) => ({
       address: rebalancerAddress,
       abi: rebalancerAbi,
@@ -29,8 +32,8 @@ const getDutchAuctionRebalanceEligibleLeverageTokens = async (chainId: number): 
   });
 
   return leverageTokens.filter((_, index) => {
-    const rebalanceStatus = rebalanceStatuses[index].result;
-    if (rebalanceStatus === RebalanceStatus.DUTCH_ELIGIBLE) {
+    const tokenRebalanceStatus = tokenRebalanceStatuses[index].result;
+    if (tokenRebalanceStatus && rebalanceStatuses.includes(tokenRebalanceStatus)) {
       return true;
     }
     return false;
@@ -42,7 +45,7 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
     try {
       console.log("Checking rebalance eligibility of LeverageTokens...");
 
-      const eligibleTokens = await getDutchAuctionRebalanceEligibleLeverageTokens(CHAIN_IDS.BASE);
+      const eligibleTokens = await getLeverageTokensByRebalanceStatus(CHAIN_IDS.BASE, [RebalanceStatus.DUTCH_ELIGIBLE]);
 
       eligibleTokens.forEach((token) => {
         spawnDutchAuctionRebalanceWorker(token);
