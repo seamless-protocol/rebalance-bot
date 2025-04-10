@@ -10,6 +10,7 @@ export interface Chain {
 
 export interface ContractAddresses {
   LEVERAGE_MANAGER: Address;
+  REBALANCER: Address;
 }
 
 export interface DutchAuctionRebalanceWorkerMessage {
@@ -29,4 +30,10 @@ export interface LeverageTokenState {
   debt: bigint;
   equity: bigint;
   collateralRatio: bigint;
+}
+
+export enum RebalanceStatus {
+  NOT_ELIGIBLE = 0,
+  DUTCH_ELIGIBLE = 1,
+  PRE_LIQUIDATION_ELIGIBLE = 2,
 }

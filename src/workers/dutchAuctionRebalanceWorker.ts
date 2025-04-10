@@ -2,7 +2,7 @@ import { parentPort, workerData } from "worker_threads";
 
 import { LeverageToken } from "@/types";
 
-const handleDutchAuctionRebalance = async (token: LeverageToken): Promise<void> => {
+const handleDutchAuctionRebalance = async (): Promise<void> => {
   // TODO: Dutch auction logic
   // Placeholder: Wait for 10 seconds before completing
   await new Promise<void>((resolve) => {
@@ -17,7 +17,7 @@ const handleDutchAuctionRebalance = async (token: LeverageToken): Promise<void> 
     `Starting DutchAuctionRebalanceWorker for token ${(workerData as LeverageToken).address} on worker thread`
   );
   try {
-    await handleDutchAuctionRebalance(workerData as LeverageToken);
+    await handleDutchAuctionRebalance();
     if (parentPort) {
       parentPort.postMessage({ status: "done" });
     }
