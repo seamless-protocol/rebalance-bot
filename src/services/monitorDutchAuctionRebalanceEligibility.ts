@@ -1,18 +1,17 @@
 import { LeverageToken, RebalanceStatus } from "../types";
 
-import { CHAIN } from "../constants/chain";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { publicClient } from "../utils/transactionHelpers";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import rebalancerAbi from "../../abis/Rebalancer";
 
 const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceStatus[]): Promise<LeverageToken[]> => {
-  const { leverageTokensFilePath } = CHAIN;
   const { LEVERAGE_MANAGER: leverageManagerAddress, REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
 
-  const leverageTokens = readJsonArrayFromFile(leverageTokensFilePath) as LeverageToken[];
+  const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH) as LeverageToken[];
   if (!leverageTokens.length) {
-    console.log(`No LeverageTokens found in ${leverageTokensFilePath}`);
+    console.log(`No LeverageTokens found in ${LEVERAGE_TOKENS_FILE_PATH}`);
     return [];
   }
 

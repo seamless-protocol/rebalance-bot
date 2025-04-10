@@ -1,7 +1,7 @@
 import { Log, decodeEventLog } from "viem";
 
-import { CHAIN } from "../constants/chain";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import LeverageManagerAbi from "../../abis/LeverageManager";
 import { LeverageToken } from "../types";
 import { appendObjectToJsonFile } from "../utils/fileHelpers";
@@ -43,7 +43,7 @@ const handleLeverageTokenCreatedEvent = (event: Log) => {
       rebalanceAdapter: decodedEvent.args[3].rebalanceAdapter,
     };
 
-    appendObjectToJsonFile(CHAIN.leverageTokensFilePath, leverageToken);
+    appendObjectToJsonFile(LEVERAGE_TOKENS_FILE_PATH, leverageToken);
   }
 };
 

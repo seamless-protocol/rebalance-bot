@@ -4,10 +4,11 @@ import path from "path";
 
 dotenv.config();
 
-export const CHAIN = {
-  chainId: 8453,
-  leverageTokensFilePath: path.join(__dirname, "..", "data", "leverageTokens.json"),
-  rebalanceEligibilityPollInterval: parseInt(process.env.BASE_REBALANCE_ELIGIBILITY_POLL_INTERVAL || "90000", 10),
-  rpcUrl: process.env.BASE_RPC_URL || "",
-  viemChain: base,
-};
+export const CHAIN_ID = 8453;
+export const LEVERAGE_TOKENS_FILE_PATH = path.join(__dirname, "..", "data", "leverageTokens.json");
+export const REBALANCE_ELIGIBILITY_POLL_INTERVAL = parseInt(
+  process.env.BASE_REBALANCE_ELIGIBILITY_POLL_INTERVAL || "90000",
+  10
+);
+export const RPC_URL = process.env.BASE_RPC_URL || "";
+export const VIEM_CHAIN = base;

@@ -1,4 +1,4 @@
-import { Address, Chain as ViemChain } from "viem";
+import { Address, Log, Chain as ViemChain } from "viem";
 
 export interface Chain {
   chainId: number;
@@ -24,4 +24,12 @@ export enum RebalanceStatus {
   NOT_ELIGIBLE = 0,
   DUTCH_AUCTION_ELIGIBLE = 1,
   PRE_LIQUIDATION_ELIGIBLE = 2,
+}
+
+export interface WebSocketConfig {
+  contractAddress: string;
+  abi: any;
+  eventName: string;
+  onEvent: (event: Log) => void;
+  rpcUrl: string;
 }

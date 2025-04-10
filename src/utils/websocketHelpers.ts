@@ -1,14 +1,7 @@
 import { Log, encodeEventTopics } from "viem";
 
 import WebSocket from "ws";
-
-export interface WebSocketConfig {
-  contractAddress: string;
-  abi: any;
-  eventName: string;
-  onEvent: (event: Log) => void;
-  rpcUrl: string;
-}
+import { WebSocketConfig } from "../types";
 
 export const subscribeToEventWithWebSocket = (config: WebSocketConfig) => {
   const { contractAddress, abi, eventName, onEvent, rpcUrl } = config;
