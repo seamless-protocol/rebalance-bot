@@ -25,7 +25,7 @@ const spawnDutchAuctionRebalanceWorker = (token: LeverageToken) => {
     if (msg.status === "done") {
       console.log(`DutchAuctionRebalanceWorker completed for token: ${token.address}`);
     } else if (msg.status === "error") {
-      console.error(`Failed for token: ${token.address}, error: ${msg.error}`);
+      console.error(`DutchAuctionRebalanceWorker failed for token: ${token.address}, error: ${msg.error}`);
     }
 
     activeAuctionWorkers.delete(token.address);
@@ -33,7 +33,7 @@ const spawnDutchAuctionRebalanceWorker = (token: LeverageToken) => {
 
   // Handle worker errors
   worker.on("error", (err) => {
-    console.error(`Worker error for token ${token.address}:`, err);
+    console.error(`DutchAuctionRebalanceWorker error for token ${token.address}:`, err);
     activeAuctionWorkers.delete(token.address);
   });
 
