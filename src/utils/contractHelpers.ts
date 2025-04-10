@@ -1,8 +1,8 @@
 import { getContract } from "viem";
 import { Address } from "viem";
-import { walletClient } from "../config/viemConfig";
 import { readJsonArrayFromFile } from "./fileHelpers";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import { walletClient } from "./transactionHelpers";
 import leverageManagerAbi from "../../abis/LeverageManager";
 import rebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import rebalancerAbi from "../../abis/Rebalancer";

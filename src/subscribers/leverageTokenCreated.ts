@@ -1,28 +1,28 @@
 import { Log, decodeEventLog, encodeEventTopics } from "viem";
-import { findChainById, getContractAddressesByChainId } from "../utils/transactionHelpers";
 
 import LeverageManagerAbi from "../../abis/LeverageManager";
 import { LeverageToken } from "@/types";
 import WebSocket from "ws";
 import { appendObjectToJsonFile } from "../utils/fileHelpers";
 import path from "path";
+import { getWebSocketUrl } from "../utils/transactionHelpers";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
 
 const LEVERAGE_TOKENS_FILE_PATH = path.join(__dirname, "..", "data", "leverageTokens.json");
 
-const subscribeToLeverageTokenCreated = (chainId: number) => {
+const subscribeToLeverageTokenCreated = () => {
   console.log("Listening for LeverageTokenCreated events...");
 
-  const chain = findChainById(chainId);
-  const ws = new WebSocket(chain.rpcUrl);
+  const ws = new WebSocket(getWebSocketUrl());
 
-  const leverageManagerAddress = getContractAddressesByChainId(chainId).LEVERAGE_MANAGER;
+  const leverageManagerAddress = CONTRACT_ADDRESSES.BASE.LEVERAGE_MANAGER;
   const encodedTopics = encodeEventTopics({
     abi: LeverageManagerAbi,
     eventName: "LeverageTokenCreated",
   });
 
   ws.on("open", () => {
-    console.log("WebSocket connection established to:", chain.rpcUrl);
+    console.log("WebSocket connection established to:", getWebSocketUrl());
 
     const subscriptionRequest = {
       jsonrpc: "2.0",

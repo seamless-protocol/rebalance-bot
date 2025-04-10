@@ -1,36 +1,35 @@
-import { CHAINS, CHAIN_IDS } from "../constants/chains";
-import { Chain, ContractAddresses } from "../types";
-import { PublicClient, createPublicClient, http } from "viem";
+import { Address, Chain, createPublicClient, createWalletClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { CHAIN_IDS, CHAIN_RPC_URLS } from "../constants/chains";
 
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
+const account = privateKeyToAccount(process.env.PRIVATE_KEY as Address);
 
-export const getPublicClient = (chainId: number): PublicClient => {
-  const chain = findChainById(chainId);
-
-  const publicClient = createPublicClient({
-    chain: chain.viemChain,
-    transport: http(chain.rpcUrl),
-  });
-
-  return publicClient as PublicClient;
+export const baseChainConfig: Chain = {
+  id: CHAIN_IDS.BASE,
+  rpcUrls: {
+    default: {
+      http: [CHAIN_RPC_URLS.BASE],
+    },
+  },
+  name: "Base",
+  nativeCurrency: {
+    name: "Ethereum",
+    symbol: "ETH",
+    decimals: 18,
+  },
 };
 
-export const findChainById = (chainId: number): Chain => {
-  const chain = CHAINS.find((chain) => {
-    return chain.chainId === chainId;
-  });
+export const walletClient = createWalletClient({
+  account,
+  chain: baseChainConfig,
+  transport: http(),
+});
 
-  if (!chain) {
-    throw new Error(`Failed to find chain with id ${chainId}`);
-  }
+export const publicClient = createPublicClient({
+  chain: baseChainConfig,
+  transport: http(),
+});
 
-  return chain;
-};
-
-export const getContractAddressesByChainId = (chainId: number): ContractAddresses => {
-  if (chainId === CHAIN_IDS.BASE) {
-    return CONTRACT_ADDRESSES.BASE;
-  }
-
-  throw new Error(`No contract addresses found for chain id ${chainId}`);
+export const getWebSocketUrl = () => {
+  return baseChainConfig.rpcUrls.default.http[0];
 };
