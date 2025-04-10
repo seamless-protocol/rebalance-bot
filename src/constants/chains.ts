@@ -12,10 +12,10 @@ export const CHAIN_RPC_URLS: Record<string, string> = {
   BASE: process.env.BASE_RPC_URL || "",
 };
 
-export const CHAINS: Chain[] = [
-  {
+export const CHAINS: Record<string, Chain> = {
+  BASE: {
     chainId: CHAIN_IDS.BASE,
     rpcUrl: CHAIN_RPC_URLS.BASE,
     viemChain: base,
   },
-];
+};
