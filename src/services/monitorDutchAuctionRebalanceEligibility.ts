@@ -6,6 +6,10 @@ import { publicClient } from "../utils/transactionHelpers";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import rebalancerAbi from "../../abis/Rebalancer";
 
+// Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
+// This is to prevent duplicate handling of the same LeverageToken.
+const handledLeverageTokens = new Set<string>();
+
 const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceStatus[]): Promise<LeverageToken[]> => {
   const { LEVERAGE_MANAGER: leverageManagerAddress, REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
 
@@ -37,12 +41,22 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
 const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
   setInterval(async () => {
     try {
-      console.log("Checking rebalance eligibility of LeverageTokens...");
+      console.log("Checking dutch auction rebalance eligibility of LeverageTokens...");
 
       const eligibleTokens = await getLeverageTokensByRebalanceStatus([RebalanceStatus.DUTCH_AUCTION_ELIGIBLE]);
 
-      eligibleTokens.forEach(async (_leverageToken) => {
-        // TODO: Handle dutch auction for the LeverageToken
+      eligibleTokens.forEach(async (leverageToken) => {
+        if (!handledLeverageTokens.has(leverageToken.address)) {
+          handledLeverageTokens.add(leverageToken.address);
+          try {
+            // TODO: Handle dutch auction for the LeverageToken
+
+            handledLeverageTokens.delete(leverageToken.address);
+          } catch (handleError) {
+            console.error(`Error handling DutchAuctionRebalance for ${leverageToken.address}:`, handleError);
+            handledLeverageTokens.delete(leverageToken.address);
+          }
+        }
       });
     } catch (err) {
       console.error("Error monitoring rebalance eligibility:", err);
