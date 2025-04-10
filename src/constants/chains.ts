@@ -17,6 +17,7 @@ export const CHAINS: Chain[] = [
   {
     chainId: CHAIN_IDS.BASE,
     leverageTokensFilePath: path.join(__dirname, "..", "data", CHAIN_IDS.BASE.toString(), "leverageTokens.json"),
+    rebalanceEligibilityPollInterval: parseInt(process.env.BASE_REBALANCE_ELIGIBILITY_POLL_INTERVAL || "90000", 10),
     rpcUrl: CHAIN_RPC_URLS.BASE,
     viemChain: base,
   },

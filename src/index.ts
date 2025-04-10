@@ -1,8 +1,7 @@
 import { CHAIN_IDS } from "./constants/chains";
-import subscribeToDeposit from "./subscribers/deposit";
+import { findChainById } from "./utils/transactionHelpers";
+import monitorLeverageTokenRebalanceEligibility from "./services/monitorRebalanceEligibility";
 import subscribeToLeverageTokenCreated from "./subscribers/leverageTokenCreated";
-import subscribeToWithdraw from "./subscribers/withdraw";
 
 subscribeToLeverageTokenCreated(CHAIN_IDS.BASE);
-subscribeToDeposit(CHAIN_IDS.BASE);
-subscribeToWithdraw(CHAIN_IDS.BASE);
+monitorLeverageTokenRebalanceEligibility(findChainById(CHAIN_IDS.BASE).rebalanceEligibilityPollInterval);
