@@ -13,7 +13,7 @@ const ensureDirectoryExists = (filePath: string): void => {
  * Reads the contents of a file and returns it as a JSON array.
  * If the file doesn't exist or if parsing fails, returns an empty array.
  */
-const readJsonArrayFromFile = (filePath: string): any[] => {
+export const readJsonArrayFromFile = (filePath: string): any[] => {
   if (!fs.existsSync(filePath)) {
     // File doesn’t exist, return empty array
     return [];
