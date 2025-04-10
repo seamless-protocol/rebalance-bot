@@ -46,7 +46,7 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
 
       const eligibleTokens = await getLeverageTokensByRebalanceStatus(CHAIN_IDS.BASE, [RebalanceStatus.DUTCH_ELIGIBLE]);
 
-      eligibleTokens.forEach((_leverageToken) => {
+      eligibleTokens.forEach(async (_leverageToken) => {
         // TODO: Handle dutch auction for the LeverageToken
       });
     } catch (err) {
