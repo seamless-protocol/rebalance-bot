@@ -29,13 +29,17 @@ export async function tryCreateAuction(leverageToken: Address): Promise<Rebalanc
     if (!doesValidAuctionExists) {
       console.log(`Creating auction for leverage token (${leverageToken})...`);
 
-      const tx = await rebalanceAdapterContract.write.createAuction();
-      console.log(`Created auction for leverage token (${leverageToken}), waiting for receipt:`, tx);
+      try {
+        const tx = await rebalanceAdapterContract.write.createAuction();
+        console.log(`Created auction for leverage token (${leverageToken}), waiting for receipt:`, tx);
 
-      await publicClient.waitForTransactionReceipt({
-        hash: tx,
-      });
-      console.log(`Auction created for leverage token (${leverageToken})`);
+        await publicClient.waitForTransactionReceipt({
+          hash: tx,
+        });
+        console.log(`Auction created for leverage token (${leverageToken})`);
+      } catch (error) {
+        console.error(`Error creating auction for leverage token (${leverageToken}):`, error);
+      }
     }
   }
 
