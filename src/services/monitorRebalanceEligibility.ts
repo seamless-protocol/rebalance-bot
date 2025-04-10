@@ -1,6 +1,5 @@
 import { LeverageToken, LeverageTokenState } from "@/types";
 import { findChainById, getPublicClient } from "../utils/transactionHelpers";
-import { logWarningWithPrefix, logWithPrefix } from "../utils/logHelpers";
 
 import { CHAIN_IDS } from "../constants/chains";
 import leverageManagerAbi from "../../abis/LeverageManager";
@@ -14,7 +13,7 @@ const getRebalanceEligibleLeverageTokens = async (chainId: number): Promise<Leve
 
   const leverageTokens = readJsonArrayFromFile(leverageTokensFilePath) as LeverageToken[];
   if (!leverageTokens.length) {
-    logWarningWithPrefix("checkIsEligibleForRebalance", `No LeverageTokens found for chain ${chainId}`);
+    console.log(`No LeverageTokens found in ${leverageTokensFilePath} for chain ${chainId}`);
     return [];
   }
 
@@ -49,10 +48,9 @@ const getRebalanceEligibleLeverageTokens = async (chainId: number): Promise<Leve
     }),
   });
 
-  return leverageTokens.filter((token, index) => {
+  return leverageTokens.filter((_, index) => {
     const isEligible = rebalanceEligibilityResults[index].result;
     if (isEligible) {
-      logWithPrefix("checkIsEligibleForRebalance", `LeverageToken ${token.address} is eligible for rebalance`);
       return true;
     }
     return false;
@@ -62,7 +60,7 @@ const getRebalanceEligibleLeverageTokens = async (chainId: number): Promise<Leve
 const monitorLeverageTokenRebalanceEligibility = (interval: number) => {
   setInterval(async () => {
     try {
-      logWithPrefix("monitorLeverageTokenRebalanceEligibility", `Checking rebalance eligibility of LeverageTokens...`);
+      console.log("Checking rebalance eligibility of LeverageTokens...");
 
       const eligibleTokens = await getRebalanceEligibleLeverageTokens(CHAIN_IDS.BASE);
 

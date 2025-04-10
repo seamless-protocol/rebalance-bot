@@ -2,7 +2,6 @@ import { Log, encodeEventTopics } from "viem";
 
 import WebSocket from "ws";
 import { findChainById } from "./transactionHelpers";
-import { logWithPrefix } from "./logHelpers";
 
 export interface WebSocketConfig {
   chainId: number;
@@ -12,7 +11,7 @@ export interface WebSocketConfig {
   onEvent: (event: Log) => void;
 }
 
-export const createWebSocketConnection = (config: WebSocketConfig) => {
+export const subscribeToEventWithWebSocket = (config: WebSocketConfig) => {
   const { chainId, contractAddress, abi, eventName, onEvent } = config;
   const { rpcUrl } = findChainById(chainId);
   const ws = new WebSocket(rpcUrl);
@@ -23,7 +22,7 @@ export const createWebSocketConnection = (config: WebSocketConfig) => {
   });
 
   ws.on("open", () => {
-    logWithPrefix(eventName, "WebSocket connection established");
+    console.log(`WebSocket connection established for ${eventName}`);
 
     const subscriptionRequest = {
       jsonrpc: "2.0",
@@ -46,23 +45,23 @@ export const createWebSocketConnection = (config: WebSocketConfig) => {
     try {
       msg = JSON.parse(data);
     } catch (err) {
-      logWithPrefix(eventName, "Failed to parse WebSocket message", data);
+      console.error(`Failed to parse WebSocket message for ${eventName}:`, data);
       return;
     }
 
     if (msg.method === "eth_subscription" && msg.params?.result) {
       const eventLog = msg.params.result as Log;
-      logWithPrefix(eventName, "Raw event log received", eventLog);
+      console.log(`Raw event log received for ${eventName}:`, eventLog);
       onEvent(eventLog);
     }
   });
 
   ws.on("error", (error) => {
-    logWithPrefix(eventName, "WebSocket error", error);
+    console.error(`WebSocket error for ${eventName}:`, error);
   });
 
   ws.on("close", () => {
-    logWithPrefix(eventName, "WebSocket connection closed");
+    console.log(`WebSocket connection closed for ${eventName}`);
   });
 
   return ws;

@@ -4,15 +4,14 @@ import { findChainById, getContractAddressesByChainId } from "../utils/transacti
 import LeverageManagerAbi from "../../abis/LeverageManager";
 import { LeverageToken } from "@/types";
 import { appendObjectToJsonFile } from "../utils/fileHelpers";
-import { createWebSocketConnection } from "../utils/websocketHelpers";
-import { logWithPrefix } from "../utils/logHelpers";
+import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
 
 const subscribeToLeverageTokenCreated = (chainId: number) => {
-  logWithPrefix("LeverageTokenCreated", "Listening for events...");
+  console.log("Listening for LeverageTokenCreated events...");
 
   const leverageManagerAddress = getContractAddressesByChainId(chainId).LEVERAGE_MANAGER;
 
-  createWebSocketConnection({
+  subscribeToEventWithWebSocket({
     chainId,
     contractAddress: leverageManagerAddress,
     abi: LeverageManagerAbi,
