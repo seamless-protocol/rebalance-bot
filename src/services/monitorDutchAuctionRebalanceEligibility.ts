@@ -12,8 +12,7 @@ const getLeverageTokensByRebalanceStatus = async (
 ): Promise<LeverageToken[]> => {
   const publicClient = getPublicClient(chainId);
   const { leverageTokensFilePath } = findChainById(chainId);
-  const leverageManagerAddress = getContractAddressesByChainId(chainId).LEVERAGE_MANAGER;
-  const rebalancerAddress = getContractAddressesByChainId(chainId).REBALANCER;
+  const { LEVERAGE_MANAGER: leverageManagerAddress, REBALANCER: rebalancerAddress } = getContractAddressesByChainId(chainId);
 
   const leverageTokens = readJsonArrayFromFile(leverageTokensFilePath) as LeverageToken[];
   if (!leverageTokens.length) {
@@ -32,7 +31,7 @@ const getLeverageTokensByRebalanceStatus = async (
   });
 
   return leverageTokens.filter((_, index) => {
-    const tokenRebalanceStatus = tokenRebalanceStatuses[index].result;
+    const { result: tokenRebalanceStatus } = tokenRebalanceStatuses[index];
     if (tokenRebalanceStatus && rebalanceStatuses.includes(tokenRebalanceStatus)) {
       return true;
     }
