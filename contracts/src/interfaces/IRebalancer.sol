@@ -10,7 +10,7 @@ interface IRebalancer {
     /// @return status The rebalance status of the leverage token
     /// @dev The rebalance status is one of the following:
     /// - NOT_ELIGIBLE: The leverage token is not eligible for rebalancing
-    /// - DUTCH_ELIGIBLE: The leverage token is eligible for Dutch rebalancing
+    /// - DUTCH_AUCTION_ELIGIBLE: The leverage token is eligible for Dutch rebalancing
     /// - PRE_LIQUIDATION_ELIGIBLE: The leverage token is eligible for pre-liquidation rebalancing
     function getRebalanceStatus(address leverageManager, address leverageToken)
         external

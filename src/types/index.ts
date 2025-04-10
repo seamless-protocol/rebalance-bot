@@ -20,6 +20,6 @@ export interface LeverageToken {
 
 export enum RebalanceStatus {
   NOT_ELIGIBLE = 0,
-  DUTCH_ELIGIBLE = 1,
+  DUTCH_AUCTION_ELIGIBLE = 1,
   PRE_LIQUIDATION_ELIGIBLE = 2,
 }

@@ -32,7 +32,7 @@ contract Rebalancer is IRebalancer {
         }
 
         if (isDutchEligible) {
-            return RebalanceStatus.DUTCH_ELIGIBLE;
+            return RebalanceStatus.DUTCH_AUCTION_ELIGIBLE;
         }
 
         return RebalanceStatus.NOT_ELIGIBLE;

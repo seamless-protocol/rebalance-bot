@@ -10,6 +10,6 @@ struct LeverageTokenState {
 
 enum RebalanceStatus {
     NOT_ELIGIBLE,
-    DUTCH_ELIGIBLE,
+    DUTCH_AUCTION_ELIGIBLE,
     PRE_LIQUIDATION_ELIGIBLE
 }
