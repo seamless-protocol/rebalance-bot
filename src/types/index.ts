@@ -1,5 +1,13 @@
 import { Address, Log, Chain as ViemChain } from "viem";
 
+import { Percent } from "@uniswap/sdk-core";
+
+export enum RebalanceStatus {
+  NOT_ELIGIBLE = 0,
+  DUTCH_AUCTION_ELIGIBLE = 1,
+  PRE_LIQUIDATION_ELIGIBLE = 2,
+}
+
 export interface Chain {
   chainId: number;
   leverageTokensFilePath: string;
@@ -20,10 +28,20 @@ export interface LeverageToken {
   rebalanceAdapter: Address;
 }
 
-export enum RebalanceStatus {
-  NOT_ELIGIBLE = 0,
-  DUTCH_AUCTION_ELIGIBLE = 1,
-  PRE_LIQUIDATION_ELIGIBLE = 2,
+export interface RebalanceEligibility {
+  leverageTokenAddress: Address;
+  rebalanceStatus: RebalanceStatus;
+}
+
+export interface UniswapV3QuoteExactInputArgs {
+  tokenInAddress: string;
+  tokenInDecimals: number;
+  tokenOutAddress: string;
+  tokenOutDecimals: number;
+  amountInRaw: string;
+  slippageTolerance: Percent;
+  deadline: number;
+  recipient: string;
 }
 
 export interface WebSocketConfig {
