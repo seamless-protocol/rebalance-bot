@@ -1,10 +1,10 @@
-import { AlphaRouter, SwapOptions, SwapType } from "@uniswap/smart-order-router";
+import { AlphaRouter, SwapOptions, SwapRoute, SwapType } from "@uniswap/smart-order-router";
 import { ChainId, CurrencyAmount, Token, TradeType } from "@uniswap/sdk-core";
 
 import { UniswapV3QuoteExactInputArgs } from "../types";
 import { ethersProvider } from "../utils/transactionHelpers";
 
-export const getUniswapV3RouteExactInput = async (args: UniswapV3QuoteExactInputArgs) => {
+export const getUniswapV3RouteExactInput = async (args: UniswapV3QuoteExactInputArgs): Promise<SwapRoute | null> => {
   const {
     tokenInAddress,
     tokenInDecimals,
@@ -34,7 +34,10 @@ export const getUniswapV3RouteExactInput = async (args: UniswapV3QuoteExactInput
 
   const route = await router.route(amountIn, tokenOut, TradeType.EXACT_INPUT, options);
   if (!route) {
-    throw new Error(`No route found for swap ${tokenInAddress} -> ${tokenOutAddress} with amount ${amountInRaw}`);
+    console.log(
+      `Uniswap V3: No route found for swap ${tokenInAddress} -> ${tokenOutAddress} with amount ${amountInRaw}`
+    );
+    return null;
   }
 
   console.log(`Uniswap V3 Exact Input Quote:
