@@ -6,6 +6,7 @@ import leverageManagerAbi from "../../abis/LeverageManager";
 import { readJsonArrayFromFile } from "./fileHelpers";
 import rebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import rebalancerAbi from "../../abis/Rebalancer";
+import uniswapSwapRouter02Abi from "../../abis/UniswapSwapRouter02";
 import { walletClient } from "./transactionHelpers";
 
 // Gets address of rebalance adapter for a given leverage token from JSON file not from chain
@@ -29,6 +30,14 @@ export const getLeverageTokenRebalanceAdapterContract = (leverageToken: Address)
   return getContract({
     address: getLeverageTokenRebalanceAdapter(leverageToken),
     abi: rebalanceAdapterAbi,
+    client: walletClient,
+  });
+};
+
+export const getUniswapSwapRouter02Contract = () => {
+  return getContract({
+    address: CONTRACT_ADDRESSES.UNISWAP_SWAP_ROUTER_02,
+    abi: uniswapSwapRouter02Abi,
     client: walletClient,
   });
 };

@@ -19,6 +19,7 @@ export interface Chain {
 export interface ContractAddresses {
   LEVERAGE_MANAGER: Address;
   REBALANCER: Address;
+  UNISWAP_SWAP_ROUTER_02: Address;
 }
 
 export interface LeverageToken {
