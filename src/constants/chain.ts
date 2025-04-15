@@ -7,7 +7,7 @@ dotenv.config();
 export const CHAIN_ID = 8453;
 export const LEVERAGE_TOKENS_FILE_PATH = path.join(__dirname, "..", "data", "leverageTokens.json");
 export const REBALANCE_ELIGIBILITY_POLL_INTERVAL = parseInt(
-  process.env.BASE_REBALANCE_ELIGIBILITY_POLL_INTERVAL || "90000",
+  process.env.BASE_REBALANCE_ELIGIBILITY_POLL_INTERVAL || "90000", // 90 seconds default
   10
 );
 export const RPC_URL = process.env.BASE_RPC_URL || "";

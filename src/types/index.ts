@@ -1,4 +1,4 @@
-import { Address, Log, Chain as ViemChain } from "viem";
+import { Abi, Address, Log, Chain as ViemChain } from "viem";
 
 export interface Chain {
   chainId: number;
@@ -28,7 +28,7 @@ export enum RebalanceStatus {
 
 export interface WebSocketConfig {
   contractAddress: string;
-  abi: any;
+  abi: Abi;
   eventName: string;
   onEvent: (event: Log) => void;
   rpcUrl: string;
