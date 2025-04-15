@@ -2,9 +2,12 @@ import { LeverageToken, RebalanceStatus } from "../types";
 
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { publicClient } from "../utils/transactionHelpers";
+import { publicClient, walletClient } from "../utils/transactionHelpers";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import rebalancerAbi from "../../abis/Rebalancer";
+import { getContract } from "viem";
+import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
+import { getLogs } from "viem/_types/actions/public/getLogs";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
@@ -31,11 +34,31 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
 
   return leverageTokens.filter((_, index) => {
     const { result: tokenRebalanceStatus } = tokenRebalanceStatuses[index];
-    if (tokenRebalanceStatus && rebalanceStatuses.includes(tokenRebalanceStatus)) {
+    if (tokenRebalanceStatus && rebalanceStatuses.includes(tokenRebalanceStatus as RebalanceStatus)) {
       return true;
     }
     return false;
   });
+};
+
+const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
+  const { LEVERAGE_MANAGER: leverageManagerAddress, REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
+
+  const rebalancerContract = getContract({
+    address: rebalancerAddress,
+    abi: rebalancerAbi,
+    client: walletClient,
+  });
+
+  const tx = await rebalancerContract.write.tryCreateAuction([leverageManagerAddress, leverageToken.address]);
+
+  console.log(`TryCreateAuction for ${leverageToken.address}:`, tx);
+
+  await publicClient.waitForTransactionReceipt({
+    hash: tx,
+  });
+
+  console.log("TryCreateAuction successful");
 };
 
 const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
@@ -49,7 +72,7 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
         if (!handledLeverageTokens.has(leverageToken.address)) {
           handledLeverageTokens.add(leverageToken.address);
           try {
-            // TODO: Handle dutch auction for the LeverageToken
+            await tryCreateDutchAuction(leverageToken);
 
             handledLeverageTokens.delete(leverageToken.address);
           } catch (handleError) {
