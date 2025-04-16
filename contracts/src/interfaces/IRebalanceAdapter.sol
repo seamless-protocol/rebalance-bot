@@ -8,4 +8,8 @@ interface IRebalanceAdapter {
         external
         view
         returns (bool isEligible);
+
+    function isAuctionValid() external view returns (bool isValid);
+
+    function createAuction() external;
 }

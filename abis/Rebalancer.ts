@@ -23,6 +23,30 @@ export const RebalancerAbi = [
     ],
     stateMutability: "view",
   },
+  {
+    type: "function",
+    name: "tryCreateAuction",
+    inputs: [
+      {
+        name: "leverageManager",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "leverageToken",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "success",
+        type: "bool",
+        internalType: "bool",
+      },
+    ],
+    stateMutability: "nonpayable",
+  },
 ] as const;
 
 export default RebalancerAbi;
