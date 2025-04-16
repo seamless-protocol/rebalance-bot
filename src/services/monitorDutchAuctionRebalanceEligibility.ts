@@ -6,8 +6,6 @@ import { publicClient, walletClient } from "../utils/transactionHelpers";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import rebalancerAbi from "../../abis/Rebalancer";
 import { getContract } from "viem";
-import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
-import { getLogs } from "viem/_types/actions/public/getLogs";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
@@ -58,7 +56,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
     hash: tx,
   });
 
-  console.log("TryCreateAuction successful");
+  console.log(`TryCreateAuction successful for LeverageToken ${leverageToken.address}`);
 };
 
 const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
