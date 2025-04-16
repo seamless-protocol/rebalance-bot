@@ -1,4 +1,4 @@
-import { Address, Log, Chain as ViemChain } from "viem";
+import { Abi, Address, Log, Chain as ViemChain } from "viem";
 
 import { Percent } from "@uniswap/sdk-core";
 
@@ -63,7 +63,7 @@ export interface UniswapV3QuoteExactInputArgs {
 
 export interface WebSocketConfig {
   contractAddress: string;
-  abi: any;
+  abi: Abi;
   eventName: string;
   onEvent: (event: Log) => void;
   rpcUrl: string;
