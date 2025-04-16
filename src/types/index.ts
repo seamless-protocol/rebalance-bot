@@ -51,14 +51,14 @@ export interface UniswapV2ExecuteExactInputArgs {
 }
 
 export interface UniswapV3QuoteExactInputArgs {
-  tokenInAddress: string;
+  tokenInAddress: Address;
   tokenInDecimals: number;
-  tokenOutAddress: string;
+  tokenOutAddress: Address;
   tokenOutDecimals: number;
   amountInRaw: string;
   slippageTolerance: Percent;
   deadline: number;
-  recipient: string;
+  recipient: Address;
 }
 
 export interface WebSocketConfig {
