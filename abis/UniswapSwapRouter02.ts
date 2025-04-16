@@ -1,4 +1,4 @@
-export const UniswapSwapRouter02Abi = [
+const UniswapSwapRouter02Abi = [
   {
     inputs: [
       {
