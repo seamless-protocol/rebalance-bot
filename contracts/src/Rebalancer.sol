@@ -9,7 +9,7 @@ import {IRebalancer} from "./interfaces/IRebalancer.sol";
 contract Rebalancer is IRebalancer {
     /// @inheritdoc IRebalancer
     function getRebalanceStatus(address leverageManager, address leverageToken)
-        external
+        public
         view
         returns (RebalanceStatus status)
     {
@@ -36,5 +36,22 @@ contract Rebalancer is IRebalancer {
         }
 
         return RebalanceStatus.NOT_ELIGIBLE;
+    }
+
+    function tryCreateAuction(address leverageManager, address leverageToken) public {
+        RebalanceStatus status = getRebalanceStatus(leverageManager, leverageToken);
+
+        if (status != RebalanceStatus.NOT_ELIGIBLE) {
+            ILeverageManager leverageManagerContract = ILeverageManager(leverageManager);
+            IRebalanceAdapter rebalanceAdapter =
+                IRebalanceAdapter(leverageManagerContract.getLeverageTokenRebalanceAdapter(leverageToken));
+
+            bool auctionExists = rebalanceAdapter.isAuctionValid();
+            if (!auctionExists) {
+                rebalanceAdapter.createAuction();
+            }
+        }
+
+        emit TryCreateAuction(leverageToken, status);
     }
 }
