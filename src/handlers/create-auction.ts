@@ -1,10 +1,11 @@
-import { Address } from "viem";
-import { RebalanceStatus } from "../types";
 import {
   getLeverageTokenRebalanceAdapterContract,
   leverageManagerContract,
   rebalancerContract,
 } from "../utils/contractHelpers";
+
+import { Address } from "viem";
+import { RebalanceStatus } from "../types";
 import { publicClient } from "../utils/transactionHelpers";
 
 export async function tryCreateAuction(leverageToken: Address): Promise<RebalanceStatus> {

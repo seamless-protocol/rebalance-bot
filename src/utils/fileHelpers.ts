@@ -5,7 +5,7 @@ import path from "path";
  * Ensures that the directory for a given file path exists.
  * It creates any subdirectories if necessary.
  */
-const ensureDirectoryExists = (filePath: string): void => {
+export const ensureDirectoryExists = (filePath: string): void => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 };
 
@@ -34,7 +34,7 @@ export const readJsonArrayFromFile = (filePath: string): any[] => {
 /**
  * Writes the provided array to the file as JSON.
  */
-const writeJsonArrayToFile = (filePath: string, jsonArray: any[]): void => {
+export const writeJsonArrayToFile = (filePath: string, jsonArray: any[]): void => {
   fs.writeFileSync(filePath, JSON.stringify(jsonArray, null, 2));
 };
 
@@ -49,6 +49,6 @@ export const appendObjectToJsonFile = (filePath: string, newData: any): void => 
     writeJsonArrayToFile(filePath, currentArray);
     console.log(`Data appended to file: ${filePath}`);
   } catch (error) {
-    console.error("Error appending object to JSON file:", error);
+    console.error(`Error appending object to file: ${filePath}`, error);
   }
 };
