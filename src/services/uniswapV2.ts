@@ -1,8 +1,8 @@
 import { UniswapV2ExecuteExactInputArgs, UniswapV2GetAmountsOutArgs } from "../types";
 import { approveToken, publicClient } from "../utils/transactionHelpers";
-import { getUniswapSwapRouter02Contract, getUniswapV2Router02Contract } from "../utils/contractHelpers";
 
 import { Address } from "viem";
+import { getUniswapV2Router02Contract } from "../utils/contractHelpers";
 
 export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) => {
   try {
@@ -38,8 +38,8 @@ export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) =
 
 export const approveSwapUniswapV2ExactInput = async (tokenAddress: Address, amountInRaw: string): Promise<string> => {
   try {
-    const uniswapSwapRouter02Contract = getUniswapSwapRouter02Contract();
-    const { address: routerAddress } = uniswapSwapRouter02Contract;
+    const router = getUniswapV2Router02Contract();
+    const { address: routerAddress } = router;
 
     const hash = await approveToken(tokenAddress, routerAddress, amountInRaw);
     return hash;
