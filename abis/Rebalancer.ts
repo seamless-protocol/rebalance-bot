@@ -25,6 +25,57 @@ export const RebalancerAbi = [
   },
   {
     type: "function",
+    name: "onMorphoFlashLoan",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "amount",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "data",
+        type: "bytes",
+        internalType: "bytes",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "takeAuctionRebalanceDown",
+    inputs: [
+      {
+        name: "rebalanceAdapter",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "collateral",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "debt",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "amountToTake",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "tryCreateAuction",
     inputs: [
       {
@@ -38,14 +89,27 @@ export const RebalancerAbi = [
         internalType: "address",
       },
     ],
-    outputs: [
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "event",
+    name: "TryCreateAuction",
+    inputs: [
       {
-        name: "success",
-        type: "bool",
-        internalType: "bool",
+        name: "leverageToken",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "status",
+        type: "uint8",
+        indexed: true,
+        internalType: "enum RebalanceStatus",
       },
     ],
-    stateMutability: "nonpayable",
+    anonymous: false,
   },
 ] as const;
 

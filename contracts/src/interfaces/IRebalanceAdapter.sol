@@ -11,5 +11,9 @@ interface IRebalanceAdapter {
 
     function isAuctionValid() external view returns (bool isValid);
 
+    function getAmountIn(uint256 amountOut) external view returns (uint256 amountIn);
+
     function createAuction() external;
+
+    function take(uint256 amount) external;
 }

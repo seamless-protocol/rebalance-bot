@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import {IMorpho} from "./interfaces/IMorpho.sol";
+
 import {ILeverageManager, LeverageTokenState} from "./interfaces/ILeverageManager.sol";
 import {IRebalanceAdapter} from "./interfaces/IRebalanceAdapter.sol";
-import {RebalanceStatus} from "./DataTypes.sol";
+import {ILendingAdapter} from "./interfaces/ILendingAdapter.sol";
 import {IRebalancer} from "./interfaces/IRebalancer.sol";
+import {IERC20} from "./interfaces/IERC20.sol";
+import {RebalanceStatus} from "./DataTypes.sol";
 
 contract Rebalancer is IRebalancer {
     /// @inheritdoc IRebalancer
@@ -38,6 +42,7 @@ contract Rebalancer is IRebalancer {
         return RebalanceStatus.NOT_ELIGIBLE;
     }
 
+    /// @inheritdoc IRebalancer
     function tryCreateAuction(address leverageManager, address leverageToken) public {
         RebalanceStatus status = getRebalanceStatus(leverageManager, leverageToken);
 
@@ -53,5 +58,38 @@ contract Rebalancer is IRebalancer {
         }
 
         emit TryCreateAuction(leverageToken, status);
+    }
+
+    /// @inheritdoc IRebalancer
+    function takeAuctionRebalanceDown(
+        IMorpho morpho,
+        ILeverageManager leverageManager,
+        address leverageToken,
+        uint256 amountToTake
+    ) public {
+        address rebalanceAdapter = leverageManager.getLeverageTokenRebalanceAdapter(leverageToken);
+        uint256 amountIn = IRebalanceAdapter(rebalanceAdapter).getAmountIn(amountToTake);
+        morpho.flashLoan(
+            leverageToken, amountIn, abi.encode(leverageManager, leverageToken, rebalanceAdapter, amountToTake)
+        );
+    }
+
+    function onMorphoFlashLoan(uint256 amount, bytes calldata data) external {
+        (ILeverageManager leverageManager, address leverageToken, address rebalanceAdapter, uint256 amountToTake) =
+            abi.decode(data, (ILeverageManager, address, address, uint256));
+
+        // Fetch collateral and debt asset for given leverage token
+        address lendingAdapter = leverageManager.getLeverageTokenLendingAdapter(leverageToken);
+        address collateral = ILendingAdapter(lendingAdapter).getCollateralAsset();
+        address debt = ILendingAdapter(lendingAdapter).getDebtAsset();
+
+        IERC20(collateral).approve(rebalanceAdapter, amount);
+        IRebalanceAdapter(rebalanceAdapter).take(amountToTake);
+
+        uint256 debtTokenReceived = IERC20(debt).balanceOf(address(this));
+
+        // TODO: Add swap logic here to swap debt to collateral asset
+
+        IERC20(collateral).approve(msg.sender, type(uint256).max);
     }
 }

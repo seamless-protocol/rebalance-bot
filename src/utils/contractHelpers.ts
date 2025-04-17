@@ -33,6 +33,18 @@ export const getLeverageTokenRebalanceAdapterContract = (leverageToken: Address)
   });
 };
 
+export const getLeverageTokenForRebalanceAdapter = (rebalanceAdapter: Address): Address => {
+  const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH);
+
+  const leverageToken = leverageTokens.find((token) => token.rebalanceAdapter === rebalanceAdapter);
+
+  if (!leverageToken) {
+    throw new Error(`No leverage token found for rebalance adapter ${rebalanceAdapter}`);
+  }
+
+  return leverageToken.address;
+};
+
 export const rebalancerContract = getContract({
   address: CONTRACT_ADDRESSES.REBALANCER,
   abi: rebalancerAbi,
