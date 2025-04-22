@@ -19,7 +19,6 @@ export interface Chain {
 export interface ContractAddresses {
   LEVERAGE_MANAGER: Address;
   REBALANCER: Address;
-  UNISWAP_SWAP_ROUTER_02: Address;
   UNISWAP_V2_ROUTER_02: Address;
 }
 
@@ -39,15 +38,6 @@ export interface UniswapV2GetAmountsOutArgs {
   inputTokenAddress: Address;
   outputTokenAddress: Address;
   amountInRaw: string;
-}
-
-export interface UniswapV2ExecuteExactInputArgs {
-  inputTokenAddress: Address;
-  outputTokenAddress: Address;
-  amountInRaw: string;
-  minAmountOutRaw: string;
-  receiver: Address;
-  deadline: string;
 }
 
 export interface UniswapV3QuoteExactInputArgs {
