@@ -29,11 +29,6 @@ export interface LeverageToken {
   rebalanceAdapter: Address;
 }
 
-export interface RebalanceEligibility {
-  leverageTokenAddress: Address;
-  rebalanceStatus: RebalanceStatus;
-}
-
 export interface UniswapV2GetAmountsOutArgs {
   inputTokenAddress: Address;
   outputTokenAddress: Address;
