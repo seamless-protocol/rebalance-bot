@@ -23,7 +23,6 @@ interface IRebalancer {
     /// @notice Try to create an auction for a leverage token
     /// @param leverageManager The address of the leverage manager
     /// @param leverageToken The address of the leverage token
-    /// @return success Whether the auction was created successfully
     /// @dev This function will not revert if the auction already exists, it will silently fail (return false)
-    function tryCreateAuction(address leverageManager, address leverageToken) external returns (bool success);
+    function tryCreateAuction(address leverageManager, address leverageToken) external;
 }

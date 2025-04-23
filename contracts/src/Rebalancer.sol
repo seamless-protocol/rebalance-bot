@@ -5,8 +5,9 @@ import {ILeverageManager, LeverageTokenState} from "./interfaces/ILeverageManage
 import {IRebalanceAdapter} from "./interfaces/IRebalanceAdapter.sol";
 import {RebalanceStatus} from "./DataTypes.sol";
 import {IRebalancer} from "./interfaces/IRebalancer.sol";
+import {SwapAdapter} from "./SwapAdapter.sol";
 
-contract Rebalancer is IRebalancer {
+contract Rebalancer is IRebalancer, SwapAdapter {
     /// @inheritdoc IRebalancer
     function getRebalanceStatus(address leverageManager, address leverageToken)
         public

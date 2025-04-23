@@ -1,0 +1,14 @@
+@foundry-upgrades/=lib/leverage-tokens/lib/openzeppelin-foundry-upgrades/src/
+@morpho-blue/=lib/leverage-tokens/lib/morpho-blue/src/
+@openzeppelin/contracts-upgradeable/=lib/leverage-tokens/lib/openzeppelin-contracts-upgradeable/contracts/
+@openzeppelin/contracts/=lib/leverage-tokens/lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/
+ds-test/=lib/leverage-tokens/lib/openzeppelin-contracts-upgradeable/lib/forge-std/lib/ds-test/src/
+erc4626-tests/=lib/leverage-tokens/lib/openzeppelin-contracts-upgradeable/lib/erc4626-tests/
+forge-std/=lib/forge-std/src/
+halmos-cheatcodes/=lib/leverage-tokens/lib/openzeppelin-contracts-upgradeable/lib/halmos-cheatcodes/src/
+@leverage-tokens/=lib/leverage-tokens/src/
+morpho-blue/=lib/leverage-tokens/lib/morpho-blue/
+openzeppelin-contracts-upgradeable/=lib/leverage-tokens/lib/openzeppelin-contracts-upgradeable/
+openzeppelin-contracts/=lib/leverage-tokens/lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/
+openzeppelin-foundry-upgrades/=lib/leverage-tokens/lib/openzeppelin-foundry-upgrades/src/
+solidity-stringutils/=lib/leverage-tokens/lib/openzeppelin-foundry-upgrades/lib/solidity-stringutils/
