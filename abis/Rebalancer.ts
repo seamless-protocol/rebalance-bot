@@ -1,13 +1,24 @@
 export const RebalancerAbi = [
   {
-    type: "function",
-    name: "getRebalanceStatus",
+    type: "constructor",
     inputs: [
       {
-        name: "leverageManager",
+        name: "_leverageManager",
         type: "address",
         internalType: "address",
       },
+      {
+        name: "_swapAdapter",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "getRebalanceStatus",
+    inputs: [
       {
         name: "leverageToken",
         type: "address",
@@ -25,27 +36,66 @@ export const RebalancerAbi = [
   },
   {
     type: "function",
+    name: "leverageManager",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "contract ILeverageManager",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "swapAdapter",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "contract ISwapAdapter",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "tryCreateAuction",
     inputs: [
-      {
-        name: "leverageManager",
-        type: "address",
-        internalType: "address",
-      },
       {
         name: "leverageToken",
         type: "address",
         internalType: "address",
       },
     ],
-    outputs: [
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "event",
+    name: "TryCreateAuction",
+    inputs: [
       {
-        name: "success",
-        type: "bool",
-        internalType: "bool",
+        name: "leverageToken",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "status",
+        type: "uint8",
+        indexed: true,
+        internalType: "enum RebalanceStatus",
       },
     ],
-    stateMutability: "nonpayable",
+    anonymous: false,
+  },
+  {
+    type: "error",
+    name: "LIFISwapFailed",
+    inputs: [],
   },
 ] as const;
 

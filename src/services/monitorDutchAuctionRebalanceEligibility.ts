@@ -32,7 +32,7 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
 
   return leverageTokens.filter((_, index) => {
     const { result: tokenRebalanceStatus } = tokenRebalanceStatuses[index];
-    if (tokenRebalanceStatus && rebalanceStatuses.includes(tokenRebalanceStatus as RebalanceStatus)) {
+    if (tokenRebalanceStatus && rebalanceStatuses.includes(tokenRebalanceStatus as unknown as RebalanceStatus)) {
       return true;
     }
     return false;
@@ -40,7 +40,7 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
 };
 
 const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
-  const { LEVERAGE_MANAGER: leverageManagerAddress, REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
+  const { REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
 
   const rebalancerContract = getContract({
     address: rebalancerAddress,
@@ -48,7 +48,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
     client: walletClient,
   });
 
-  const tx = await rebalancerContract.write.tryCreateAuction([leverageManagerAddress, leverageToken.address]);
+  const tx = await rebalancerContract.write.tryCreateAuction([leverageToken.address]);
 
   console.log(`TryCreateAuction for ${leverageToken.address}:`, tx);
 
