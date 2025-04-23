@@ -66,7 +66,7 @@ contract Rebalancer is IRebalancer {
         uint256 inputAmount,
         uint256 minOutputAmount,
         ISwapAdapter.SwapContext memory swapContext
-    ) external {
+    ) private {
         SafeERC20.forceApprove(IERC20(inputToken), address(swapAdapter), inputAmount);
         swapAdapter.swapExactInput(inputToken, inputAmount, minOutputAmount, swapContext);
     }
@@ -76,7 +76,7 @@ contract Rebalancer is IRebalancer {
         uint256 outputAmount,
         uint256 maxInputAmount,
         ISwapAdapter.SwapContext memory swapContext
-    ) external {
+    ) private {
         SafeERC20.forceApprove(IERC20(inputToken), address(swapAdapter), maxInputAmount);
         swapAdapter.swapExactOutput(inputToken, outputAmount, maxInputAmount, swapContext);
     }
