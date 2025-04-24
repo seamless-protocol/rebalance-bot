@@ -1,10 +1,150 @@
-import { Address, Log } from "viem";
+import { Address, decodeEventLog, Log, parseEther } from "viem";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
-import { getWebSocketUrl } from "../utils/transactionHelpers";
-import { Worker } from "worker_threads";
-import path from "path";
-import { pathToFileURL } from "url";
+import { getWebSocketUrl, publicClient } from "../utils/transactionHelpers";
+import {
+  getLeverageTokenCollateralAsset,
+  getLeverageTokenDebtAsset,
+  getLeverageTokenForRebalanceAdapter,
+  getLeverageTokenRebalanceAdapter,
+} from "../utils/contractHelpers";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import leverageManagerAbi from "../../abis/LeverageManager";
+import { getAmountsOutUniswapV2 } from "../services/uniswapV2";
+import { DUTCH_AUCTION_POLLING_INTERVAL, DUTCH_AUCTION_STEP_COUNT } from "../constants/values";
+
+const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAdapter: Address) => {
+  const [leverageTokenStateResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
+    contracts: [
+      {
+        address: CONTRACT_ADDRESSES.LEVERAGE_MANAGER,
+        abi: leverageManagerAbi,
+        functionName: "getLeverageTokenState",
+        args: [leverageToken],
+      },
+      {
+        address: rebalanceAdapter,
+        abi: RebalanceAdapterAbi,
+        functionName: "getLeverageTokenTargetCollateralRatio",
+      },
+      {
+        address: rebalanceAdapter,
+        abi: RebalanceAdapterAbi,
+        functionName: "isAuctionValid",
+      },
+    ],
+  });
+
+  if (!leverageTokenStateResponse.result || !targetRatioResponse.result || !isAuctionValidResponse.result) {
+    console.error("Failed to get leverage token rebalance data");
+    throw new Error("Failed to get leverage token rebalance data");
+  }
+
+  return {
+    collateral: leverageTokenStateResponse.result[0],
+    debt: leverageTokenStateResponse.result[1],
+    equity: leverageTokenStateResponse.result[2],
+    currentRatio: leverageTokenStateResponse.result[3],
+    targetRatio: targetRatioResponse.result,
+    isAuctionValid: isAuctionValidResponse.result,
+  };
+};
+
+const checkIsRebalanceProfitable = async (
+  leverageToken: Address,
+  assetIn: Address,
+  assetOut: Address,
+  takeAmount: bigint
+) => {
+  console.log(`Checking rebalance profitability for leverageToken: ${leverageToken} and takeAmount: ${takeAmount}`);
+
+  const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken);
+
+  const requiredAmountIn = await publicClient.readContract({
+    address: rebalanceAdapter,
+    abi: RebalanceAdapterAbi,
+    functionName: "getAmountIn",
+    args: [takeAmount],
+  });
+
+  const amountOut = await getAmountsOutUniswapV2({
+    inputTokenAddress: assetOut,
+    outputTokenAddress: assetIn,
+    amountInRaw: takeAmount.toString(),
+  });
+
+  return BigInt(amountOut) >= requiredAmountIn;
+};
+
+const handleAuctionCreateEvent = async (rebalanceAdapter: Address, event: Log) => {
+  try {
+    const decodedEvent = decodeEventLog({
+      abi: RebalanceAdapterAbi,
+      data: event.data,
+      topics: event.topics,
+    });
+
+    if (decodedEvent.eventName !== "AuctionCreated") {
+      console.log("Not an AuctionCreated event. Skipping...");
+      return;
+    }
+
+    console.log("AuctionCreated event received. Participating in Dutch auction...");
+
+    const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
+
+    const { collateral, debt, equity, currentRatio, targetRatio, isAuctionValid } = await getLeverageTokenRebalanceData(
+      leverageToken,
+      rebalanceAdapter
+    );
+
+    if (!isAuctionValid) {
+      console.log("Auction is not valid. Skipping rebalance...");
+      return;
+    }
+
+    const isOverCollateralized = currentRatio > targetRatio;
+
+    console.log(`Strategy is over-collateralized? -${isOverCollateralized}`);
+
+    const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
+    const debtAsset = getLeverageTokenDebtAsset(leverageToken);
+
+    const baseRatio = parseEther("1");
+
+    const targetCollateral = (equity * targetRatio) / baseRatio;
+    const targetDebt = (equity * (targetRatio - baseRatio)) / baseRatio;
+
+    // Calculate what is max about to take to bring LT to target debt or target collateral
+    // If strategy is over-collateralized we are adding collateral and borrowing debt
+    // If strategy is under-collateralized we are repaying debt and removing collateral
+    const assetIn = isOverCollateralized ? collateralAsset : debtAsset;
+    const assetOut = isOverCollateralized ? debtAsset : collateralAsset;
+    const maxAmountToTake = isOverCollateralized ? targetDebt - debt : targetCollateral - collateral;
+
+    // Calculate for how much will amount to take decrease per step so we can check profitability with smaller slippage
+    const decreasePerStep = maxAmountToTake / BigInt(DUTCH_AUCTION_STEP_COUNT);
+
+    // TODO: Instead of for loop maybe put this in big multicall
+    for (let i = 0; i <= DUTCH_AUCTION_STEP_COUNT; i++) {
+      const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
+
+      const isRebalanceProfitable = await checkIsRebalanceProfitable(leverageToken, assetIn, assetOut, takeAmount);
+      if (!isRebalanceProfitable) {
+        console.log("Rebalance is not profitable. Skipping...");
+        continue;
+      }
+
+      console.log("Rebalance is profitable. Participating in Dutch auction...");
+
+      // TODO: Participate in Dutch auction
+      break;
+    }
+  } catch (error) {
+    console.error("Error handling auction event:", error);
+    throw error;
+  }
+};
 
 const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
   console.log("Listening for AuctionCreated events...");
@@ -16,32 +156,10 @@ const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
     abi: RebalanceAdapterAbi,
     eventName: "AuctionCreated",
     onEvent: (event: Log) => {
-      // Create a new worker for this auction event
-      const worker = new Worker(pathToFileURL(path.join(__dirname, "../workers/handleAuctionCreateEvent.js")));
-
-      // Send both the rebalanceAdapter address and the event to the worker
-      worker.postMessage({
-        rebalanceAdapter,
-        event,
-      });
-
-      // Handle worker messages
-      worker.on("message", (message) => {
-        console.log("Worker message:", message.data);
-      });
-
-      // Handle worker errors
-      worker.on("error", (error) => {
-        console.error("Worker error:", error);
-        // Optionally terminate the worker on error
-        worker.terminate();
-      });
-
-      // Handle worker termination
-      worker.on("messageerror", (error) => {
-        console.error("Worker message error:", error);
-        worker.terminate();
-      });
+      // TODO: Store this interval and close it when LT is no longer eligible for rebalance
+      setInterval(async () => {
+        await handleAuctionCreateEvent(rebalanceAdapter, event);
+      }, DUTCH_AUCTION_POLLING_INTERVAL);
     },
     rpcUrl,
   });

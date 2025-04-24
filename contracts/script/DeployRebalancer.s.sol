@@ -7,7 +7,7 @@ import {Script} from "forge-std/Script.sol";
 import {Rebalancer} from "src/Rebalancer.sol";
 
 contract DeployRebalancer is Script {
-    address public constant LEVERAGE_MANAGER = 0x4B901e2Db7C412D966689E8D3CF479294C456f1e;
+    address public constant LEVERAGE_MANAGER = 0x0000000000000000000000000000000000000000;
     address public constant SWAP_ADAPTER = 0x0000000000000000000000000000000000000000;
 
     function run() public {

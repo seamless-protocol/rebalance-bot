@@ -11,7 +11,7 @@
     "allowImportingTsExtensions": false,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": false,
+    "noEmit": true,
     // * Linting * //
     "strict": true,
     "noUnusedLocals": true,
@@ -20,9 +20,6 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    },
-    "outDir": "./dist",
-    "rootDir": "."
-  },
-  "include": ["src/**/*"]
+    }
+  }
 }
