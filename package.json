@@ -6,7 +6,7 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "npm run type-check && tsx src/index.ts",
-    "dev:watch": "tsx watch src/index.ts",
+    "dev:watch": "tsx watch dist/src/index.js",
     "build": "npm run clean:dist && tsc -p tsconfig.build.json",
     "start": "node dist/src/index.js",
     "clean:dist": "rimraf dist",

@@ -4,15 +4,15 @@ import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
-import rebalancerAbi from "../../abis/Rebalancer";
 import { getContract } from "viem";
+import { RebalancerAbi } from "../../abis/Rebalancer";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
 const handledLeverageTokens = new Set<string>();
 
 const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceStatus[]): Promise<LeverageToken[]> => {
-  const { LEVERAGE_MANAGER: leverageManagerAddress, REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
+  const { REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
 
   const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH) as LeverageToken[];
   if (!leverageTokens.length) {
@@ -24,11 +24,13 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
   const tokenRebalanceStatuses = await publicClient.multicall({
     contracts: leverageTokens.map((token) => ({
       address: rebalancerAddress,
-      abi: rebalancerAbi,
+      abi: RebalancerAbi,
       functionName: "getRebalanceStatus",
-      args: [leverageManagerAddress, token.address],
+      args: [token.address],
     })),
   });
+
+  console.log("tokenRebalanceStatuses", tokenRebalanceStatuses);
 
   return leverageTokens.filter((_, index) => {
     const { result: tokenRebalanceStatus } = tokenRebalanceStatuses[index];
@@ -44,7 +46,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
 
   const rebalancerContract = getContract({
     address: rebalancerAddress,
-    abi: rebalancerAbi,
+    abi: RebalancerAbi,
     client: walletClient,
   });
 
@@ -65,6 +67,8 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
       console.log("Checking dutch auction rebalance eligibility of LeverageTokens...");
 
       const eligibleTokens = await getLeverageTokensByRebalanceStatus([RebalanceStatus.DUTCH_AUCTION_ELIGIBLE]);
+
+      console.log("eligibleTokens", eligibleTokens);
 
       eligibleTokens.forEach(async (leverageToken) => {
         if (!handledLeverageTokens.has(leverageToken.address)) {
