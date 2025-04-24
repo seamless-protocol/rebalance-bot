@@ -30,8 +30,6 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
     })),
   });
 
-  console.log("tokenRebalanceStatuses", tokenRebalanceStatuses);
-
   return leverageTokens.filter((_, index) => {
     const { result: tokenRebalanceStatus } = tokenRebalanceStatuses[index];
     if (tokenRebalanceStatus && rebalanceStatuses.includes(tokenRebalanceStatus as unknown as RebalanceStatus)) {
@@ -67,8 +65,6 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
       console.log("Checking dutch auction rebalance eligibility of LeverageTokens...");
 
       const eligibleTokens = await getLeverageTokensByRebalanceStatus([RebalanceStatus.DUTCH_AUCTION_ELIGIBLE]);
-
-      console.log("eligibleTokens", eligibleTokens);
 
       eligibleTokens.forEach(async (leverageToken) => {
         if (!handledLeverageTokens.has(leverageToken.address)) {
