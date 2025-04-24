@@ -1,8 +1,0 @@
-[
-  {
-    "address": "0x262C4117d1627E671DfFed6f51d9b3460f8F631A",
-    "collateralAsset": "0x4200000000000000000000000000000000000006",
-    "debtAsset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "rebalanceAdapter": "0xA38062F23cbF30680De009e59E62B62F6c95a35A"
-  }
-]
