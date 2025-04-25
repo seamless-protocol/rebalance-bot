@@ -7,7 +7,7 @@ import { WebSocketConfig } from "../types";
 export const subscribeToEventWithWebSocket = (config: WebSocketConfig) => {
   const { contractAddress, abi, eventName, onEvent } = config;
 
-  const urls = [PRIMARY_RPC_URL, FALLBACK_RPC_URL].filter(Boolean); // Only include defined RPC URLs
+  const urls = [PRIMARY_RPC_URL, FALLBACK_RPC_URL];
   let currentRpcIndex = 0;
   let ws: WebSocket;
 
