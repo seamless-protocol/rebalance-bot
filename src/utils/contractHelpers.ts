@@ -34,6 +34,40 @@ export const getLeverageTokenRebalanceAdapterContract = (leverageToken: Address)
   });
 };
 
+export const getLeverageTokenForRebalanceAdapter = (rebalanceAdapter: Address): Address => {
+  const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH);
+
+  const leverageToken = leverageTokens.find((token) => token.rebalanceAdapter === rebalanceAdapter);
+
+  if (!leverageToken) {
+    throw new Error(`No leverage token found for rebalance adapter ${rebalanceAdapter}`);
+  }
+
+  return leverageToken.address;
+};
+
+export const getLeverageTokenCollateralAsset = (leverageToken: Address): Address => {
+  const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH);
+  const token = leverageTokens.find((token) => token.address === leverageToken);
+
+  if (!token) {
+    throw new Error(`No collateral asset found for leverage token ${leverageToken}`);
+  }
+
+  return token.collateralAsset;
+};
+
+export const getLeverageTokenDebtAsset = (leverageToken: Address): Address => {
+  const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH);
+  const token = leverageTokens.find((token) => token.address === leverageToken);
+
+  if (!token) {
+    throw new Error(`No debt asset found for leverage token ${leverageToken}`);
+  }
+
+  return token.debtAsset;
+};
+
 export const getUniswapV2Router02Contract = () => {
   return getContract({
     address: CONTRACT_ADDRESSES.UNISWAP_V2_ROUTER_02,
