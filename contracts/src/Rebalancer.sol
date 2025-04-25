@@ -6,17 +6,26 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {ILeverageManager, LeverageTokenState} from "./interfaces/ILeverageManager.sol";
 import {IRebalanceAdapter} from "./interfaces/IRebalanceAdapter.sol";
-import {RebalanceStatus} from "./DataTypes.sol";
+import {RebalanceStatus, SwapData, SwapType, RebalanceType} from "./DataTypes.sol";
 import {IRebalancer} from "./interfaces/IRebalancer.sol";
 import {ISwapAdapter} from "./interfaces/ISwapAdapter.sol";
+import {ILendingAdapter} from "./interfaces/ILendingAdapter.sol";
+import {IMorpho} from "./interfaces/IMorpho.sol";
 
 contract Rebalancer is IRebalancer {
     ILeverageManager public immutable leverageManager;
     ISwapAdapter public immutable swapAdapter;
+    IMorpho public immutable morpho;
 
-    constructor(address _leverageManager, address _swapAdapter) {
+    modifier onlyMorpho() {
+        if (msg.sender != address(morpho)) revert Unauthorized();
+        _;
+    }
+
+    constructor(address _leverageManager, address _swapAdapter, address _morpho) {
         leverageManager = ILeverageManager(_leverageManager);
         swapAdapter = ISwapAdapter(_swapAdapter);
+        morpho = IMorpho(_morpho);
     }
 
     /// @inheritdoc IRebalancer
@@ -59,6 +68,56 @@ contract Rebalancer is IRebalancer {
         }
 
         emit TryCreateAuction(leverageToken, status);
+    }
+
+    /// @inheritdoc IRebalancer
+    function takeAuction(
+        address leverageToken,
+        uint256 amountToTake,
+        RebalanceType rebalanceType,
+        SwapData memory swapData
+    ) external {
+        address rebalanceAdapter = leverageManager.getLeverageTokenRebalanceAdapter(leverageToken);
+        address lendingAdapter = leverageManager.getLeverageTokenLendingAdapter(leverageToken);
+
+        address assetIn;
+        address assetOut;
+        uint256 amountIn;
+
+        {
+            address collateralAsset = ILendingAdapter(lendingAdapter).getCollateralAsset();
+            address debtAsset = ILendingAdapter(lendingAdapter).getDebtAsset();
+
+            assetIn = rebalanceType == RebalanceType.REBALANCE_DOWN ? collateralAsset : debtAsset;
+            assetOut = rebalanceType == RebalanceType.REBALANCE_DOWN ? debtAsset : collateralAsset;
+            amountIn = IRebalanceAdapter(rebalanceAdapter).getAmountIn(amountToTake);
+        }
+
+        morpho.flashLoan(assetIn, amountIn, abi.encode(assetIn, assetOut, rebalanceAdapter, amountToTake, swapData));
+    }
+
+    /// @inheritdoc IRebalancer
+    function onMorphoFlashLoan(uint256 amount, bytes calldata data) external onlyMorpho {
+        (address assetIn, address assetOut, address rebalanceAdapter, uint256 amountToTake, SwapData memory swapData) =
+            abi.decode(data, (address, address, address, uint256, SwapData));
+
+        IERC20(assetIn).approve(rebalanceAdapter, amount);
+        IRebalanceAdapter(rebalanceAdapter).take(amountToTake);
+
+        uint256 assetOutReceived = IERC20(assetOut).balanceOf(address(this));
+
+        if (swapData.swapType == SwapType.EXACT_INPUT_SWAP_ADAPTER) {
+            ISwapAdapter.SwapContext memory swapContext = abi.decode(swapData.swapParams, (ISwapAdapter.SwapContext));
+            _swapExactInputOnSwapAdapter(assetOut, assetOutReceived, 0, swapContext);
+        } else if (swapData.swapType == SwapType.EXACT_OUTPUT_SWAP_ADAPTER) {
+            ISwapAdapter.SwapContext memory swapContext = abi.decode(swapData.swapParams, (ISwapAdapter.SwapContext));
+            _swapExactOutputOnSwapAdapter(assetOut, amount, type(uint256).max, swapContext);
+        } else if (swapData.swapType == SwapType.LIFI_SWAP) {
+            (address lifiTarget, bytes memory lifiCallData) = abi.decode(swapData.swapParams, (address, bytes));
+            _swapLIFI(IERC20(assetOut), assetOutReceived, lifiTarget, lifiCallData);
+        }
+
+        IERC20(assetIn).approve(msg.sender, amount);
     }
 
     function _swapExactInputOnSwapAdapter(
