@@ -154,7 +154,7 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
 };
 
 export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
-  console.log("Listening for AuctionCreated events...");
+  console.log(`Listening for AuctionCreated events on RebalanceAdapter ${rebalanceAdapter}...`);
 
   const rpcUrl = getWebSocketUrl();
 
