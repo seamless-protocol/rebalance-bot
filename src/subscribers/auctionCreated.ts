@@ -1,12 +1,13 @@
 import { Address, decodeEventLog, Log } from "viem";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
-import { getWebSocketUrl, publicClient } from "../utils/transactionHelpers";
+import { getWebSocketUrl, publicClient, walletClient } from "../utils/transactionHelpers";
 import {
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
   getLeverageTokenForRebalanceAdapter,
   getLeverageTokenRebalanceAdapter,
+  rebalancerContract,
 } from "../utils/contractHelpers";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import leverageManagerAbi from "../../abis/LeverageManager";
@@ -18,7 +19,8 @@ import {
 import { getAmountsOutUniswapV2 } from "../services/uniswapV2";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { LeverageToken } from "../types";
+import { LeverageToken, RebalanceType, SwapType } from "../types";
+import { waitForTransactionReceipt } from "viem/_types/actions/public/waitForTransactionReceipt";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
@@ -144,8 +146,24 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
 
       console.log("Rebalance is profitable. Participating in Dutch auction...");
 
-      // TODO: Participate in Dutch auction
-      break;
+      // TODO: Put swap params from proper service
+      const tx = await rebalancerContract.write.takeAuction([
+        leverageToken,
+        takeAmount,
+        RebalanceType.REBALANCE_DOWN,
+        {
+          swapType: SwapType.EXACT_INPUT_SWAP_ADAPTER,
+          swapParams: "0x",
+        },
+      ]);
+
+      console.log(`Auction taken. Transaction hash: ${tx}`);
+
+      await waitForTransactionReceipt(walletClient, {
+        hash: tx,
+      });
+
+      console.log(`Auction taken. Transaction confirmed.`);
     }
   } catch (error) {
     console.error("Error handling auction event:", error);
