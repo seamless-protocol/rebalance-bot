@@ -7,17 +7,16 @@ import { WebSocketConfig } from "../types";
 export const subscribeToEventWithWebSocket = (config: WebSocketConfig) => {
   const { contractAddress, abi, eventName, onEvent } = config;
 
-  const urls = [PRIMARY_RPC_URL, FALLBACK_RPC_URL];
   let currentRpcIndex = 0;
-  let ws: WebSocket;
+  const urls = [PRIMARY_RPC_URL, FALLBACK_RPC_URL];
 
   const connect = (): WebSocket => {
     const url = urls[currentRpcIndex];
+    const ws = new WebSocket(url);
 
     const rpcName = currentRpcIndex == 0 ? "primary" : "fallback";
 
     console.log(`Connecting to ${rpcName} RPC WebSocket for ${eventName}`);
-    ws = new WebSocket(url);
 
     const encodedTopics = encodeEventTopics({ abi, eventName });
 
