@@ -1,7 +1,7 @@
 import { Address, decodeEventLog, Log } from "viem";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
-import { getWebSocketUrl, publicClient, walletClient } from "../utils/transactionHelpers";
+import { getWebSocketUrl, publicClient } from "../utils/transactionHelpers";
 import {
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
@@ -20,7 +20,6 @@ import { getAmountsOutUniswapV2 } from "../services/uniswapV2";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { LeverageToken, RebalanceType, SwapType } from "../types";
-import { waitForTransactionReceipt } from "viem/_types/actions/public/waitForTransactionReceipt";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
@@ -159,7 +158,7 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
 
       console.log(`Auction taken. Transaction hash: ${tx}`);
 
-      await waitForTransactionReceipt(walletClient, {
+      await publicClient.waitForTransactionReceipt({
         hash: tx,
       });
 
