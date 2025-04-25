@@ -16,6 +16,9 @@ import {
   DEFAULT_DUTCH_AUCTION_STEP_COUNT,
 } from "../constants/values";
 import { getAmountsOutUniswapV2 } from "../services/uniswapV2";
+import { readJsonArrayFromFile } from "../utils/fileHelpers";
+import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { LeverageToken } from "../types";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
@@ -150,7 +153,7 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
   }
 };
 
-const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
+export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
   console.log("Listening for AuctionCreated events...");
 
   const rpcUrl = getWebSocketUrl();
@@ -172,4 +175,10 @@ const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
   });
 };
 
-export default subscribeToAuctionCreated;
+export const subscribeToAllAuctionCreatedEvents = () => {
+  const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH) as LeverageToken[];
+  leverageTokens.forEach((leverageToken) => {
+    const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken.address);
+    subscribeToAuctionCreated(rebalanceAdapter);
+  });
+};
