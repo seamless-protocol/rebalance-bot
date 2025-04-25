@@ -1,4 +1,4 @@
-import { Address, decodeEventLog, Log, parseEther } from "viem";
+import { Address, decodeEventLog, Log } from "viem";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
 import { getWebSocketUrl, publicClient } from "../utils/transactionHelpers";
@@ -10,8 +10,12 @@ import {
 } from "../utils/contractHelpers";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import leverageManagerAbi from "../../abis/LeverageManager";
+import {
+  BASE_RATIO,
+  DEFAULT_DUTCH_AUCTION_POLLING_INTERVAL,
+  DEFAULT_DUTCH_AUCTION_STEP_COUNT,
+} from "../constants/values";
 import { getAmountsOutUniswapV2 } from "../services/uniswapV2";
-import { DUTCH_AUCTION_POLLING_INTERVAL, DUTCH_AUCTION_STEP_COUNT } from "../constants/values";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
@@ -76,7 +80,7 @@ const checkIsRebalanceProfitable = async (
   return BigInt(amountOut) >= requiredAmountIn;
 };
 
-const handleAuctionCreateEvent = async (rebalanceAdapter: Address, event: Log) => {
+const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) => {
   try {
     const decodedEvent = decodeEventLog({
       abi: RebalanceAdapterAbi,
@@ -105,17 +109,16 @@ const handleAuctionCreateEvent = async (rebalanceAdapter: Address, event: Log) =
 
     const isOverCollateralized = currentRatio > targetRatio;
 
-    console.log(`Strategy is over-collateralized? -${isOverCollateralized}`);
+    console.log(`Strategy is ${isOverCollateralized ? "over" : "under"}-collateralized?`);
 
     const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
     const debtAsset = getLeverageTokenDebtAsset(leverageToken);
 
-    const baseRatio = parseEther("1");
-
+    const baseRatio = BASE_RATIO;
     const targetCollateral = (equity * targetRatio) / baseRatio;
     const targetDebt = (equity * (targetRatio - baseRatio)) / baseRatio;
 
-    // Calculate what is max about to take to bring LT to target debt or target collateral
+    // Calculate what is max amount to take to bring LT to target debt or target collateral
     // If strategy is over-collateralized we are adding collateral and borrowing debt
     // If strategy is under-collateralized we are repaying debt and removing collateral
     const assetIn = isOverCollateralized ? collateralAsset : debtAsset;
@@ -123,10 +126,11 @@ const handleAuctionCreateEvent = async (rebalanceAdapter: Address, event: Log) =
     const maxAmountToTake = isOverCollateralized ? targetDebt - debt : targetCollateral - collateral;
 
     // Calculate for how much will amount to take decrease per step so we can check profitability with smaller slippage
-    const decreasePerStep = maxAmountToTake / BigInt(DUTCH_AUCTION_STEP_COUNT);
+    const stepCount = Number(process.env.DUTCH_AUCTION_STEP_COUNT) || DEFAULT_DUTCH_AUCTION_STEP_COUNT;
+    const decreasePerStep = maxAmountToTake / BigInt(stepCount);
 
     // TODO: Instead of for loop maybe put this in big multicall
-    for (let i = 0; i <= DUTCH_AUCTION_STEP_COUNT; i++) {
+    for (let i = 0; i <= stepCount; i++) {
       const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
 
       const isRebalanceProfitable = await checkIsRebalanceProfitable(leverageToken, assetIn, assetOut, takeAmount);
@@ -156,10 +160,13 @@ const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
     abi: RebalanceAdapterAbi,
     eventName: "AuctionCreated",
     onEvent: (event: Log) => {
+      const pollingInterval =
+        Number(process.env.DUTCH_AUCTION_POLLING_INTERVAL) || DEFAULT_DUTCH_AUCTION_POLLING_INTERVAL;
+
       // TODO: Store this interval and close it when LT is no longer eligible for rebalance
       setInterval(async () => {
-        await handleAuctionCreateEvent(rebalanceAdapter, event);
-      }, DUTCH_AUCTION_POLLING_INTERVAL);
+        await handleAuctionCreatedEvent(rebalanceAdapter, event);
+      }, pollingInterval);
     },
     rpcUrl,
   });
