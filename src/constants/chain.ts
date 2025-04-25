@@ -10,5 +10,6 @@ export const REBALANCE_ELIGIBILITY_POLL_INTERVAL = parseInt(
   process.env.BASE_REBALANCE_ELIGIBILITY_POLL_INTERVAL || "90000", // 90 seconds default
   10
 );
-export const RPC_URL = process.env.BASE_RPC_URL || "";
+export const PRIMARY_RPC_URL = process.env.BASE_PRIMARY_RPC_URL || "";
+export const FALLBACK_RPC_URL = process.env.BASE_FALLBACK_RPC_URL || "";
 export const VIEM_CHAIN = base;
