@@ -12,6 +12,11 @@ export const RebalancerAbi = [
         type: "address",
         internalType: "address",
       },
+      {
+        name: "_morpho",
+        type: "address",
+        internalType: "address",
+      },
     ],
     stateMutability: "nonpayable",
   },
@@ -49,6 +54,37 @@ export const RebalancerAbi = [
   },
   {
     type: "function",
+    name: "morpho",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "contract IMorpho",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "onMorphoFlashLoan",
+    inputs: [
+      {
+        name: "amount",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "data",
+        type: "bytes",
+        internalType: "bytes",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "swapAdapter",
     inputs: [],
     outputs: [
@@ -59,6 +95,46 @@ export const RebalancerAbi = [
       },
     ],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "takeAuction",
+    inputs: [
+      {
+        name: "leverageToken",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "amountToTake",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "rebalanceType",
+        type: "uint8",
+        internalType: "enum RebalanceType",
+      },
+      {
+        name: "swapData",
+        type: "tuple",
+        internalType: "struct SwapData",
+        components: [
+          {
+            name: "swapType",
+            type: "uint8",
+            internalType: "enum SwapType",
+          },
+          {
+            name: "swapParams",
+            type: "bytes",
+            internalType: "bytes",
+          },
+        ],
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
     type: "function",
@@ -95,6 +171,22 @@ export const RebalancerAbi = [
   {
     type: "error",
     name: "LIFISwapFailed",
+    inputs: [],
+  },
+  {
+    type: "error",
+    name: "SafeERC20FailedOperation",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+  },
+  {
+    type: "error",
+    name: "Unauthorized",
     inputs: [],
   },
 ] as const;

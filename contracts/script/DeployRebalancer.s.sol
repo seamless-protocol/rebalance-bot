@@ -9,6 +9,7 @@ import {Rebalancer} from "src/Rebalancer.sol";
 contract DeployRebalancer is Script {
     address public constant LEVERAGE_MANAGER = 0x0000000000000000000000000000000000000000;
     address public constant SWAP_ADAPTER = 0x0000000000000000000000000000000000000000;
+    address public constant MORPHO = 0x0000000000000000000000000000000000000000;
 
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -24,7 +25,7 @@ contract DeployRebalancer is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         // Deploying stateless contract
-        Rebalancer rebalancer = new Rebalancer(LEVERAGE_MANAGER, SWAP_ADAPTER);
+        Rebalancer rebalancer = new Rebalancer(LEVERAGE_MANAGER, SWAP_ADAPTER, MORPHO);
         console.log("Rebalancer deployed to:", address(rebalancer));
 
         vm.stopBroadcast();

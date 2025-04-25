@@ -7,7 +7,7 @@ import { LeverageToken } from "../types";
 import { appendObjectToJsonFile } from "../utils/fileHelpers";
 import { getWebSocketUrl } from "../utils/transactionHelpers";
 import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
-import subscribeToAuctionCreated from "./auctionCreated";
+import { subscribeToAuctionCreated } from "./auctionCreated";
 
 const subscribeToLeverageTokenCreated = () => {
   console.log("Listening for LeverageTokenCreated events...");
