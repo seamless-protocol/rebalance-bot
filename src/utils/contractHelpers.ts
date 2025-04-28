@@ -1,4 +1,4 @@
-import { Address, Log, getContract } from "viem";
+import { Abi, AbiEvent, Address, Log, getAbiItem, getContract } from "viem";
 import { publicClient, walletClient } from "./transactionHelpers";
 
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
@@ -17,12 +17,15 @@ export const getHistoricalLogs = async ({
   toBlock,
 }: {
   contractAddress: Address;
-  abi: any;
+  abi: Abi;
   eventName: string;
   fromBlock: number;
   toBlock?: number;
 }): Promise<Log[]> => {
-  const event = abi.find((x: any) => x.name === eventName);
+  const event = getAbiItem({
+    abi,
+    name: eventName,
+  }) as AbiEvent;
 
   if (!event) {
     throw new Error(`Event ${eventName} not found in ABI`);
