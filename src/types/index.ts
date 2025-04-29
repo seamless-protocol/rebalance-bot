@@ -8,6 +8,17 @@ export enum RebalanceStatus {
   PRE_LIQUIDATION_ELIGIBLE = 2,
 }
 
+export enum SwapType {
+  EXACT_INPUT_SWAP_ADAPTER = 0,
+  EXACT_OUTPUT_SWAP_ADAPTER = 1,
+  LIFI_SWAP = 2,
+}
+
+export enum RebalanceType {
+  REBALANCE_DOWN = 0,
+  REBALANCE_UP = 1,
+}
+
 export interface Chain {
   chainId: number;
   leverageTokensFilePath: string;

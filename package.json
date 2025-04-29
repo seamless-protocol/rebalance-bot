@@ -14,7 +14,8 @@
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "backfill:leverage-tokens": "tsx src/backfill/backfillLeverageTokenCreated.ts"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

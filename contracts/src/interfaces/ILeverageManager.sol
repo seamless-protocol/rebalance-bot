@@ -6,5 +6,7 @@ import {LeverageTokenState} from "src/DataTypes.sol";
 interface ILeverageManager {
     function getLeverageTokenRebalanceAdapter(address token) external view returns (address);
 
+    function getLeverageTokenLendingAdapter(address token) external view returns (address);
+
     function getLeverageTokenState(address token) external view returns (LeverageTokenState memory state);
 }
