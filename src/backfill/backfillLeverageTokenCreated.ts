@@ -12,8 +12,9 @@ import { getHistoricalLogs } from "@/utils/contractHelpers";
  * @param fromBlock The block to start backfilling from
  * @param toBlock The block to stop backfilling at. If not provided, the latest block will be used.
  */
-export const backfillLeverageTokens = async (fromBlock: number, toBlock: number) => {
-  console.log(`Backfilling LeverageTokens from block ${fromBlock} to block ${toBlock}`);
+export const backfillLeverageTokens = async (fromBlock: number, toBlock?: number) => {
+  const toBlockString = toBlock !== undefined ? toBlock.toString() : "latest";
+  console.log(`Backfilling LeverageTokens from block ${fromBlock} to block ${toBlockString}`);
 
   const leverageTokenCreatedLogs = await getHistoricalLogs({
     contractAddress: CONTRACT_ADDRESSES.LEVERAGE_MANAGER,
@@ -43,13 +44,13 @@ export const backfillLeverageTokens = async (fromBlock: number, toBlock: number)
     appendObjectToJsonFile(LEVERAGE_TOKENS_FILE_PATH, leverageToken);
   });
 
-  console.log(`Backfilling of LeverageTokens from block ${fromBlock} to block ${toBlock} complete`);
+  console.log(`Backfilling of LeverageTokens from block ${fromBlock} to block ${toBlockString} complete`);
 
   process.exit(0);
 };
 
 // Get args from command line
 const fromBlock = parseInt(process.argv[2], 10);
-const toBlock = parseInt(process.argv[3], 10);
+const toBlock = process.argv[3] ? parseInt(process.argv[3], 10) : undefined;
 
 backfillLeverageTokens(fromBlock, toBlock);

@@ -35,10 +35,12 @@ export const getHistoricalLogs = async ({
     address: contractAddress,
     event,
     fromBlock: BigInt(fromBlock),
-    toBlock: toBlock ? BigInt(toBlock) : undefined,
+    toBlock: toBlock !== undefined ? BigInt(toBlock) : undefined,
   });
 
-  console.log(`Found ${logs.length} logs for event ${eventName} from block ${fromBlock} to block ${toBlock}`);
+  console.log(
+    `Found ${logs.length} logs for event ${eventName} from block ${fromBlock} to block ${toBlock !== undefined ? toBlock : "latest"}`
+  );
 
   return logs;
 };
