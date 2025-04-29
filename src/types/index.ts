@@ -62,5 +62,4 @@ export interface WebSocketConfig {
   abi: Abi;
   eventName: string;
   onEvent: (event: Log) => void;
-  rpcUrl: string;
 }

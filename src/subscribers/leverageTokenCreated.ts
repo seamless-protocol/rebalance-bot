@@ -5,7 +5,6 @@ import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import LeverageManagerAbi from "../../abis/LeverageManager";
 import { LeverageToken } from "../types";
 import { appendObjectToJsonFile } from "../utils/fileHelpers";
-import { getWebSocketUrl } from "../utils/transactionHelpers";
 import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
 import { subscribeToAuctionCreated } from "./auctionCreated";
 
@@ -13,7 +12,6 @@ const subscribeToLeverageTokenCreated = () => {
   console.log("Listening for LeverageTokenCreated events...");
 
   const leverageManagerAddress = CONTRACT_ADDRESSES.LEVERAGE_MANAGER;
-  const rpcUrl = getWebSocketUrl();
 
   subscribeToEventWithWebSocket({
     contractAddress: leverageManagerAddress,
@@ -22,7 +20,6 @@ const subscribeToLeverageTokenCreated = () => {
     onEvent: (event: Log) => {
       handleLeverageTokenCreatedEvent(event);
     },
-    rpcUrl,
   });
 };
 

@@ -1,59 +1,77 @@
+import { FALLBACK_RPC_URL, PRIMARY_RPC_URL } from "../constants/chain";
 import { Log, encodeEventTopics } from "viem";
 
 import WebSocket from "ws";
 import { WebSocketConfig } from "../types";
 
 export const subscribeToEventWithWebSocket = (config: WebSocketConfig) => {
-  const { contractAddress, abi, eventName, onEvent, rpcUrl } = config;
-  const ws = new WebSocket(rpcUrl);
+  const { contractAddress, abi, eventName, onEvent } = config;
 
-  const encodedTopics = encodeEventTopics({
-    abi,
-    eventName,
-  });
+  let currentRpcIndex = 0;
+  const urls = [PRIMARY_RPC_URL, FALLBACK_RPC_URL];
 
-  ws.on("open", () => {
-    console.log(`WebSocket connection established for ${eventName}`);
+  const connect = (): WebSocket => {
+    const url = urls[currentRpcIndex];
+    const ws = new WebSocket(url);
 
-    const subscriptionRequest = {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "eth_subscribe",
-      params: [
-        "logs",
-        {
-          address: contractAddress,
-          topics: encodedTopics,
-        },
-      ],
-    };
+    const rpcName = currentRpcIndex == 0 ? "primary" : "fallback";
 
-    ws.send(JSON.stringify(subscriptionRequest));
-  });
+    console.log(`Connecting to ${rpcName} RPC WebSocket for ${eventName}`);
 
-  ws.on("message", (data: string) => {
-    let msg;
-    try {
-      msg = JSON.parse(data);
-    } catch (err) {
-      console.error(`Failed to parse WebSocket message for ${eventName}:`, data);
-      return;
-    }
+    const encodedTopics = encodeEventTopics({ abi, eventName });
 
-    if (msg.method === "eth_subscription" && msg.params?.result) {
-      const eventLog = msg.params.result as Log;
-      console.log(`Raw event log received for ${eventName}:`, eventLog);
-      onEvent(eventLog);
-    }
-  });
+    ws.on("open", () => {
+      console.log(`WebSocket connection established for ${eventName} on ${rpcName} RPC`);
 
-  ws.on("error", (error) => {
-    console.error(`WebSocket error for ${eventName}:`, error);
-  });
+      const subscriptionRequest = {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "eth_subscribe",
+        params: [
+          "logs",
+          {
+            address: contractAddress,
+            topics: encodedTopics,
+          },
+        ],
+      };
 
-  ws.on("close", () => {
-    console.log(`WebSocket connection closed for ${eventName}`);
-  });
+      ws.send(JSON.stringify(subscriptionRequest));
+    });
 
-  return ws;
+    ws.on("message", (data: string) => {
+      let msg;
+      try {
+        msg = JSON.parse(data);
+      } catch (err) {
+        console.error(`Failed to parse WebSocket message for ${eventName}:`, data);
+        return;
+      }
+
+      if (msg.method === "eth_subscription" && msg.params?.result) {
+        const eventLog = msg.params.result as Log;
+        console.log(`Raw event log received for ${eventName}:`, eventLog);
+        onEvent(eventLog);
+      }
+    });
+
+    ws.on("error", (error) => {
+      console.error(`WebSocket error for ${eventName} on ${rpcName} RPC:`, error);
+      // If a fallback URL is available, try connecting to it
+      if (currentRpcIndex + 1 < urls.length) {
+        console.log(`Attempting fallback connection for ${eventName}`);
+        ws.close();
+        currentRpcIndex += 1;
+        connect();
+      }
+    });
+
+    ws.on("close", () => {
+      console.log(`WebSocket connection closed for ${eventName} on ${rpcName} RPC`);
+    });
+
+    return ws;
+  };
+
+  return connect();
 };
