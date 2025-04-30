@@ -1,7 +1,10 @@
-import { Address, decodeEventLog, Log } from "viem";
-import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
-import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
-import { getWebSocketUrl, publicClient } from "../utils/transactionHelpers";
+import { Address, Log, decodeEventLog } from "viem";
+import {
+  BASE_RATIO,
+  DEFAULT_DUTCH_AUCTION_POLLING_INTERVAL,
+  DEFAULT_DUTCH_AUCTION_STEP_COUNT,
+} from "../constants/values";
+import { LeverageToken, RebalanceType, SwapType } from "../types";
 import {
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
@@ -9,17 +12,16 @@ import {
   getLeverageTokenRebalanceAdapter,
   rebalancerContract,
 } from "../utils/contractHelpers";
+
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
-import leverageManagerAbi from "../../abis/LeverageManager";
-import {
-  BASE_RATIO,
-  DEFAULT_DUTCH_AUCTION_POLLING_INTERVAL,
-  DEFAULT_DUTCH_AUCTION_STEP_COUNT,
-} from "../constants/values";
-import { getAmountsOutUniswapV2 } from "../services/uniswapV2";
-import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { LeverageToken, RebalanceType, SwapType } from "../types";
+import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
+import { getAmountsOutUniswapV2 } from "../services/uniswapV2";
+import leverageManagerAbi from "../../abis/LeverageManager";
+import { notifySlackChannel } from "../utils/alerts";
+import { publicClient } from "../utils/transactionHelpers";
+import { readJsonArrayFromFile } from "../utils/fileHelpers";
+import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
@@ -158,11 +160,16 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
 
       console.log(`Auction taken. Transaction hash: ${tx}`);
 
-      await publicClient.waitForTransactionReceipt({
+      const receipt = await publicClient.waitForTransactionReceipt({
         hash: tx,
       });
+      const message =
+        receipt.status === "success"
+          ? `Rebalance auction taken successfully for LeverageToken: ${leverageToken}. Transaction hash: ${tx}`
+          : `Rebalance auction taken but transaction failed for LeverageToken: ${leverageToken}. Transaction hash: ${tx}`;
 
-      console.log(`Auction taken. Transaction confirmed.`);
+      console.log(message);
+      await notifySlackChannel(message);
     }
   } catch (error) {
     console.error("Error handling auction event:", error);
@@ -172,8 +179,6 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
 
 export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
   console.log(`Listening for AuctionCreated events on RebalanceAdapter ${rebalanceAdapter}...`);
-
-  const rpcUrl = getWebSocketUrl();
 
   subscribeToEventWithWebSocket({
     contractAddress: rebalanceAdapter,
@@ -188,7 +193,6 @@ export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
         await handleAuctionCreatedEvent(rebalanceAdapter, event);
       }, pollingInterval);
     },
-    rpcUrl,
   });
 };
 

@@ -1,11 +1,12 @@
 import { LeverageToken, RebalanceStatus } from "../types";
+import { publicClient, walletClient } from "../utils/transactionHelpers";
 
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { publicClient, walletClient } from "../utils/transactionHelpers";
-import { readJsonArrayFromFile } from "../utils/fileHelpers";
-import { getContract } from "viem";
 import { RebalancerAbi } from "../../abis/Rebalancer";
+import { getContract } from "viem";
+import { notifySlackChannel } from "../utils/alerts";
+import { readJsonArrayFromFile } from "../utils/fileHelpers";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
@@ -52,11 +53,17 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
 
   console.log(`TryCreateAuction for ${leverageToken.address}:`, tx);
 
-  await publicClient.waitForTransactionReceipt({
+  const receipt = await publicClient.waitForTransactionReceipt({
     hash: tx,
   });
 
-  console.log(`TryCreateAuction successful for LeverageToken ${leverageToken.address}`);
+  const message =
+    receipt.status === "success"
+      ? `TryCreateAuction successful for LeverageToken ${leverageToken.address}. Transaction hash: ${tx}`
+      : `TryCreateAuction failed for LeverageToken ${leverageToken.address}. Transaction hash: ${tx}`;
+
+  console.log(message);
+  await notifySlackChannel(message);
 };
 
 const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
