@@ -1,6 +1,6 @@
 import { Address } from "viem";
-import { UniswapV2GetAmountsOutArgs } from "../types";
-import { getUniswapV2Router02Contract } from "../utils/contractHelpers";
+import { UniswapV2GetAmountsOutArgs } from "../../types";
+import { getUniswapV2Router02Contract } from "../../utils/contractHelpers";
 
 export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) => {
   try {
@@ -21,11 +21,11 @@ export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) =
     // For a 2-token path, amountsOut = [amountIn, amountOut]
     const outputAmountRaw = amountsOut[1];
 
-    console.log(`Uniswap V2 getAmountsOut quote:
-      From: ${inputTokenAddress}
-      To: ${outputTokenAddress}
-      Amount Out: ${outputAmountRaw.toString()}
-    `);
+    // console.log(`Uniswap V2 getAmountsOut quote:
+    //   From: ${inputTokenAddress}
+    //   To: ${outputTokenAddress}
+    //   Amount Out: ${outputAmountRaw.toString()}
+    // `);
 
     return outputAmountRaw.toString();
   } catch (error) {

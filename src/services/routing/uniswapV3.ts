@@ -1,8 +1,7 @@
 import { AlphaRouter, SwapOptions, SwapRoute, SwapType } from "@uniswap/smart-order-router";
 import { ChainId, CurrencyAmount, Token, TradeType } from "@uniswap/sdk-core";
-
-import { UniswapV3QuoteExactInputArgs } from "../types";
-import { ethersProvider } from "../utils/transactionHelpers";
+import { UniswapV3QuoteExactInputArgs } from "../../types";
+import { ethersProvider } from "../../utils/transactionHelpers";
 
 export const getRouteUniswapV3ExactInput = async (args: UniswapV3QuoteExactInputArgs): Promise<SwapRoute | null> => {
   const {

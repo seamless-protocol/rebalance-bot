@@ -1,7 +1,7 @@
-import { Address, decodeEventLog, Log } from "viem";
+import { Address, decodeEventLog, encodeAbiParameters, Log } from "viem";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
-import { getWebSocketUrl, publicClient } from "../utils/transactionHelpers";
+import { publicClient } from "../utils/transactionHelpers";
 import {
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
@@ -16,10 +16,12 @@ import {
   DEFAULT_DUTCH_AUCTION_POLLING_INTERVAL,
   DEFAULT_DUTCH_AUCTION_STEP_COUNT,
 } from "../constants/values";
-import { getAmountsOutUniswapV2 } from "../services/uniswapV2";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { LeverageToken, RebalanceType, SwapType } from "../types";
+import { getRebalanceSwapParams, getSwapRoute } from "../services/routing/getSwapParams";
+import { AbiCoder } from "ethers/lib/utils";
+import { SwapContext } from "../types";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
@@ -56,32 +58,6 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAd
     targetRatio: targetRatioResponse.result,
     isAuctionValid: isAuctionValidResponse.result,
   };
-};
-
-const checkIsRebalanceProfitable = async (
-  leverageToken: Address,
-  assetIn: Address,
-  assetOut: Address,
-  takeAmount: bigint
-) => {
-  console.log(`Checking rebalance profitability for leverageToken: ${leverageToken} and takeAmount: ${takeAmount}`);
-
-  const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken);
-
-  const requiredAmountIn = await publicClient.readContract({
-    address: rebalanceAdapter,
-    abi: RebalanceAdapterAbi,
-    functionName: "getAmountIn",
-    args: [takeAmount],
-  });
-
-  const amountOut = await getAmountsOutUniswapV2({
-    inputTokenAddress: assetOut,
-    outputTokenAddress: assetIn,
-    amountInRaw: takeAmount.toString(),
-  });
-
-  return BigInt(amountOut) >= requiredAmountIn;
 };
 
 const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) => {
@@ -137,8 +113,14 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
     for (let i = 0; i <= stepCount; i++) {
       const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
 
-      const isRebalanceProfitable = await checkIsRebalanceProfitable(leverageToken, assetIn, assetOut, takeAmount);
-      if (!isRebalanceProfitable) {
+      const { isProfitable, swapType, swapContext } = await getRebalanceSwapParams({
+        leverageToken,
+        assetIn,
+        assetOut,
+        takeAmount,
+      });
+
+      if (!isProfitable) {
         console.log("Rebalance is not profitable. Skipping...");
         continue;
       }
@@ -151,8 +133,8 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
         takeAmount,
         RebalanceType.REBALANCE_DOWN,
         {
-          swapType: SwapType.EXACT_INPUT_SWAP_ADAPTER,
-          swapParams: "0x",
+          swapType,
+          swapContext,
         },
       ]);
 
@@ -163,6 +145,8 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
       });
 
       console.log(`Auction taken. Transaction confirmed.`);
+
+      break;
     }
   } catch (error) {
     console.error("Error handling auction event:", error);
@@ -172,8 +156,6 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
 
 export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
   console.log(`Listening for AuctionCreated events on RebalanceAdapter ${rebalanceAdapter}...`);
-
-  const rpcUrl = getWebSocketUrl();
 
   subscribeToEventWithWebSocket({
     contractAddress: rebalanceAdapter,
@@ -188,7 +170,6 @@ export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
         await handleAuctionCreatedEvent(rebalanceAdapter, event);
       }, pollingInterval);
     },
-    rpcUrl,
   });
 };
 
