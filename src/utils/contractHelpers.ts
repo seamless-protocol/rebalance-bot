@@ -1,6 +1,5 @@
 import { Abi, AbiEvent, Address, Log, getAbiItem, getContract } from "viem";
 import { publicClient, walletClient } from "./transactionHelpers";
-
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import leverageManagerAbi from "../../abis/LeverageManager";

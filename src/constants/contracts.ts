@@ -15,6 +15,6 @@ export const EXCHANGE_ADDRESSES: ExchangeAddresses = {
   aerodromeRouter: zeroAddress,
   aerodromePoolFactory: zeroAddress,
   aerodromeSlipstreamRouter: zeroAddress,
-  uniswapSwapRouter02: (process.env.UNISWAP_V2_ROUTER_02 as Address) || zeroAddress,
+  uniswapSwapRouter02: (process.env.UNISWAP_SWAP_ROUTER_02 as Address) || zeroAddress,
   uniswapV2Router02: (process.env.UNISWAP_V2_ROUTER_02 as Address) || zeroAddress,
 };
