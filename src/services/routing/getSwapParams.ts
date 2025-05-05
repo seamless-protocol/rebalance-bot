@@ -1,4 +1,6 @@
-import { Address, encodeAbiParameters } from "viem";
+import { Address } from "viem";
+import RebalanceAdapterAbi from "../../../abis/RebalanceAdapter";
+import { EXCHANGE_ADDRESSES } from "../../constants/contracts";
 import {
   Exchange,
   GetRebalanceSwapParamsInput,
@@ -6,11 +8,9 @@ import {
   SwapContext,
   SwapType,
 } from "../../types";
-import { getAmountsOutUniswapV2 } from "./uniswapV2";
-import RebalanceAdapterAbi from "../../../abis/RebalanceAdapter";
-import { publicClient } from "../../utils/transactionHelpers";
 import { getLeverageTokenRebalanceAdapter } from "../../utils/contractHelpers";
-import { EXCHANGE_ADDRESSES } from "../../constants/contracts";
+import { publicClient } from "../../utils/transactionHelpers";
+import { getAmountsOutUniswapV2 } from "./uniswapV2";
 
 export const getRebalanceSwapParams = async (
   input: GetRebalanceSwapParamsInput
@@ -32,14 +32,6 @@ export const getRebalanceSwapParams = async (
       amountInRaw: takeAmount.toString(),
     })
   );
-
-  console.log("assetIn", assetIn);
-  console.log("assetOut", assetOut);
-
-  console.log("takeAmount", takeAmount);
-
-  console.log("amountOutUniswapV2", amountOutUniswapV2);
-  console.log("requiredAmountIn", requiredAmountIn);
 
   return {
     isProfitable: amountOutUniswapV2 >= requiredAmountIn,

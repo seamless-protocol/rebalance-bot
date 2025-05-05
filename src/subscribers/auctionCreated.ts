@@ -1,7 +1,15 @@
-import { Address, decodeEventLog, encodeAbiParameters, Log } from "viem";
+import { Address, decodeEventLog, Log } from "viem";
+import leverageManagerAbi from "../../abis/LeverageManager";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
-import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
-import { publicClient } from "../utils/transactionHelpers";
+import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import {
+  BASE_RATIO,
+  DEFAULT_DUTCH_AUCTION_POLLING_INTERVAL,
+  DEFAULT_DUTCH_AUCTION_STEP_COUNT,
+} from "../constants/values";
+import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
+import { LeverageToken, RebalanceType } from "../types";
 import {
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
@@ -9,19 +17,9 @@ import {
   getLeverageTokenRebalanceAdapter,
   rebalancerContract,
 } from "../utils/contractHelpers";
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
-import leverageManagerAbi from "../../abis/LeverageManager";
-import {
-  BASE_RATIO,
-  DEFAULT_DUTCH_AUCTION_POLLING_INTERVAL,
-  DEFAULT_DUTCH_AUCTION_STEP_COUNT,
-} from "../constants/values";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { LeverageToken, RebalanceType, SwapType } from "../types";
-import { getRebalanceSwapParams, getSwapRoute } from "../services/routing/getSwapParams";
-import { AbiCoder } from "ethers/lib/utils";
-import { SwapContext } from "../types";
+import { publicClient } from "../utils/transactionHelpers";
+import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
