@@ -19,6 +19,13 @@ export enum RebalanceType {
   REBALANCE_UP = 1,
 }
 
+export enum Exchange {
+  AERODROME = 0,
+  AERODROME_SLIPSTREAM = 1,
+  UNISWAP_V2 = 2,
+  UNISWAP_V3 = 3,
+}
+
 export interface Chain {
   chainId: number;
   leverageTokensFilePath: string;
@@ -62,4 +69,34 @@ export interface WebSocketConfig {
   abi: Abi;
   eventName: string;
   onEvent: (event: Log) => void;
+}
+
+export interface ExchangeAddresses {
+  aerodromeRouter: Address;
+  aerodromePoolFactory: Address;
+  aerodromeSlipstreamRouter: Address;
+  uniswapSwapRouter02: Address;
+  uniswapV2Router02: Address;
+}
+
+export interface SwapContext {
+  path: Address[];
+  encodedPath: `0x${string}`;
+  fees: number[];
+  tickSpacing: number[];
+  exchange: Exchange;
+  exchangeAddresses: ExchangeAddresses;
+}
+
+export interface GetRebalanceSwapParamsInput {
+  leverageToken: Address;
+  assetIn: Address;
+  assetOut: Address;
+  takeAmount: bigint;
+}
+
+export interface GetRebalanceSwapParamsOutput {
+  isProfitable: boolean;
+  swapType: SwapType;
+  swapContext: SwapContext;
 }
