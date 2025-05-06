@@ -1,6 +1,7 @@
 import { ChainId, CurrencyAmount, Percent, Token, TradeType } from "@uniswap/sdk-core";
 import { AlphaRouter, RouteWithValidQuote, SwapOptions, SwapType } from "@uniswap/smart-order-router";
-import { Address, erc20Abi, zeroAddress } from "viem";
+import { Address, erc20Abi } from "viem";
+import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { UniswapV3QuoteExactInputArgs } from "../../types";
 import { ethersProvider, publicClient } from "../../utils/transactionHelpers";
 
@@ -35,7 +36,7 @@ export const getRouteUniswapV3ExactInput = async (
 
   const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);
   const options: SwapOptions = {
-    recipient: zeroAddress,
+    recipient: CONTRACT_ADDRESSES.REBALANCER,
     slippageTolerance: new Percent(100),
     deadline: Number.MAX_SAFE_INTEGER,
     type: SwapType.SWAP_ROUTER_02,
