@@ -20,8 +20,6 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
     return [];
   }
 
-  console.log(leverageTokens);
-
   // Get rebalance status for all LeverageTokens
   const tokenRebalanceStatuses = await publicClient.multicall({
     contracts: leverageTokens.map((token) => ({
@@ -31,8 +29,6 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
       args: [token.address],
     })),
   });
-
-  console.log(tokenRebalanceStatuses);
 
   return leverageTokens.filter((_, index) => {
     const { result: tokenRebalanceStatus } = tokenRebalanceStatuses[index];
@@ -69,8 +65,6 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
       console.log("Checking dutch auction rebalance eligibility of LeverageTokens...");
 
       const eligibleTokens = await getLeverageTokensByRebalanceStatus([RebalanceStatus.DUTCH_AUCTION_ELIGIBLE]);
-
-      console.log(eligibleTokens);
 
       eligibleTokens.forEach(async (leverageToken) => {
         if (!handledLeverageTokens.has(leverageToken.address)) {
