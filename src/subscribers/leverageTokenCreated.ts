@@ -1,5 +1,4 @@
 import { Log, decodeEventLog } from "viem";
-
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import LeverageManagerAbi from "../../abis/LeverageManager";

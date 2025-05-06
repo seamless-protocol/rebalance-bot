@@ -1,7 +1,5 @@
 import { Abi, Address, Log, Chain as ViemChain } from "viem";
 
-import { Percent } from "@uniswap/sdk-core";
-
 export enum RebalanceStatus {
   NOT_ELIGIBLE = 0,
   DUTCH_AUCTION_ELIGIBLE = 1,
@@ -55,13 +53,8 @@ export interface UniswapV2GetAmountsOutArgs {
 
 export interface UniswapV3QuoteExactInputArgs {
   tokenInAddress: Address;
-  tokenInDecimals: number;
   tokenOutAddress: Address;
-  tokenOutDecimals: number;
   amountInRaw: string;
-  slippageTolerance: Percent;
-  deadline: number;
-  recipient: Address;
 }
 
 export interface WebSocketConfig {

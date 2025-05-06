@@ -110,7 +110,6 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
     // TODO: Instead of for loop maybe put this in big multicall
     for (let i = 0; i <= stepCount; i++) {
       const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
-
       const { isProfitable, swapType, swapContext } = await getRebalanceSwapParams({
         leverageToken,
         assetIn,
