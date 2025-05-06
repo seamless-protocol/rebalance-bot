@@ -10,9 +10,16 @@ struct LeverageTokenState {
     uint256 collateralRatio;
 }
 
+struct LIFISwap {
+    address to;
+    bytes data;
+    uint256 value;
+}
+
 struct SwapData {
     SwapType swapType;
     ISwapAdapter.SwapContext swapContext;
+    LIFISwap lifiSwap;
 }
 
 enum RebalanceStatus {

@@ -189,6 +189,28 @@ export const RebalancerAbi = [
               },
             ],
           },
+          {
+            name: "lifiSwap",
+            type: "tuple",
+            internalType: "struct LIFISwap",
+            components: [
+              {
+                name: "to",
+                type: "address",
+                internalType: "address",
+              },
+              {
+                name: "data",
+                type: "bytes",
+                internalType: "bytes",
+              },
+              {
+                name: "value",
+                type: "uint256",
+                internalType: "uint256",
+              },
+            ],
+          },
         ],
       },
     ],

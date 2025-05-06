@@ -109,8 +109,8 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
 
     // TODO: Instead of for loop maybe put this in big multicall
     for (let i = 0; i <= stepCount; i++) {
-      const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
-      const { isProfitable, swapType, swapContext } = await getRebalanceSwapParams({
+      const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i + 1);
+      const { isProfitable, swapType, swapContext, lifiSwap } = await getRebalanceSwapParams({
         leverageToken,
         assetIn,
         assetOut,
@@ -124,14 +124,18 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
 
       console.log("Rebalance is profitable. Participating in Dutch auction...");
 
+      console.log(swapType);
+      console.log(swapContext);
+
       // TODO: Put swap params from proper service
       const tx = await rebalancerContract.write.takeAuction([
         leverageToken,
         takeAmount,
         RebalanceType.REBALANCE_DOWN,
         {
-          swapType,
-          swapContext,
+          swapType: swapType,
+          swapContext: swapContext,
+          lifiSwap: lifiSwap,
         },
       ]);
 

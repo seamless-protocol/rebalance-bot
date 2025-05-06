@@ -112,9 +112,8 @@ contract Rebalancer is IRebalancer {
         } else if (swapData.swapType == SwapType.EXACT_OUTPUT_SWAP_ADAPTER) {
             _swapExactOutputOnSwapAdapter(assetOut, amount, type(uint256).max, swapData.swapContext);
         } else if (swapData.swapType == SwapType.LIFI_SWAP) {
-            // TODO: Redo this in less hacky way
-            address lifiTarget = swapData.swapContext.path[0];
-            bytes memory lifiCallData = swapData.swapContext.encodedPath;
+            address lifiTarget = swapData.lifiSwap.to;
+            bytes memory lifiCallData = swapData.lifiSwap.data;
             _swapLIFI(IERC20(assetOut), assetOutReceived, lifiTarget, lifiCallData);
         }
 
