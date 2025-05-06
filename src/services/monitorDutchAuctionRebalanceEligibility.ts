@@ -1,11 +1,11 @@
 import { LeverageToken, RebalanceStatus } from "../types";
 
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { publicClient, walletClient } from "../utils/transactionHelpers";
-import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { getContract } from "viem";
 import { RebalancerAbi } from "../../abis/Rebalancer";
+import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import { readJsonArrayFromFile } from "../utils/fileHelpers";
+import { publicClient, walletClient } from "../utils/transactionHelpers";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
@@ -20,6 +20,8 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
     return [];
   }
 
+  console.log(leverageTokens);
+
   // Get rebalance status for all LeverageTokens
   const tokenRebalanceStatuses = await publicClient.multicall({
     contracts: leverageTokens.map((token) => ({
@@ -29,6 +31,8 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
       args: [token.address],
     })),
   });
+
+  console.log(tokenRebalanceStatuses);
 
   return leverageTokens.filter((_, index) => {
     const { result: tokenRebalanceStatus } = tokenRebalanceStatuses[index];
@@ -65,6 +69,8 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
       console.log("Checking dutch auction rebalance eligibility of LeverageTokens...");
 
       const eligibleTokens = await getLeverageTokensByRebalanceStatus([RebalanceStatus.DUTCH_AUCTION_ELIGIBLE]);
+
+      console.log(eligibleTokens);
 
       eligibleTokens.forEach(async (leverageToken) => {
         if (!handledLeverageTokens.has(leverageToken.address)) {

@@ -23,43 +23,48 @@ const getTokensDecimals = async (tokenInAddress: Address, tokenOutAddress: Addre
 export const getRouteUniswapV3ExactInput = async (
   args: UniswapV3QuoteExactInputArgs
 ): Promise<RouteWithValidQuote | null> => {
-  const { tokenInAddress, tokenOutAddress, amountInRaw } = args;
-  const { tokenInDecimals, tokenOutDecimals } = await getTokensDecimals(tokenInAddress, tokenOutAddress);
+  try {
+    const { tokenInAddress, tokenOutAddress, amountInRaw } = args;
+    const { tokenInDecimals, tokenOutDecimals } = await getTokensDecimals(tokenInAddress, tokenOutAddress);
 
-  const tokenIn = new Token(ChainId.BASE, tokenInAddress, tokenInDecimals);
-  const tokenOut = new Token(ChainId.BASE, tokenOutAddress, tokenOutDecimals);
+    const tokenIn = new Token(ChainId.BASE, tokenInAddress, tokenInDecimals);
+    const tokenOut = new Token(ChainId.BASE, tokenOutAddress, tokenOutDecimals);
 
-  const router = new AlphaRouter({
-    chainId: ChainId.BASE,
-    provider: ethersProvider,
-  });
+    const router = new AlphaRouter({
+      chainId: ChainId.BASE,
+      provider: ethersProvider,
+    });
 
-  const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);
-  const options: SwapOptions = {
-    recipient: CONTRACT_ADDRESSES.REBALANCER,
-    slippageTolerance: new Percent(100),
-    deadline: Number.MAX_SAFE_INTEGER,
-    type: SwapType.SWAP_ROUTER_02,
-  };
+    const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);
+    const options: SwapOptions = {
+      recipient: CONTRACT_ADDRESSES.REBALANCER,
+      slippageTolerance: new Percent(100),
+      deadline: Number.MAX_SAFE_INTEGER,
+      type: SwapType.SWAP_ROUTER_02,
+    };
 
-  const route = await router.route(amountIn, tokenOut, TradeType.EXACT_INPUT, options);
+    const route = await router.route(amountIn, tokenOut, TradeType.EXACT_INPUT, options);
 
-  const bestRoute = route?.route.reduce((best, current) => {
-    return BigInt(best.quote.toExact()) > BigInt(current.quote.toExact()) ? best : current;
-  });
+    const bestRoute = route?.route.reduce((best, current) => {
+      return BigInt(best.quote.toExact()) > BigInt(current.quote.toExact()) ? best : current;
+    });
 
-  if (!bestRoute) {
-    console.log(
-      `Uniswap V3: No route found for swap ${tokenInAddress} -> ${tokenOutAddress} with amount ${amountInRaw}`
-    );
-    return null;
-  }
+    if (!bestRoute) {
+      console.log(
+        `Uniswap V3: No route found for swap ${tokenInAddress} -> ${tokenOutAddress} with amount ${amountInRaw}`
+      );
+      return null;
+    }
 
-  console.log(`Uniswap V3 Exact Input Quote:
+    console.log(`Uniswap V3 Exact Input Quote:
     From: ${tokenInAddress}
     To: ${tokenOutAddress}
     Amount Out: ${bestRoute.quote.toExact()}
   `);
 
-  return bestRoute;
+    return bestRoute;
+  } catch (error) {
+    console.error("Error getting Uniswap V3 route:", error);
+    return null;
+  }
 };
