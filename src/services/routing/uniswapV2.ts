@@ -20,7 +20,6 @@ export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) =
 
     // For a 2-token path, amountsOut = [amountIn, amountOut]
     const outputAmountRaw = amountsOut[1];
-
     return outputAmountRaw.toString();
   } catch (error) {
     console.error("Error calling Uniswap V2 Router02 getAmountsOut:", error);

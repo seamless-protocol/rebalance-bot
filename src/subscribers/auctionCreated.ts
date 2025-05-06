@@ -117,8 +117,6 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
         takeAmount,
       });
 
-      console.log(swapType, swapContext);
-
       if (!isProfitable) {
         console.log("Rebalance is not profitable. Skipping...");
         continue;

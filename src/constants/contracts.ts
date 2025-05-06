@@ -1,7 +1,7 @@
 import { Address, zeroAddress } from "viem";
 
-import { ContractAddresses, ExchangeAddresses } from "../types";
 import dotenv from "dotenv";
+import { ContractAddresses, ExchangeAddresses } from "../types";
 
 dotenv.config();
 

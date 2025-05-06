@@ -1,10 +1,8 @@
 import { ChainId, CurrencyAmount, Percent, Token, TradeType } from "@uniswap/sdk-core";
 import { AlphaRouter, RouteWithValidQuote, SwapOptions, SwapType } from "@uniswap/smart-order-router";
-import { ethers } from "ethers";
 import { Address, erc20Abi, zeroAddress } from "viem";
-import { FALLBACK_RPC_URL } from "../../constants/chain";
 import { UniswapV3QuoteExactInputArgs } from "../../types";
-import { publicClient } from "../../utils/transactionHelpers";
+import { ethersProvider, publicClient } from "../../utils/transactionHelpers";
 
 const getTokensDecimals = async (tokenInAddress: Address, tokenOutAddress: Address) => {
   const [tokenInDecimals, tokenOutDecimals] = await publicClient.multicall({
@@ -32,7 +30,7 @@ export const getRouteUniswapV3ExactInput = async (
 
   const router = new AlphaRouter({
     chainId: ChainId.BASE,
-    provider: new ethers.providers.JsonRpcProvider(FALLBACK_RPC_URL),
+    provider: ethersProvider,
   });
 
   const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);
