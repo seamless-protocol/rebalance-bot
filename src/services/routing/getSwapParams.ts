@@ -36,24 +36,14 @@ const getDummyLifiSwap = (): LIFISwap => {
   return { to: zeroAddress, value: 0n, data: "0x" };
 };
 
-export const getRebalanceSwapParams = async (
-  input: GetRebalanceSwapParamsInput
+export const getFallbackSwapParams = async (
+  input: GetRebalanceSwapParamsInput,
+  requiredAmountIn: bigint
 ): Promise<GetRebalanceSwapParamsOutput> => {
-  const { leverageToken, assetIn, assetOut, takeAmount } = input;
-  const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken);
+  const { assetIn, assetOut, takeAmount } = input;
 
-  const [requiredAmountIn, lifiQuote, amountOutUniswapV2, uniswapV3Route] = await Promise.all([
-    publicClient.readContract({
-      address: rebalanceAdapter,
-      abi: RebalanceAdapterAbi,
-      functionName: "getAmountIn",
-      args: [takeAmount],
-    }),
-    getLIFIQuote({
-      fromToken: assetOut,
-      toToken: assetIn,
-      fromAmount: takeAmount,
-    }),
+  // Fetch the routes and quotes from Uniswap V2 and V3
+  const [amountOutUniswapV2, uniswapV3Route] = await Promise.all([
     getAmountsOutUniswapV2({
       inputTokenAddress: assetOut,
       outputTokenAddress: assetIn,
@@ -66,11 +56,14 @@ export const getRebalanceSwapParams = async (
     }),
   ]);
 
-  const amountOutLifi = lifiQuote.amountOut || 0n;
+  // Format them to bigints
   const amountOutUniV2 = BigInt(amountOutUniswapV2 || "0");
   const amountOutUniV3 = BigInt((uniswapV3Route?.rawQuote || "0").toString());
 
-  if (requiredAmountIn > amountOutLifi && requiredAmountIn > amountOutUniV2 && requiredAmountIn > amountOutUniV3) {
+  // This is the case where the required input amount on auction is bigger than swap amount from both routes
+  // In this case swap will result in insufficient amount out and we will not be able to repay flash loan
+  // In this case we return dummy values and isProfitable will be false
+  if (requiredAmountIn > amountOutUniV2 && requiredAmountIn > amountOutUniV3) {
     return {
       isProfitable: false,
       swapType: getDummySwapType(),
@@ -79,19 +72,8 @@ export const getRebalanceSwapParams = async (
     };
   }
 
-  if (amountOutLifi > amountOutUniV2 && amountOutLifi > amountOutUniV3) {
-    return {
-      isProfitable: true,
-      swapType: SwapType.LIFI_SWAP,
-      lifiSwap: {
-        to: lifiQuote.to,
-        data: lifiQuote.data,
-        value: lifiQuote.value,
-      },
-      swapContext: getDummySwapContext(),
-    };
-  }
-
+  // If the amount out from Uniswap V2 is greater than the amount out from Uniswap V3, we use the Uniswap V2 route
+  // because it provides better price. lifiSwap field is not going to be used in smart contract so we put dummy values
   if (amountOutUniV2 > amountOutUniV3) {
     return {
       isProfitable: true,
@@ -101,11 +83,67 @@ export const getRebalanceSwapParams = async (
     };
   }
 
+  // If the amount out from Uniswap V3 is greater than the amount out from Uniswap V2, we use the Uniswap V3 route
+  // because it provides better price. lifiSwap field is not going to be used in smart contract so we put dummy values
   return {
     isProfitable: true,
     swapType: SwapType.EXACT_INPUT_SWAP_ADAPTER,
     swapContext: prepareUniswapV3SwapContext(assetOut, uniswapV3Route!),
     lifiSwap: getDummyLifiSwap(),
+  };
+};
+
+export const getRebalanceSwapParams = async (
+  input: GetRebalanceSwapParamsInput
+): Promise<GetRebalanceSwapParamsOutput> => {
+  const { leverageToken, assetIn, assetOut, takeAmount } = input;
+  const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken);
+
+  const [requiredAmountIn, lifiQuote] = await Promise.all([
+    publicClient.readContract({
+      address: rebalanceAdapter,
+      abi: RebalanceAdapterAbi,
+      functionName: "getAmountIn",
+      args: [takeAmount],
+    }),
+    getLIFIQuote({
+      fromToken: assetOut,
+      toToken: assetIn,
+      fromAmount: takeAmount,
+    }),
+  ]);
+
+  // In this part fetching LIFI quote failed, so we proceed with fallback option
+  // We fetch quotes directly from Uniswap V2 and V3 and return the best quote with smart contract call parameters
+  if (!lifiQuote) {
+    return await getFallbackSwapParams(input, requiredAmountIn);
+  }
+
+  // Fetching LIFI quote was successful, proceed with checking if it's profitable
+  const amountOutLifi = lifiQuote.amountOut || 0n;
+
+  // Not profitable, return dummy values because smart contract is not going to be called anyway
+  if (requiredAmountIn > amountOutLifi) {
+    return {
+      isProfitable: false,
+      swapType: getDummySwapType(),
+      swapContext: getDummySwapContext(),
+      lifiSwap: getDummyLifiSwap(),
+    };
+  }
+
+  // Profitable, return LIFI swap calldata
+  // Swap context is used only for calls to swap adapter
+  // In case of LIFI swap we are not using swap adapter, so we put dummy values because smart contract is not going to use them at all
+  return {
+    isProfitable: true,
+    swapType: SwapType.LIFI_SWAP,
+    lifiSwap: {
+      to: lifiQuote.to,
+      data: lifiQuote.data,
+      value: lifiQuote.value,
+    },
+    swapContext: getDummySwapContext(),
   };
 };
 

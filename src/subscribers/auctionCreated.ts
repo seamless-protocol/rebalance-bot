@@ -123,31 +123,32 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
       }
 
       console.log("Rebalance is profitable. Participating in Dutch auction...");
+      try {
+        const tx = await rebalancerContract.write.takeAuction([
+          leverageToken,
+          takeAmount,
+          RebalanceType.REBALANCE_DOWN,
+          {
+            swapType: swapType,
+            swapContext: swapContext,
+            lifiSwap: lifiSwap,
+          },
+        ]);
 
-      console.log(swapType);
-      console.log(swapContext);
+        console.log(`Auction taken. Transaction hash: ${tx}`);
 
-      // TODO: Put swap params from proper service
-      const tx = await rebalancerContract.write.takeAuction([
-        leverageToken,
-        takeAmount,
-        RebalanceType.REBALANCE_DOWN,
-        {
-          swapType: swapType,
-          swapContext: swapContext,
-          lifiSwap: lifiSwap,
-        },
-      ]);
+        await publicClient.waitForTransactionReceipt({
+          hash: tx,
+        });
 
-      console.log(`Auction taken. Transaction hash: ${tx}`);
+        console.log(`Auction taken. Transaction confirmed.`);
 
-      await publicClient.waitForTransactionReceipt({
-        hash: tx,
-      });
-
-      console.log(`Auction taken. Transaction confirmed.`);
-
-      break;
+        // Forced break here because if auction is taken we expect that this interval will be closed and new one will be opened
+        // If strategy is still eligible for rebalance we will start new interval and try again from maximum amounts
+        break;
+      } catch (error) {
+        console.error(`Error taking auction: ${error}`);
+      }
     }
   } catch (error) {
     console.error("Error handling auction event:", error);
