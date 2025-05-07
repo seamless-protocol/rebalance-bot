@@ -109,8 +109,8 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
 
     // TODO: Instead of for loop maybe put this in big multicall
     for (let i = 0; i <= stepCount; i++) {
-      const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
-      const { isProfitable, swapType, swapContext } = await getRebalanceSwapParams({
+      const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i + 1);
+      const { isProfitable, swapType, swapContext, lifiSwap } = await getRebalanceSwapParams({
         leverageToken,
         assetIn,
         assetOut,
@@ -123,27 +123,32 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
       }
 
       console.log("Rebalance is profitable. Participating in Dutch auction...");
+      try {
+        const tx = await rebalancerContract.write.takeAuction([
+          leverageToken,
+          takeAmount,
+          RebalanceType.REBALANCE_DOWN,
+          {
+            swapType: swapType,
+            swapContext: swapContext,
+            lifiSwap: lifiSwap,
+          },
+        ]);
 
-      // TODO: Put swap params from proper service
-      const tx = await rebalancerContract.write.takeAuction([
-        leverageToken,
-        takeAmount,
-        RebalanceType.REBALANCE_DOWN,
-        {
-          swapType,
-          swapContext,
-        },
-      ]);
+        console.log(`Auction taken. Transaction hash: ${tx}`);
 
-      console.log(`Auction taken. Transaction hash: ${tx}`);
+        await publicClient.waitForTransactionReceipt({
+          hash: tx,
+        });
 
-      await publicClient.waitForTransactionReceipt({
-        hash: tx,
-      });
+        console.log(`Auction taken. Transaction confirmed.`);
 
-      console.log(`Auction taken. Transaction confirmed.`);
-
-      break;
+        // Forced break here because if auction is taken we expect that this interval will be closed and new one will be opened
+        // If strategy is still eligible for rebalance we will start new interval and try again from maximum amounts
+        break;
+      } catch (error) {
+        console.error(`Error taking auction: ${error}`);
+      }
     }
   } catch (error) {
     console.error("Error handling auction event:", error);

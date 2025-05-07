@@ -1,19 +1,97 @@
 import { RouteWithValidQuote, V3Route } from "@uniswap/smart-order-router";
 import { encodeRouteToPath } from "@uniswap/v3-sdk";
-import { Address } from "viem";
+import { Address, zeroAddress } from "viem";
 import RebalanceAdapterAbi from "../../../abis/RebalanceAdapter";
 import { EXCHANGE_ADDRESSES } from "../../constants/contracts";
 import {
   Exchange,
   GetRebalanceSwapParamsInput,
   GetRebalanceSwapParamsOutput,
+  LIFISwap,
   SwapContext,
   SwapType,
 } from "../../types";
 import { getLeverageTokenRebalanceAdapter } from "../../utils/contractHelpers";
 import { publicClient } from "../../utils/transactionHelpers";
+import { getLIFIQuote } from "./lifi";
 import { getAmountsOutUniswapV2 } from "./uniswapV2";
 import { getRouteUniswapV3ExactInput } from "./uniswapV3";
+
+const getDummySwapType = (): SwapType => {
+  return SwapType.EXACT_INPUT_SWAP_ADAPTER;
+};
+
+const getDummySwapContext = (): SwapContext => {
+  return {
+    path: [],
+    encodedPath: "0x",
+    exchange: Exchange.UNISWAP_V2,
+    exchangeAddresses: EXCHANGE_ADDRESSES,
+    fees: [],
+    tickSpacing: [],
+  };
+};
+
+const getDummyLifiSwap = (): LIFISwap => {
+  return { to: zeroAddress, value: 0n, data: "0x" };
+};
+
+export const getFallbackSwapParams = async (
+  input: GetRebalanceSwapParamsInput,
+  requiredAmountIn: bigint
+): Promise<GetRebalanceSwapParamsOutput> => {
+  const { assetIn, assetOut, takeAmount } = input;
+
+  // Fetch the routes and quotes from Uniswap V2 and V3
+  const [amountOutUniswapV2, uniswapV3Route] = await Promise.all([
+    getAmountsOutUniswapV2({
+      inputTokenAddress: assetOut,
+      outputTokenAddress: assetIn,
+      amountInRaw: takeAmount.toString(),
+    }),
+    getRouteUniswapV3ExactInput({
+      tokenInAddress: assetOut,
+      tokenOutAddress: assetIn,
+      amountInRaw: takeAmount.toString(),
+    }),
+  ]);
+
+  // Format them to bigints
+  const amountOutUniV2 = BigInt(amountOutUniswapV2 || "0");
+  const amountOutUniV3 = BigInt((uniswapV3Route?.rawQuote || "0").toString());
+
+  // This is the case where the required input amount on auction is bigger than swap amount from both routes
+  // In this case swap will result in insufficient amount out and we will not be able to repay flash loan
+  // In this case we return dummy values and isProfitable will be false
+  if (requiredAmountIn > amountOutUniV2 && requiredAmountIn > amountOutUniV3) {
+    return {
+      isProfitable: false,
+      swapType: getDummySwapType(),
+      swapContext: getDummySwapContext(),
+      lifiSwap: getDummyLifiSwap(),
+    };
+  }
+
+  // If the amount out from Uniswap V2 is greater than the amount out from Uniswap V3, we use the Uniswap V2 route
+  // because it provides better price. lifiSwap field is not going to be used in smart contract so we put dummy values
+  if (amountOutUniV2 > amountOutUniV3) {
+    return {
+      isProfitable: true,
+      swapType: SwapType.EXACT_INPUT_SWAP_ADAPTER,
+      swapContext: prepareUniswapV2SwapContext(assetOut, assetIn),
+      lifiSwap: getDummyLifiSwap(),
+    };
+  }
+
+  // If the amount out from Uniswap V3 is greater than the amount out from Uniswap V2, we use the Uniswap V3 route
+  // because it provides better price. lifiSwap field is not going to be used in smart contract so we put dummy values
+  return {
+    isProfitable: true,
+    swapType: SwapType.EXACT_INPUT_SWAP_ADAPTER,
+    swapContext: prepareUniswapV3SwapContext(assetOut, uniswapV3Route!),
+    lifiSwap: getDummyLifiSwap(),
+  };
+};
 
 export const getRebalanceSwapParams = async (
   input: GetRebalanceSwapParamsInput
@@ -21,38 +99,51 @@ export const getRebalanceSwapParams = async (
   const { leverageToken, assetIn, assetOut, takeAmount } = input;
   const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken);
 
-  const requiredAmountIn = await publicClient.readContract({
-    address: rebalanceAdapter,
-    abi: RebalanceAdapterAbi,
-    functionName: "getAmountIn",
-    args: [takeAmount],
-  });
+  const [requiredAmountIn, lifiQuote] = await Promise.all([
+    publicClient.readContract({
+      address: rebalanceAdapter,
+      abi: RebalanceAdapterAbi,
+      functionName: "getAmountIn",
+      args: [takeAmount],
+    }),
+    getLIFIQuote({
+      fromToken: assetOut,
+      toToken: assetIn,
+      fromAmount: takeAmount,
+    }),
+  ]);
 
-  const amountOutUniswapV2 = BigInt(
-    await getAmountsOutUniswapV2({
-      inputTokenAddress: assetOut,
-      outputTokenAddress: assetIn,
-      amountInRaw: takeAmount.toString(),
-    })
-  );
+  // In this part fetching LIFI quote failed, so we proceed with fallback option
+  // We fetch quotes directly from Uniswap V2 and V3 and return the best quote with smart contract call parameters
+  if (!lifiQuote) {
+    return await getFallbackSwapParams(input, requiredAmountIn);
+  }
 
-  const uniswapV3Route = await getRouteUniswapV3ExactInput({
-    tokenInAddress: assetOut,
-    tokenOutAddress: assetIn,
-    amountInRaw: takeAmount.toString(),
-  });
+  // Fetching LIFI quote was successful, proceed with checking if it's profitable
+  const amountOutLifi = lifiQuote.amountOut || 0n;
 
-  const uniswapV3AmountOut = BigInt((uniswapV3Route?.rawQuote || 0n).toString());
+  // Not profitable, return dummy values because smart contract is not going to be called anyway
+  if (requiredAmountIn > amountOutLifi) {
+    return {
+      isProfitable: false,
+      swapType: getDummySwapType(),
+      swapContext: getDummySwapContext(),
+      lifiSwap: getDummyLifiSwap(),
+    };
+  }
 
-  const bestOffer = uniswapV3AmountOut > amountOutUniswapV2 ? uniswapV3AmountOut : amountOutUniswapV2;
-
+  // Profitable, return LIFI swap calldata
+  // Swap context is used only for calls to swap adapter
+  // In case of LIFI swap we are not using swap adapter, so we put dummy values because smart contract is not going to use them at all
   return {
-    isProfitable: amountOutUniswapV2 >= requiredAmountIn,
-    swapType: SwapType.EXACT_INPUT_SWAP_ADAPTER,
-    swapContext:
-      bestOffer === uniswapV3AmountOut
-        ? prepareUniswapV3SwapContext(assetOut, uniswapV3Route!)
-        : prepareUniswapV2SwapContext(assetOut, assetIn),
+    isProfitable: true,
+    swapType: SwapType.LIFI_SWAP,
+    lifiSwap: {
+      to: lifiQuote.to,
+      data: lifiQuote.data,
+      value: lifiQuote.value,
+    },
+    swapContext: getDummySwapContext(),
   };
 };
 
@@ -62,8 +153,8 @@ const prepareUniswapV2SwapContext = (assetIn: Address, assetOut: Address): SwapC
     exchange: Exchange.UNISWAP_V2,
     exchangeAddresses: EXCHANGE_ADDRESSES,
     encodedPath: "0x",
-    fees: [0], // Unused
-    tickSpacing: [0], // Unused
+    fees: [], // Unused
+    tickSpacing: [], // Unused
   };
 };
 

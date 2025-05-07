@@ -23,6 +23,6 @@ export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) =
     return outputAmountRaw.toString();
   } catch (error) {
     console.error("Error calling Uniswap V2 Router02 getAmountsOut:", error);
-    throw error;
+    return null;
   }
 };

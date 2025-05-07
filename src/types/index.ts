@@ -88,8 +88,28 @@ export interface GetRebalanceSwapParamsInput {
   takeAmount: bigint;
 }
 
+export interface LIFISwap {
+  to: Address;
+  data: `0x${string}`;
+  value: bigint;
+}
+
 export interface GetRebalanceSwapParamsOutput {
   isProfitable: boolean;
   swapType: SwapType;
   swapContext: SwapContext;
+  lifiSwap: LIFISwap;
+}
+
+export interface GetLIFIQuoteInput {
+  fromToken: Address;
+  toToken: Address;
+  fromAmount: bigint;
+}
+
+export interface GetLIFIQuoteOutput {
+  amountOut: bigint;
+  to: Address;
+  data: `0x${string}`;
+  value: bigint;
 }
