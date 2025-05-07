@@ -586,13 +586,13 @@ const RebalanceAdapterAbi = [
           },
           {
             name: "startTimestamp",
-            type: "uint256",
-            internalType: "uint256",
+            type: "uint120",
+            internalType: "uint120",
           },
           {
             name: "endTimestamp",
-            type: "uint256",
-            internalType: "uint256",
+            type: "uint120",
+            internalType: "uint120",
           },
         ],
       },
