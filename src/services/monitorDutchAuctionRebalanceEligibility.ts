@@ -61,7 +61,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
     receipt.status === "success"
       ? `TryCreateAuction successful for LeverageToken ${leverageToken.address}. Transaction hash: ${tx}`
       : `TryCreateAuction failed for LeverageToken ${leverageToken.address}. Transaction hash: ${tx}`;
-  await logAndAlert(message);
+  await logAndAlert(message, receipt.status !== "success");
 };
 
 const monitorDutchAuctionRebalanceEligibility = (interval: number) => {

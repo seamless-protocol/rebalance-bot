@@ -166,7 +166,7 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
           receipt.status === "success"
             ? `Rebalance auction taken successfully for LeverageToken: ${leverageToken}. Transaction hash: ${tx}`
             : `Rebalance auction taken but transaction failed for LeverageToken: ${leverageToken}. Transaction hash: ${tx}`;
-        await logAndAlert(message);
+        await logAndAlert(message, receipt.status !== "success");
       } catch (error) {
         await logAndAlert(`Error taking auction: ${error}`, true);
       }
