@@ -1,7 +1,7 @@
 import { Log, decodeEventLog } from "viem";
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import LeverageManagerAbi from "../../abis/LeverageManager";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { LeverageToken } from "../types";
 import { appendObjectToJsonFile } from "../utils/fileHelpers";
 import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
@@ -34,10 +34,10 @@ const handleLeverageTokenCreatedEvent = (event: Log) => {
   // the ts error.
   if (decodedEvent.eventName === "LeverageTokenCreated") {
     const leverageToken: LeverageToken = {
-      address: decodedEvent.args[0],
-      collateralAsset: decodedEvent.args[1],
-      debtAsset: decodedEvent.args[2],
-      rebalanceAdapter: decodedEvent.args[3].rebalanceAdapter,
+      address: decodedEvent.args.token,
+      collateralAsset: decodedEvent.args.collateralAsset,
+      debtAsset: decodedEvent.args.debtAsset,
+      rebalanceAdapter: decodedEvent.args.config.rebalanceAdapter,
     };
 
     appendObjectToJsonFile(LEVERAGE_TOKENS_FILE_PATH, leverageToken);

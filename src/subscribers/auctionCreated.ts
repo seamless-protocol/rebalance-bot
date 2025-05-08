@@ -1,5 +1,5 @@
 import { Address, decodeEventLog, Log } from "viem";
-import leverageManagerAbi from "../../abis/LeverageManager";
+import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
@@ -26,7 +26,7 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAd
     contracts: [
       {
         address: CONTRACT_ADDRESSES.LEVERAGE_MANAGER,
-        abi: leverageManagerAbi,
+        abi: LeverageManagerAbi,
         functionName: "getLeverageTokenState",
         args: [leverageToken],
       },
@@ -49,10 +49,10 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAd
   }
 
   return {
-    collateral: leverageTokenStateResponse.result[0],
-    debt: leverageTokenStateResponse.result[1],
-    equity: leverageTokenStateResponse.result[2],
-    currentRatio: leverageTokenStateResponse.result[3],
+    collateral: leverageTokenStateResponse.result.collateralInDebtAsset,
+    debt: leverageTokenStateResponse.result.debt,
+    equity: leverageTokenStateResponse.result.equity,
+    currentRatio: leverageTokenStateResponse.result.collateralRatio,
     targetRatio: targetRatioResponse.result,
     isAuctionValid: isAuctionValidResponse.result,
   };
