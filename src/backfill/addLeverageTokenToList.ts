@@ -7,8 +7,6 @@ import { leverageManagerContract } from "../utils/contractHelpers";
 import { appendObjectToJsonFile, readJsonArrayFromFile } from "../utils/fileHelpers";
 import { publicClient } from "../utils/transactionHelpers";
 
-console.log("uso");
-
 /**
  * Fetches the lending adapter and rebalance adapter for a given leverage token
  * @param leverageToken The address of the leverage token
