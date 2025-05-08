@@ -1,13 +1,12 @@
 import { Abi, AbiEvent, Address, Log, getAbiItem, getContract } from "viem";
-import { publicClient, walletClient } from "./transactionHelpers";
-
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import leverageManagerAbi from "../../abis/LeverageManager";
-import { readJsonArrayFromFile } from "./fileHelpers";
+import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import rebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import rebalancerAbi from "../../abis/Rebalancer";
 import uniswapV2Router02Abi from "../../abis/UniswapV2Router02";
+import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import { readJsonArrayFromFile } from "./fileHelpers";
+import { publicClient, walletClient } from "./transactionHelpers";
 
 export const getHistoricalLogs = async ({
   contractAddress,
@@ -120,6 +119,6 @@ export const rebalancerContract = getContract({
 
 export const leverageManagerContract = getContract({
   address: CONTRACT_ADDRESSES.LEVERAGE_MANAGER,
-  abi: leverageManagerAbi,
+  abi: LeverageManagerAbi,
   client: walletClient,
 });

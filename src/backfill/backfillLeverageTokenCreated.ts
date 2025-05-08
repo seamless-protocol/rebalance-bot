@@ -1,10 +1,10 @@
-import { CONTRACT_ADDRESSES } from "@/constants/contracts";
 import { LEVERAGE_TOKENS_FILE_PATH } from "@/constants/chain";
-import LeverageManagerAbi from "../../abis/LeverageManager";
+import { CONTRACT_ADDRESSES } from "@/constants/contracts";
 import { LeverageToken } from "@/types";
+import { getHistoricalLogs } from "@/utils/contractHelpers";
 import { appendObjectToJsonFile } from "@/utils/fileHelpers";
 import { decodeEventLog } from "viem";
-import { getHistoricalLogs } from "@/utils/contractHelpers";
+import { LeverageManagerAbi } from "../../abis/LeverageManager";
 
 /**
  * Backfills LeverageToken JSON file for LeverageTokenCreated events emitted in a given block range
@@ -32,11 +32,15 @@ export const backfillLeverageTokens = async (fromBlock: number, toBlock?: number
       topics: log.topics,
     });
 
+    if (decodedEvent.eventName !== "LeverageTokenCreated") {
+      return;
+    }
+
     const leverageToken: LeverageToken = {
-      address: decodedEvent.args[0],
-      collateralAsset: decodedEvent.args[1],
-      debtAsset: decodedEvent.args[2],
-      rebalanceAdapter: decodedEvent.args[3].rebalanceAdapter,
+      address: decodedEvent.args.token,
+      collateralAsset: decodedEvent.args.collateralAsset,
+      debtAsset: decodedEvent.args.debtAsset,
+      rebalanceAdapter: decodedEvent.args.config.rebalanceAdapter,
     };
 
     console.log(`Backfilling LeverageToken: ${leverageToken.address}`);

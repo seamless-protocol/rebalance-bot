@@ -5,7 +5,7 @@ import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { RebalancerAbi } from "../../abis/Rebalancer";
 import { getContract } from "viem";
-import { notifySlackChannel } from "../utils/alerts";
+import { notifySlackChannel } from "@/utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.

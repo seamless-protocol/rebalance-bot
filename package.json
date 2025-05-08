@@ -15,7 +15,8 @@
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "type-check": "tsc --noEmit",
-    "backfill:leverage-tokens": "tsx src/backfill/backfillLeverageTokenCreated.ts"
+    "backfill:leverage-tokens": "tsx src/backfill/backfillLeverageTokenCreated.ts",
+    "backfill:leverage-token": "tsx src/backfill/addLeverageTokenToList.ts"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

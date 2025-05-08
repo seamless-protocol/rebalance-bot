@@ -54,6 +54,7 @@ contract Rebalancer is IRebalancer {
         return RebalanceStatus.NOT_ELIGIBLE;
     }
 
+    /// @inheritdoc IRebalancer
     function tryCreateAuction(address leverageToken) public {
         RebalanceStatus status = getRebalanceStatus(leverageToken);
 
@@ -107,13 +108,12 @@ contract Rebalancer is IRebalancer {
         uint256 assetOutReceived = IERC20(assetOut).balanceOf(address(this));
 
         if (swapData.swapType == SwapType.EXACT_INPUT_SWAP_ADAPTER) {
-            ISwapAdapter.SwapContext memory swapContext = abi.decode(swapData.swapParams, (ISwapAdapter.SwapContext));
-            _swapExactInputOnSwapAdapter(assetOut, assetOutReceived, 0, swapContext);
+            _swapExactInputOnSwapAdapter(assetOut, assetOutReceived, 0, swapData.swapContext);
         } else if (swapData.swapType == SwapType.EXACT_OUTPUT_SWAP_ADAPTER) {
-            ISwapAdapter.SwapContext memory swapContext = abi.decode(swapData.swapParams, (ISwapAdapter.SwapContext));
-            _swapExactOutputOnSwapAdapter(assetOut, amount, type(uint256).max, swapContext);
+            _swapExactOutputOnSwapAdapter(assetOut, amount, type(uint256).max, swapData.swapContext);
         } else if (swapData.swapType == SwapType.LIFI_SWAP) {
-            (address lifiTarget, bytes memory lifiCallData) = abi.decode(swapData.swapParams, (address, bytes));
+            address lifiTarget = swapData.lifiSwap.to;
+            bytes memory lifiCallData = swapData.lifiSwap.data;
             _swapLIFI(IERC20(assetOut), assetOutReceived, lifiTarget, lifiCallData);
         }
 

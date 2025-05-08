@@ -126,9 +126,90 @@ export const RebalancerAbi = [
             internalType: "enum SwapType",
           },
           {
-            name: "swapParams",
-            type: "bytes",
-            internalType: "bytes",
+            name: "swapContext",
+            type: "tuple",
+            internalType: "struct ISwapAdapter.SwapContext",
+            components: [
+              {
+                name: "path",
+                type: "address[]",
+                internalType: "address[]",
+              },
+              {
+                name: "encodedPath",
+                type: "bytes",
+                internalType: "bytes",
+              },
+              {
+                name: "fees",
+                type: "uint24[]",
+                internalType: "uint24[]",
+              },
+              {
+                name: "tickSpacing",
+                type: "int24[]",
+                internalType: "int24[]",
+              },
+              {
+                name: "exchange",
+                type: "uint8",
+                internalType: "enum ISwapAdapter.Exchange",
+              },
+              {
+                name: "exchangeAddresses",
+                type: "tuple",
+                internalType: "struct ISwapAdapter.ExchangeAddresses",
+                components: [
+                  {
+                    name: "aerodromeRouter",
+                    type: "address",
+                    internalType: "address",
+                  },
+                  {
+                    name: "aerodromePoolFactory",
+                    type: "address",
+                    internalType: "address",
+                  },
+                  {
+                    name: "aerodromeSlipstreamRouter",
+                    type: "address",
+                    internalType: "address",
+                  },
+                  {
+                    name: "uniswapSwapRouter02",
+                    type: "address",
+                    internalType: "address",
+                  },
+                  {
+                    name: "uniswapV2Router02",
+                    type: "address",
+                    internalType: "address",
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            name: "lifiSwap",
+            type: "tuple",
+            internalType: "struct LIFISwap",
+            components: [
+              {
+                name: "to",
+                type: "address",
+                internalType: "address",
+              },
+              {
+                name: "data",
+                type: "bytes",
+                internalType: "bytes",
+              },
+              {
+                name: "value",
+                type: "uint256",
+                internalType: "uint256",
+              },
+            ],
           },
         ],
       },

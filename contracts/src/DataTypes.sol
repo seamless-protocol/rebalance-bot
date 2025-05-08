@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import {ISwapAdapter} from "./interfaces/ISwapAdapter.sol";
+
 struct LeverageTokenState {
     uint256 collateralInDebtAsset;
     uint256 debt;
@@ -8,9 +10,16 @@ struct LeverageTokenState {
     uint256 collateralRatio;
 }
 
+struct LIFISwap {
+    address to;
+    bytes data;
+    uint256 value;
+}
+
 struct SwapData {
     SwapType swapType;
-    bytes swapParams;
+    ISwapAdapter.SwapContext swapContext;
+    LIFISwap lifiSwap;
 }
 
 enum RebalanceStatus {
