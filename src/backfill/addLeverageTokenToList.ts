@@ -111,4 +111,8 @@ export const fetchCollateralAndDebtAssets = async (
 // Get args from command line
 const leverageToken = process.argv[2] as Address;
 
+if (!leverageToken) {
+  throw new Error("Leverage token address is required");
+}
+
 addLeverageTokenToList(leverageToken);
