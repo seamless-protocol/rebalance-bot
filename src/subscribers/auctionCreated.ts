@@ -19,6 +19,7 @@ import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
+import { logAndAlert } from "../utils/alerts";
 import { publicClient } from "../utils/transactionHelpers";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
@@ -149,21 +150,25 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
           takeAmount,
           RebalanceType.REBALANCE_DOWN,
           {
-            swapType: swapType,
-            swapContext: swapContext,
-            lifiSwap: lifiSwap,
+            swapType,
+            swapContext,
+            lifiSwap,
           },
         ]);
 
         console.log(`Auction taken. Transaction hash: ${tx}`);
 
-        await publicClient.waitForTransactionReceipt({
+        const receipt = await publicClient.waitForTransactionReceipt({
           hash: tx,
         });
 
-        console.log(`Auction taken. Transaction confirmed.`);
+        const message =
+          receipt.status === "success"
+            ? `Rebalance auction taken successfully for LeverageToken: ${leverageToken}. Transaction hash: ${tx}`
+            : `Rebalance auction taken but transaction failed for LeverageToken: ${leverageToken}. Transaction hash: ${tx}`;
+        await logAndAlert(message);
       } catch (error) {
-        console.error(`Error taking auction: ${error}`);
+        await logAndAlert(`Error taking auction: ${error}`, true);
       }
     }
   } catch (error) {

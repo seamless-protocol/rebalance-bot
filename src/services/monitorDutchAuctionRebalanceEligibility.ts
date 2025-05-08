@@ -5,7 +5,7 @@ import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { RebalancerAbi } from "../../abis/Rebalancer";
 import { getContract } from "viem";
-import { notifySlackChannel } from "@/utils/alerts";
+import { logAndAlert } from "../utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
@@ -61,9 +61,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
     receipt.status === "success"
       ? `TryCreateAuction successful for LeverageToken ${leverageToken.address}. Transaction hash: ${tx}`
       : `TryCreateAuction failed for LeverageToken ${leverageToken.address}. Transaction hash: ${tx}`;
-
-  console.log(message);
-  await notifySlackChannel(message);
+  await logAndAlert(message);
 };
 
 const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
@@ -81,8 +79,11 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
 
             handledLeverageTokens.delete(leverageToken.address);
           } catch (handleError) {
-            console.error(`Error handling DutchAuctionRebalance for ${leverageToken.address}:`, handleError);
             handledLeverageTokens.delete(leverageToken.address);
+            await logAndAlert(
+              `Error creating DutchAuctionRebalance for ${leverageToken.address}: ${handleError}`,
+              true
+            );
           }
         }
       });
