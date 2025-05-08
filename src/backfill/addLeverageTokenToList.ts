@@ -7,7 +7,34 @@ import { leverageManagerContract } from "../utils/contractHelpers";
 import { appendObjectToJsonFile, readJsonArrayFromFile } from "../utils/fileHelpers";
 import { publicClient } from "../utils/transactionHelpers";
 
-console.log("uso");
+/**
+ * Adds a leverage token to the list of leverage tokens that this bot should monitor and starts listening for auction created events on rebalance adapter
+ * @dev Usage: npm run backfill:add-leverage-token <leverageTokenAddress>
+ * @param leverageToken The address of the leverage token
+ * @dev This function fetches the lending adapter, rebalance adapter, collateral asset and debt asset for the given leverage token
+ * @dev Finally, it appends the leverage token to the list of leverage tokens
+ */
+export const addLeverageTokenToList = async (leverageToken: Address) => {
+  console.log(`Adding leverage token ${leverageToken} to the list...`);
+
+  const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH);
+
+  if (leverageTokens.find((token) => token.address === leverageToken)) {
+    throw new Error(`Leverage token ${leverageToken} already exists in the list`);
+  }
+
+  const { lendingAdapter, rebalanceAdapter } = await fetchLeverageTokenAdapters(leverageToken);
+  const { collateralAsset, debtAsset } = await fetchCollateralAndDebtAssets(lendingAdapter);
+
+  appendObjectToJsonFile(LEVERAGE_TOKENS_FILE_PATH, {
+    address: leverageToken,
+    collateralAsset,
+    debtAsset,
+    rebalanceAdapter,
+  });
+
+  subscribeToAuctionCreated(rebalanceAdapter);
+};
 
 /**
  * Fetches the lending adapter and rebalance adapter for a given leverage token
@@ -81,35 +108,11 @@ export const fetchCollateralAndDebtAssets = async (
   };
 };
 
-/**
- * Adds a leverage token to the list of leverage tokens that this bot should monitor and starts listening for auction created events on rebalance adapter
- * @param leverageToken The address of the leverage token
- * @dev This function fetches the lending adapter, rebalance adapter, collateral asset and debt asset for the given leverage token
- * @dev Finally, it appends the leverage token to the list of leverage tokens
- */
-export const addLeverageTokenToList = async (leverageToken: Address) => {
-  console.log(`Adding leverage token ${leverageToken} to the list...`);
-
-  const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH);
-
-  if (leverageTokens.find((token) => token.address === leverageToken)) {
-    throw new Error(`Leverage token ${leverageToken} already exists in the list`);
-  }
-
-  const { lendingAdapter, rebalanceAdapter } = await fetchLeverageTokenAdapters(leverageToken);
-  const { collateralAsset, debtAsset } = await fetchCollateralAndDebtAssets(lendingAdapter);
-
-  appendObjectToJsonFile(LEVERAGE_TOKENS_FILE_PATH, {
-    address: leverageToken,
-    collateralAsset,
-    debtAsset,
-    rebalanceAdapter,
-  });
-
-  subscribeToAuctionCreated(rebalanceAdapter);
-};
-
 // Get args from command line
 const leverageToken = process.argv[2] as Address;
+
+if (!leverageToken) {
+  throw new Error("Leverage token address is required");
+}
 
 addLeverageTokenToList(leverageToken);
