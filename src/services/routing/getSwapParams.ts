@@ -1,8 +1,4 @@
-import { RouteWithValidQuote, V3Route } from "@uniswap/smart-order-router";
-import { encodeRouteToPath } from "@uniswap/v3-sdk";
 import { Address, zeroAddress } from "viem";
-import RebalanceAdapterAbi from "../../../abis/RebalanceAdapter";
-import { EXCHANGE_ADDRESSES } from "../../constants/contracts";
 import {
   Exchange,
   GetRebalanceSwapParamsInput,
@@ -11,11 +7,16 @@ import {
   SwapContext,
   SwapType,
 } from "../../types";
-import { getLeverageTokenRebalanceAdapter } from "../../utils/contractHelpers";
-import { publicClient } from "../../utils/transactionHelpers";
-import { getLIFIQuote } from "./lifi";
+import { RouteWithValidQuote, V3Route } from "@uniswap/smart-order-router";
+
+import { EXCHANGE_ADDRESSES } from "../../constants/contracts";
+import RebalanceAdapterAbi from "../../../abis/RebalanceAdapter";
+import { encodeRouteToPath } from "@uniswap/v3-sdk";
 import { getAmountsOutUniswapV2 } from "./uniswapV2";
+import { getLIFIQuote } from "./lifi";
+import { getLeverageTokenRebalanceAdapter } from "../../utils/contractHelpers";
 import { getRouteUniswapV3ExactInput } from "./uniswapV3";
+import { publicClient } from "../../utils/transactionHelpers";
 
 const getDummySwapType = (): SwapType => {
   return SwapType.EXACT_INPUT_SWAP_ADAPTER;
@@ -116,7 +117,7 @@ export const getRebalanceSwapParams = async (
   // In this part fetching LIFI quote failed, so we proceed with fallback option
   // We fetch quotes directly from Uniswap V2 and V3 and return the best quote with smart contract call parameters
   if (!lifiQuote) {
-    return getFallbackSwapParams(input, requiredAmountIn);
+    return await getFallbackSwapParams(input, requiredAmountIn);
   }
 
   // Fetching LIFI quote was successful, proceed with checking if it's profitable
