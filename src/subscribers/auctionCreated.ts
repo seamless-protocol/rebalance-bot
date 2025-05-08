@@ -7,6 +7,7 @@ import {
   BASE_RATIO,
   DEFAULT_DUTCH_AUCTION_POLLING_INTERVAL,
   DEFAULT_DUTCH_AUCTION_STEP_COUNT,
+  DUTCH_AUCTION_ACTIVE_INTERVALS,
 } from "../constants/values";
 import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
 import { LeverageToken, RebalanceType } from "../types";
@@ -109,13 +110,31 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
 
     // TODO: Instead of for loop maybe put this in big multicall
     for (let i = 0; i <= stepCount; i++) {
-      const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i + 1);
-      const { isProfitable, swapType, swapContext, lifiSwap } = await getRebalanceSwapParams({
-        leverageToken,
-        assetIn,
-        assetOut,
-        takeAmount,
-      });
+      const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
+
+      const [isAuctionValid, { isProfitable, swapType, swapContext, lifiSwap }] = await Promise.all([
+        publicClient.readContract({
+          address: rebalanceAdapter,
+          abi: RebalanceAdapterAbi,
+          functionName: "isAuctionValid",
+        }),
+        getRebalanceSwapParams({
+          leverageToken,
+          assetIn,
+          assetOut,
+          takeAmount,
+        }),
+      ]);
+
+      if (!isAuctionValid) {
+        console.log("Auction is no longer valid. Closing interval...");
+
+        const interval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
+        DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
+        clearInterval(interval);
+
+        return;
+      }
 
       if (!isProfitable) {
         console.log("Rebalance is not profitable. Skipping...");
@@ -142,10 +161,6 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
         });
 
         console.log(`Auction taken. Transaction confirmed.`);
-
-        // Forced break here because if auction is taken we expect that this interval will be closed and new one will be opened
-        // If strategy is still eligible for rebalance we will start new interval and try again from maximum amounts
-        break;
       } catch (error) {
         console.error(`Error taking auction: ${error}`);
       }
@@ -167,10 +182,21 @@ export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
       const pollingInterval =
         Number(process.env.DUTCH_AUCTION_POLLING_INTERVAL) || DEFAULT_DUTCH_AUCTION_POLLING_INTERVAL;
 
-      // TODO: Store this interval and close it when LT is no longer eligible for rebalance
-      setInterval(async () => {
+      // Get current Dutch auction interval for this rebalance adapter
+      const currentAuctionInterval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
+
+      // If there is an interval that is already running, clear it because auction has finished and new one started so we should start
+      // new interval from max amounts. Interval should close himself but it can happen that it is not closed right away so we need to
+      // close it to avoid having multiple intervals running at the same time for the same rebalance adapter.
+      if (currentAuctionInterval) {
+        clearInterval(currentAuctionInterval);
+      }
+
+      const interval = setInterval(async () => {
         await handleAuctionCreatedEvent(rebalanceAdapter, event);
       }, pollingInterval);
+
+      DUTCH_AUCTION_ACTIVE_INTERVALS.set(rebalanceAdapter, interval);
     },
   });
 };
