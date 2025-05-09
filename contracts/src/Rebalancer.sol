@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {ILeverageManager, LeverageTokenState} from "./interfaces/ILeverageManager.sol";
 import {IRebalanceAdapter} from "./interfaces/IRebalanceAdapter.sol";
@@ -12,7 +13,7 @@ import {ISwapAdapter} from "./interfaces/ISwapAdapter.sol";
 import {ILendingAdapter} from "./interfaces/ILendingAdapter.sol";
 import {IMorpho} from "./interfaces/IMorpho.sol";
 
-contract Rebalancer is IRebalancer {
+contract Rebalancer is IRebalancer, Ownable {
     ILeverageManager public immutable leverageManager;
     ISwapAdapter public immutable swapAdapter;
     IMorpho public immutable morpho;
@@ -22,10 +23,15 @@ contract Rebalancer is IRebalancer {
         _;
     }
 
-    constructor(address _leverageManager, address _swapAdapter, address _morpho) {
+    constructor(address _owner, address _leverageManager, address _swapAdapter, address _morpho) Ownable(_owner) {
         leverageManager = ILeverageManager(_leverageManager);
         swapAdapter = ISwapAdapter(_swapAdapter);
         morpho = IMorpho(_morpho);
+    }
+
+    /// @inheritdoc IRebalancer
+    function sweepToken(address token, address to) external onlyOwner {
+        SafeERC20.safeTransfer(IERC20(token), to, IERC20(token).balanceOf(address(this)));
     }
 
     /// @inheritdoc IRebalancer
@@ -58,6 +64,7 @@ contract Rebalancer is IRebalancer {
     function tryCreateAuction(address leverageToken) public {
         RebalanceStatus status = getRebalanceStatus(leverageToken);
 
+        bool auctionCreated;
         if (status != RebalanceStatus.NOT_ELIGIBLE) {
             IRebalanceAdapter rebalanceAdapter =
                 IRebalanceAdapter(leverageManager.getLeverageTokenRebalanceAdapter(leverageToken));
@@ -65,10 +72,11 @@ contract Rebalancer is IRebalancer {
             bool auctionExists = rebalanceAdapter.isAuctionValid();
             if (!auctionExists) {
                 rebalanceAdapter.createAuction();
+                auctionCreated = true;
             }
         }
 
-        emit TryCreateAuction(leverageToken, status);
+        emit TryCreateAuction(leverageToken, status, auctionCreated);
     }
 
     /// @inheritdoc IRebalancer
