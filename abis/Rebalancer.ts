@@ -246,6 +246,12 @@ export const RebalancerAbi = [
         indexed: true,
         internalType: "enum RebalanceStatus",
       },
+      {
+        name: "auctionCreated",
+        type: "bool",
+        indexed: true,
+        internalType: "bool",
+      },
     ],
     anonymous: false,
   },
@@ -269,6 +275,17 @@ export const RebalancerAbi = [
     type: "error",
     name: "Unauthorized",
     inputs: [],
+  },
+  {
+    type: "error",
+    name: "InvalidLeverageTokenStateAfterRebalance",
+    inputs: [
+      {
+        name: "leverageToken",
+        type: "address",
+        internalType: "address",
+      },
+    ],
   },
 ] as const;
 

@@ -8,6 +8,10 @@ export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) =
 
     const { inputTokenAddress, outputTokenAddress, amountInRaw } = args;
 
+    if (amountInRaw === "0") {
+      return "0";
+    }
+
     // Convert the input string to BigInt (this is the raw base-units value)
     const amountInBaseUnits = BigInt(amountInRaw);
 

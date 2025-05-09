@@ -7,10 +7,10 @@ import {Script} from "forge-std/Script.sol";
 import {Rebalancer} from "src/Rebalancer.sol";
 
 contract DeployRebalancer is Script {
-    address public constant OWNER = 0x0000000000000000000000000000000000000000;
-    address public constant LEVERAGE_MANAGER = 0x0000000000000000000000000000000000000000;
-    address public constant SWAP_ADAPTER = 0x0000000000000000000000000000000000000000;
-    address public constant MORPHO = 0x0000000000000000000000000000000000000000;
+    address public constant OWNER = address(0xBEEF);
+    address public constant LEVERAGE_MANAGER = 0xF01f4567586c3A707EBEC87651320b2dd9F4A287;
+    address public constant SWAP_ADAPTER = 0xABc84968376556B5e5B3C3bda750D091a06De536;
+    address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
 
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -28,10 +28,6 @@ contract DeployRebalancer is Script {
         // Deploying stateless contract
         Rebalancer rebalancer = new Rebalancer(OWNER, LEVERAGE_MANAGER, SWAP_ADAPTER, MORPHO);
         console.log("Rebalancer deployed to:", address(rebalancer));
-        console.log("    owner: ", OWNER);
-        console.log("    leverageManager: ", LEVERAGE_MANAGER);
-        console.log("    swapAdapter: ", SWAP_ADAPTER);
-        console.log("    morpho: ", MORPHO);
 
         vm.stopBroadcast();
     }

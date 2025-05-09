@@ -117,7 +117,7 @@ export const getRebalanceSwapParams = async (
   // In this part fetching LIFI quote failed, so we proceed with fallback option
   // We fetch quotes directly from Uniswap V2 and V3 and return the best quote with smart contract call parameters
   if (!lifiQuote) {
-    return await getFallbackSwapParams(input, requiredAmountIn);
+    return getFallbackSwapParams(input, requiredAmountIn);
   }
 
   // Fetching LIFI quote was successful, proceed with checking if it's profitable
@@ -161,7 +161,7 @@ const prepareUniswapV2SwapContext = (assetIn: Address, assetOut: Address): SwapC
 
 const prepareUniswapV3SwapContext = (assetIn: Address, route: RouteWithValidQuote): SwapContext => {
   return {
-    encodedPath: encodeRouteToPath(route.route as V3Route, false) as `0x${string}`,
+    encodedPath: route?.route ? (encodeRouteToPath(route.route as V3Route, false) as `0x${string}`) : "0x",
     exchange: Exchange.UNISWAP_V3,
     exchangeAddresses: EXCHANGE_ADDRESSES,
     path: [assetIn], // Only assetIn because SwapAdapter has special logic for path of length 2. Here we use the same logic no matter single swap or multi-hop.

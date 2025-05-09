@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "npm run type-check && tsx src/index.ts",
     "dev:watch": "tsx watch src/index.ts",
-    "build": "npm run clean:dist && tsc -p tsconfig.build.json",
+    "build": "npm run clean:dist && tsc -p tsconfig.build.json && mkdir -p dist/src/data && cp src/data/leverageTokens.json dist/src/data/",
     "start": "node dist/src/index.js",
     "clean:dist": "rimraf dist",
     "lint": "eslint . --ext .ts",

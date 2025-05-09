@@ -1,16 +1,17 @@
-import { Address, Log, decodeEventLog } from "viem";
+import { Address, BaseError, ContractFunctionRevertedError } from "viem";
 import {
   BASE_RATIO,
-  DEFAULT_DUTCH_AUCTION_POLLING_INTERVAL,
   DEFAULT_DUTCH_AUCTION_STEP_COUNT,
   DUTCH_AUCTION_ACTIVE_INTERVALS,
+  DUTCH_AUCTION_POLLING_INTERVAL,
 } from "../constants/values";
-import { LeverageToken, RebalanceType } from "../types";
+import { LeverageToken, LogLevel, RebalanceType } from "../types";
 import {
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
   getLeverageTokenForRebalanceAdapter,
   getLeverageTokenRebalanceAdapter,
+  leverageManagerContract,
   rebalancerContract,
 } from "../utils/contractHelpers";
 
@@ -19,9 +20,9 @@ import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
-import { logAndAlert } from "../utils/alerts";
 import { publicClient } from "../utils/transactionHelpers";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
+import { sendAlert } from "../utils/alerts";
 import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAdapter: Address) => {
@@ -46,7 +47,11 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAd
     ],
   });
 
-  if (!leverageTokenStateResponse.result || !targetRatioResponse.result || !isAuctionValidResponse.result) {
+  if (
+    leverageTokenStateResponse?.result == undefined ||
+    targetRatioResponse?.result == undefined ||
+    isAuctionValidResponse?.result == undefined
+  ) {
     console.error("Failed to get leverage token rebalance data");
     throw new Error("Failed to get leverage token rebalance data");
   }
@@ -61,36 +66,25 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAd
   };
 };
 
-const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) => {
+const handleAuctionCreatedEvent = async (rebalanceAdapter: Address) => {
+  const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
+
   try {
-    const decodedEvent = decodeEventLog({
-      abi: RebalanceAdapterAbi,
-      data: event.data,
-      topics: event.topics,
-    });
-
-    if (decodedEvent.eventName !== "AuctionCreated") {
-      console.log("Not an AuctionCreated event. Skipping...");
-      return;
-    }
-
-    console.log("AuctionCreated event received. Participating in Dutch auction...");
-
-    const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
-
     const { collateral, debt, equity, currentRatio, targetRatio, isAuctionValid } = await getLeverageTokenRebalanceData(
       leverageToken,
       rebalanceAdapter
     );
 
     if (!isAuctionValid) {
-      console.log("Auction is not valid. Skipping rebalance...");
+      console.log(`Auction is not valid for LeverageToken ${leverageToken}. Skipping rebalance...`);
       return;
     }
 
     const isOverCollateralized = currentRatio > targetRatio;
 
-    console.log(`Strategy is ${isOverCollateralized ? "over" : "under"}-collateralized?`);
+    console.log(
+      `Attempting to take for ${isOverCollateralized ? "over" : "under"}-collateralized LeverageToken ${leverageToken}...`
+    );
 
     const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
     const debtAsset = getLeverageTokenDebtAsset(leverageToken);
@@ -107,7 +101,7 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
     const maxAmountToTake = isOverCollateralized ? targetDebt - debt : targetCollateral - collateral;
 
     // Calculate for how much will amount to take decrease per step so we can check profitability with smaller slippage
-    const stepCount = Number(process.env.DUTCH_AUCTION_STEP_COUNT) || DEFAULT_DUTCH_AUCTION_STEP_COUNT;
+    const stepCount = DEFAULT_DUTCH_AUCTION_STEP_COUNT;
     const decreasePerStep = maxAmountToTake / BigInt(stepCount);
 
     // TODO: Instead of for loop maybe put this in big multicall
@@ -129,7 +123,7 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
       ]);
 
       if (!isAuctionValid) {
-        console.log("Auction is no longer valid. Closing interval...");
+        console.log(`Auction is no longer valid for LeverageToken ${leverageToken}. Closing interval...`);
 
         const interval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
         DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
@@ -139,11 +133,15 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
       }
 
       if (!isProfitable) {
-        console.log("Rebalance is not profitable. Skipping...");
+        console.log(
+          `Rebalance is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} asset: ${assetIn}. Skipping...`
+        );
         continue;
       }
 
-      console.log("Rebalance is profitable. Participating in Dutch auction...");
+      console.log(
+        `Rebalance is profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} asset: ${assetIn}. Participating in Dutch auction...`
+      );
       try {
         const tx = await rebalancerContract.write.takeAuction([
           leverageToken,
@@ -158,21 +156,42 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address, event: Log) 
 
         console.log(`Auction taken. Transaction hash: ${tx}`);
 
-        const receipt = await publicClient.waitForTransactionReceipt({
+        await publicClient.waitForTransactionReceipt({
           hash: tx,
         });
 
-        const message =
-          receipt.status === "success"
-            ? `Rebalance auction taken successfully for LeverageToken: ${leverageToken}. Transaction hash: ${tx}`
-            : `Rebalance auction taken but transaction failed for LeverageToken: ${leverageToken}. Transaction hash: ${tx}`;
-        await logAndAlert(message, receipt.status !== "success");
+        const { collateralRatio: collateralRatioAfterRebalance } =
+          await leverageManagerContract.read.getLeverageTokenState([leverageToken]);
+
+        console.log(
+          `Rebalance auction taken successfully. LeverageToken: ${leverageToken}, New collateral ratio: ${collateralRatioAfterRebalance}, Transaction hash: ${tx}`
+        );
+        await sendAlert(
+          `*Rebalance auction taken successfully*\n• LeverageToken: \`${leverageToken}\`\n• New Collateral Ratio: \`${collateralRatioAfterRebalance}\`\n• Transaction Hash: \`${tx}\``,
+          LogLevel.REBALANCED
+        );
       } catch (error) {
-        await logAndAlert(`Error taking auction: ${error}`, true);
+        if (error instanceof BaseError) {
+          const revertError = error.walk((error) => error instanceof ContractFunctionRevertedError);
+          if (revertError instanceof ContractFunctionRevertedError) {
+            const errorName = revertError.data?.errorName ?? "";
+            if (errorName === "InvalidLeverageTokenStateAfterRebalance") {
+              console.log(
+                `Auction taken for LeverageToken ${leverageToken} but failed due to invalid leverage token state post rebalance due to stale state. Closing interval...`
+              );
+              const interval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
+              DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
+              clearInterval(interval);
+            }
+          }
+        } else {
+          console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
+          throw error;
+        }
       }
     }
   } catch (error) {
-    console.error("Error handling auction event:", error);
+    console.error(`Error handling auction event for LeverageToken ${leverageToken}. Error: ${error}`);
     throw error;
   }
 };
@@ -184,9 +203,8 @@ export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
     contractAddress: rebalanceAdapter,
     abi: RebalanceAdapterAbi,
     eventName: "AuctionCreated",
-    onEvent: (event: Log) => {
-      const pollingInterval =
-        Number(process.env.DUTCH_AUCTION_POLLING_INTERVAL) || DEFAULT_DUTCH_AUCTION_POLLING_INTERVAL;
+    onEvent: () => {
+      console.log("AuctionCreated event received. Participating in Dutch auction...");
 
       // Get current Dutch auction interval for this rebalance adapter
       const currentAuctionInterval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
@@ -199,8 +217,8 @@ export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
       }
 
       const interval = setInterval(async () => {
-        await handleAuctionCreatedEvent(rebalanceAdapter, event);
-      }, pollingInterval);
+        await handleAuctionCreatedEvent(rebalanceAdapter);
+      }, DUTCH_AUCTION_POLLING_INTERVAL);
 
       DUTCH_AUCTION_ACTIVE_INTERVALS.set(rebalanceAdapter, interval);
     },
