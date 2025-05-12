@@ -126,7 +126,7 @@ export const getRebalanceSwapParams = async (
   // In this part fetching LIFI quote failed, so we proceed with fallback option
   // We fetch quotes directly from Uniswap V2 and V3 and return the best quote with smart contract call parameters
   if (!lifiQuote) {
-    return getFallbackSwapParams(input, requiredAmountIn);
+    return await getFallbackSwapParams(input, requiredAmountIn);
   }
 
   // Fetching LIFI quote was successful, proceed with checking if it's profitable

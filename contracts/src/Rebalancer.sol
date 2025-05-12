@@ -172,7 +172,7 @@ contract Rebalancer is IRebalancer, Ownable {
         IWETH9(address(weth)).withdraw(stakeContext.amountIn);
 
         // Deposit the ETH into the EtherFi L2 Mode Sync Pool to obtain weETH
-        // Note: The EtherFi L2 Mode Sync Pool requires ETH to mint weETH. WETH is unsupported
+        // Note: The EtherFi L2 Mode Sync Pool requires ETH to mint weETH. WETH is unsupported at time of writing
         IEtherFiL2ModeSyncPool(stakeContext.stakeTo).deposit{value: stakeContext.amountIn}(
             ETHERFI_ETH_ADDRESS,
             stakeContext.amountIn,

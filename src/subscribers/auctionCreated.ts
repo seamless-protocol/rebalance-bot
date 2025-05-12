@@ -151,7 +151,7 @@ const handleAuctionCreatedEvent = async (
         `Rebalance is profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} asset: ${assetIn}. Participating in Dutch auction...`
       );
       try {
-        // Prefer staking over swapping
+        // Prefer staking over swapping, if profitable
         const rebalanceSwapParams = stakeParams.isProfitable ? getDummyNoSwapParams() : swapParams;
 
         const tx = await rebalancerContract.write.takeAuction([

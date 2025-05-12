@@ -29,7 +29,8 @@ export const getStakeParams = async (
         args: [takeAmount],
       }),
       // The amount of WETH to stake is equal to the takeAmount, since if it's profitable the amount of WEETH received
-      // staking the takeAmount of WETH will be >= the requiredAmountIn
+      // by staking the takeAmount of WETH will be >= the requiredAmountIn. This also means that the full amount taken
+      // from the auction is staked for WEETH.
       getEtherFiEthStakeQuote(takeAmount),
     ]);
 

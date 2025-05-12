@@ -4,7 +4,7 @@ import { getContract } from "viem";
 import { getEtherFiL2ModeSyncPoolContract } from "@/utils/contractHelpers";
 import { publicClient } from "@/utils/transactionHelpers";
 
-export const getEtherFiEthStakeQuote = async (ethAmount: bigint): Promise<bigint> => {
+export const getEtherFiEthStakeQuote = async (ethAmountIn: bigint): Promise<bigint> => {
   const etherFiL2ModeSyncPool = getEtherFiL2ModeSyncPoolContract();
 
   const exchangeRateProviderAddress = await etherFiL2ModeSyncPool.read.getL2ExchangeRateProvider();
@@ -16,7 +16,7 @@ export const getEtherFiEthStakeQuote = async (ethAmount: bigint): Promise<bigint
 
   const weethAmountOut = await exchangeRateProviderContract.read.getConversionAmount([
     ETHERFI_L2_MODE_SYNC_POOL_ETH_ADDRESS,
-    ethAmount,
+    ethAmountIn,
   ]);
 
   return weethAmountOut;
