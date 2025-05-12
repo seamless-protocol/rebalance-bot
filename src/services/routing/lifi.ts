@@ -1,7 +1,7 @@
 import { GetLIFIQuoteInput, GetLIFIQuoteOutput } from "../../types";
 import { LIFI_API_KEY, LIFI_API_URL } from "../../constants/values";
 
-import { CHAIN_ID } from "@/constants/chain";
+import { CHAIN_ID } from "../../constants/chain";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import axios from "axios";
 
