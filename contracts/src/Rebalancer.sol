@@ -111,7 +111,7 @@ contract Rebalancer is IRebalancer, Ownable {
         }
 
         address flashLoanAsset = stakeData.stakeType != StakeType.NONE ? stakeData.assetIn : assetIn;
-        uint256 flashLoanAmount = stakeData.stakeType != StakeType.NONE ? stakeData.amountIn : amountIn;
+        uint256 flashLoanAmount = stakeData.stakeType != StakeType.NONE ? amountToTake : amountIn;
 
         morpho.flashLoan(flashLoanAsset, flashLoanAmount, abi.encode(assetIn, assetOut, rebalanceAdapter, amountIn, amountToTake, swapData, stakeData));
     }
@@ -124,7 +124,7 @@ contract Rebalancer is IRebalancer, Ownable {
         if (stakeData.stakeType == StakeType.ETHERFI_ETH_WEETH) {
             // If stakeData.stakeType == ETHERFI_ETH_WEETH, the contract will unwrap flash loaned WETH to ETH and stake
             // the ETH into the EtherFi L2 Mode Sync Pool to receive weETH in return, which is the assetIn for the rebalance
-            _getWeethFromWeth(stakeData, amountIn);
+            _stakeWethForWeeth(stakeData, flashLoanAmount, amountIn);
         }
 
         IERC20(assetIn).approve(rebalanceAdapter, amountIn);
@@ -142,19 +142,20 @@ contract Rebalancer is IRebalancer, Ownable {
             _swapLIFI(IERC20(assetOut), assetOutReceived, lifiTarget, lifiCallData);
         }
 
-        IERC20 flashLoanAsset = IERC20(stakeData.stakeType == StakeType.ETHERFI_ETH_WEETH ? stakeData.assetIn : assetIn);
+        IERC20 flashLoanAsset = IERC20(stakeData.stakeType != StakeType.NONE ? stakeData.assetIn : assetIn);
         IERC20(flashLoanAsset).approve(msg.sender, flashLoanAmount);
     }
 
-    function _getWeethFromWeth(
+    function _stakeWethForWeeth(
         StakeData memory stakeData,
+        uint256 amountIn,
         uint256 minAmountOut
     ) internal {
-        IWETH9(address(weth)).withdraw(stakeData.amountIn);
+        IWETH9(address(weth)).withdraw(amountIn);
 
         // Deposit the ETH into the EtherFi L2 Mode Sync Pool to obtain weETH
         // Note: The EtherFi L2 Mode Sync Pool requires ETH to mint weETH. WETH is unsupported
-        IEtherFiL2ModeSyncPool(stakeData.stakeTo).deposit{value: stakeData.amountIn}(ETHERFI_ETH_ADDRESS, stakeData.amountIn, minAmountOut, address(0));
+        IEtherFiL2ModeSyncPool(stakeData.stakeTo).deposit{value: amountIn}(ETHERFI_ETH_ADDRESS, amountIn, minAmountOut, address(0));
     }
 
     function _swapExactInputOnSwapAdapter(

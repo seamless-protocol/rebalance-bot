@@ -233,10 +233,6 @@ export const RebalancerAbi = [
             type: "address",
             internalType: "address",
           },
-          {
-            name: "amountIn",
-            type: "uint256",
-          },
         ],
       },
     ],

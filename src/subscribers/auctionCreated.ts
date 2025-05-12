@@ -5,7 +5,8 @@ import {
   DUTCH_AUCTION_POLLING_INTERVAL,
   DUTCH_AUCTION_STEP_COUNT,
 } from "../constants/values";
-import { LeverageToken, LogLevel, RebalanceType } from "../types";
+import { LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
+import { getDummyNoSwapParams, getRebalanceSwapParams } from "../services/routing/getSwapParams";
 import {
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
@@ -19,7 +20,7 @@ import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
-import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
+import { getStakeParams } from "@/services/routing/getStakeParams";
 import { publicClient } from "../utils/transactionHelpers";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { sendAlert } from "../utils/alerts";
@@ -66,9 +67,12 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAd
   };
 };
 
-const handleAuctionCreatedEvent = async (rebalanceAdapter: Address) => {
-  const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
-
+const handleAuctionCreatedEvent = async (
+  leverageToken: Address,
+  rebalanceAdapter: Address,
+  collateralAsset: Address,
+  debtAsset: Address
+) => {
   try {
     const { collateral, debt, equity, currentRatio, targetRatio, isAuctionValid } = await getLeverageTokenRebalanceData(
       leverageToken,
@@ -86,9 +90,6 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address) => {
       `Attempting to take for ${isOverCollateralized ? "over" : "under"}-collateralized LeverageToken ${leverageToken}...`
     );
 
-    const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
-    const debtAsset = getLeverageTokenDebtAsset(leverageToken);
-
     const baseRatio = BASE_RATIO;
     const targetCollateral = (equity * targetRatio) / baseRatio;
     const targetDebt = (equity * (targetRatio - baseRatio)) / baseRatio;
@@ -104,11 +105,17 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address) => {
     const stepCount = DUTCH_AUCTION_STEP_COUNT;
     const decreasePerStep = maxAmountToTake / BigInt(stepCount);
 
+    // Determine whether we can use native EtherFi staking for swapping assets
+    const stakeType =
+      collateralAsset == CONTRACT_ADDRESSES.WEETH && debtAsset == CONTRACT_ADDRESSES.WETH
+        ? StakeType.ETHERFI_ETH_WEETH
+        : StakeType.NONE;
+
     // TODO: Instead of for loop maybe put this in big multicall
     for (let i = 0; i <= stepCount; i++) {
       const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
 
-      const [isAuctionValid, { isProfitable, swapType, swapContext, lifiSwap }] = await Promise.all([
+      const [isAuctionValid, swapParams, stakeParams] = await Promise.all([
         publicClient.readContract({
           address: rebalanceAdapter,
           abi: RebalanceAdapterAbi,
@@ -120,6 +127,7 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address) => {
           assetOut,
           takeAmount,
         }),
+        getStakeParams(rebalanceAdapter, stakeType, takeAmount),
       ]);
 
       if (!isAuctionValid) {
@@ -132,7 +140,7 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address) => {
         return;
       }
 
-      if (!isProfitable) {
+      if (!swapParams.isProfitable && !stakeParams.isProfitable) {
         console.log(
           `Rebalance is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} asset: ${assetIn}. Skipping...`
         );
@@ -143,15 +151,15 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address) => {
         `Rebalance is profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} asset: ${assetIn}. Participating in Dutch auction...`
       );
       try {
+        // Prefer staking over swapping
+        const rebalanceSwapParams = stakeParams.isProfitable ? getDummyNoSwapParams() : swapParams;
+
         const tx = await rebalancerContract.write.takeAuction([
           leverageToken,
           takeAmount,
           RebalanceType.REBALANCE_DOWN,
-          {
-            swapType,
-            swapContext,
-            lifiSwap,
-          },
+          rebalanceSwapParams,
+          stakeParams.stakeData,
         ]);
 
         console.log(`Auction taken. Transaction hash: ${tx}`);
@@ -216,8 +224,12 @@ export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
         clearInterval(currentAuctionInterval);
       }
 
+      const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
+      const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
+      const debtAsset = getLeverageTokenDebtAsset(leverageToken);
+
       const interval = setInterval(async () => {
-        await handleAuctionCreatedEvent(rebalanceAdapter);
+        await handleAuctionCreatedEvent(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);
       }, DUTCH_AUCTION_POLLING_INTERVAL);
 
       DUTCH_AUCTION_ACTIVE_INTERVALS.set(rebalanceAdapter, interval);

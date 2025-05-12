@@ -18,6 +18,15 @@ import { getLeverageTokenRebalanceAdapter } from "../../utils/contractHelpers";
 import { getRouteUniswapV3ExactInput } from "./uniswapV3";
 import { publicClient } from "../../utils/transactionHelpers";
 
+export const getDummyNoSwapParams = (): GetRebalanceSwapParamsOutput => {
+  return {
+    isProfitable: false,
+    swapType: SwapType.NONE,
+    swapContext: getDummySwapContext(),
+    lifiSwap: getDummyLifiSwap(),
+  };
+};
+
 const getDummySwapType = (): SwapType => {
   return SwapType.EXACT_INPUT_SWAP_ADAPTER;
 };
@@ -117,7 +126,7 @@ export const getRebalanceSwapParams = async (
   // In this part fetching LIFI quote failed, so we proceed with fallback option
   // We fetch quotes directly from Uniswap V2 and V3 and return the best quote with smart contract call parameters
   if (!lifiQuote) {
-    return await getFallbackSwapParams(input, requiredAmountIn);
+    return getFallbackSwapParams(input, requiredAmountIn);
   }
 
   // Fetching LIFI quote was successful, proceed with checking if it's profitable

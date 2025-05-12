@@ -25,7 +25,6 @@ struct StakeData {
     StakeType stakeType;
     address stakeTo;
     address assetIn;
-    uint256 amountIn;
 }
 
 struct SwapData {
@@ -41,6 +40,7 @@ enum RebalanceStatus {
 }
 
 enum SwapType {
+    NONE,
     EXACT_INPUT_SWAP_ADAPTER,
     EXACT_OUTPUT_SWAP_ADAPTER,
     LIFI_SWAP

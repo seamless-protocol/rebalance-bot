@@ -1,14 +1,17 @@
 import { Address, zeroAddress } from "viem";
+import { ContractAddresses, ExchangeAddresses } from "../types";
 
 import dotenv from "dotenv";
-import { ContractAddresses, ExchangeAddresses } from "../types";
 
 dotenv.config();
 
 export const CONTRACT_ADDRESSES: ContractAddresses = {
+  ETHERFI_L2_MODE_SYNC_POOL: (process.env.ETHERFI_L2_MODE_SYNC_POOL as Address) || zeroAddress,
   LEVERAGE_MANAGER: (process.env.LEVERAGE_MANAGER as Address) || zeroAddress,
   REBALANCER: (process.env.REBALANCER as Address) || zeroAddress,
   UNISWAP_V2_ROUTER_02: (process.env.UNISWAP_V2_ROUTER_02 as Address) || zeroAddress,
+  WETH: (process.env.WETH as Address) || zeroAddress,
+  WEETH: (process.env.WEETH as Address) || zeroAddress,
 };
 
 export const EXCHANGE_ADDRESSES: ExchangeAddresses = {

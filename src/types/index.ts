@@ -6,10 +6,16 @@ export enum RebalanceStatus {
   PRE_LIQUIDATION_ELIGIBLE = 2,
 }
 
+export enum StakeType {
+  NONE = 0,
+  ETHERFI_ETH_WEETH = 1,
+}
+
 export enum SwapType {
-  EXACT_INPUT_SWAP_ADAPTER = 0,
-  EXACT_OUTPUT_SWAP_ADAPTER = 1,
-  LIFI_SWAP = 2,
+  NONE = 0,
+  EXACT_INPUT_SWAP_ADAPTER = 1,
+  EXACT_OUTPUT_SWAP_ADAPTER = 2,
+  LIFI_SWAP = 3,
 }
 
 export enum RebalanceType {
@@ -39,9 +45,12 @@ export interface Chain {
 }
 
 export interface ContractAddresses {
+  ETHERFI_L2_MODE_SYNC_POOL: Address;
   LEVERAGE_MANAGER: Address;
   REBALANCER: Address;
   UNISWAP_V2_ROUTER_02: Address;
+  WETH: Address;
+  WEETH: Address;
 }
 
 export interface LeverageToken {
@@ -76,6 +85,12 @@ export interface ExchangeAddresses {
   aerodromeSlipstreamRouter: Address;
   uniswapSwapRouter02: Address;
   uniswapV2Router02: Address;
+}
+
+export interface StakeData {
+  stakeType: StakeType;
+  stakeTo: Address;
+  assetIn: Address;
 }
 
 export interface SwapContext {

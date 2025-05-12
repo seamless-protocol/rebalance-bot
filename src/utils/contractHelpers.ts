@@ -1,12 +1,14 @@
 import { Abi, AbiEvent, Address, Log, getAbiItem, getContract } from "viem";
+import { publicClient, walletClient } from "./transactionHelpers";
+
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import EtherFiL2ModeSyncPoolAbi from "abis/EtherFiL2ModeSyncPool";
+import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
+import { readJsonArrayFromFile } from "./fileHelpers";
 import rebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import rebalancerAbi from "../../abis/Rebalancer";
 import uniswapV2Router02Abi from "../../abis/UniswapV2Router02";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
-import { readJsonArrayFromFile } from "./fileHelpers";
-import { publicClient, walletClient } from "./transactionHelpers";
 
 export const getHistoricalLogs = async ({
   contractAddress,
@@ -122,3 +124,11 @@ export const leverageManagerContract = getContract({
   abi: LeverageManagerAbi,
   client: walletClient,
 });
+
+export const getEtherFiL2ModeSyncPoolContract = () => {
+  return getContract({
+    address: CONTRACT_ADDRESSES.ETHERFI_L2_MODE_SYNC_POOL,
+    abi: EtherFiL2ModeSyncPoolAbi,
+    client: publicClient,
+  });
+};
