@@ -1,8 +1,4 @@
-import { RouteWithValidQuote, V3Route } from "@uniswap/smart-order-router";
-import { encodeRouteToPath } from "@uniswap/v3-sdk";
 import { Address, zeroAddress } from "viem";
-import RebalanceAdapterAbi from "../../../abis/RebalanceAdapter";
-import { EXCHANGE_ADDRESSES } from "../../constants/contracts";
 import {
   Exchange,
   GetRebalanceSwapParamsInput,
@@ -11,11 +7,16 @@ import {
   SwapContext,
   SwapType,
 } from "../../types";
-import { getLeverageTokenRebalanceAdapter } from "../../utils/contractHelpers";
-import { publicClient } from "../../utils/transactionHelpers";
-import { getLIFIQuote } from "./lifi";
+import { RouteWithValidQuote, V3Route } from "@uniswap/smart-order-router";
+
+import { EXCHANGE_ADDRESSES } from "../../constants/contracts";
+import RebalanceAdapterAbi from "../../../abis/RebalanceAdapter";
+import { encodeRouteToPath } from "@uniswap/v3-sdk";
 import { getAmountsOutUniswapV2 } from "./uniswapV2";
+import { getLIFIQuote } from "./lifi";
+import { getLeverageTokenRebalanceAdapter } from "../../utils/contractHelpers";
 import { getRouteUniswapV3ExactInput } from "./uniswapV3";
+import { publicClient } from "../../utils/transactionHelpers";
 
 const getDummySwapType = (): SwapType => {
   return SwapType.EXACT_INPUT_SWAP_ADAPTER;
@@ -160,7 +161,7 @@ const prepareUniswapV2SwapContext = (assetIn: Address, assetOut: Address): SwapC
 
 const prepareUniswapV3SwapContext = (assetIn: Address, route: RouteWithValidQuote): SwapContext => {
   return {
-    encodedPath: encodeRouteToPath(route.route as V3Route, false) as `0x${string}`,
+    encodedPath: route?.route ? (encodeRouteToPath(route.route as V3Route, false) as `0x${string}`) : "0x",
     exchange: Exchange.UNISWAP_V3,
     exchangeAddresses: EXCHANGE_ADDRESSES,
     path: [assetIn], // Only assetIn because SwapAdapter has special logic for path of length 2. Here we use the same logic no matter single swap or multi-hop.

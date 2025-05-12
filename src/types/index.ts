@@ -24,6 +24,12 @@ export enum Exchange {
   UNISWAP_V3 = 3,
 }
 
+export enum LogLevel {
+  INFO = 0,
+  ERROR = 1,
+  REBALANCED = 2,
+}
+
 export interface Chain {
   chainId: number;
   leverageTokensFilePath: string;

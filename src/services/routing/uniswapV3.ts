@@ -1,9 +1,10 @@
-import { ChainId, CurrencyAmount, Percent, Token, TradeType } from "@uniswap/sdk-core";
-import { AlphaRouter, RouteWithValidQuote, SwapOptions, SwapType } from "@uniswap/smart-order-router";
 import { Address, erc20Abi } from "viem";
+import { AlphaRouter, RouteWithValidQuote, SwapOptions, SwapType } from "@uniswap/smart-order-router";
+import { ChainId, CurrencyAmount, Percent, Token, TradeType } from "@uniswap/sdk-core";
+import { primaryEthersProvider, publicClient } from "../../utils/transactionHelpers";
+
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { UniswapV3QuoteExactInputArgs } from "../../types";
-import { ethersProvider, publicClient } from "../../utils/transactionHelpers";
 
 const getTokensDecimals = async (tokenInAddress: Address, tokenOutAddress: Address) => {
   const [tokenInDecimals, tokenOutDecimals] = await publicClient.multicall({
@@ -32,7 +33,8 @@ export const getRouteUniswapV3ExactInput = async (
 
     const router = new AlphaRouter({
       chainId: ChainId.BASE,
-      provider: ethersProvider,
+      // Fallback ethers provider is not supported by AlphaRouter (it calls provider.send which is not supported by ethers FallbackProvider)
+      provider: primaryEthersProvider,
     });
 
     const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);

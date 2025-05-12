@@ -10,8 +10,8 @@ interface IRebalancer {
     /// @notice Error thrown when the LIFI swap fails
     error LIFISwapFailed();
 
-    /// @notice Emitted when a tryCreateAuction call is made, status of the leverage token is emitted
-    event TryCreateAuction(address indexed leverageToken, RebalanceStatus indexed status);
+    /// @notice Emitted when a tryCreateAuction call is made, status of the leverage token and whether the auction was created
+    event TryCreateAuction(address indexed leverageToken, RebalanceStatus indexed status, bool indexed auctionCreated);
 
     /// @notice Get the rebalance status of a leverage token
     /// @param leverageToken The address of the leverage token
@@ -21,6 +21,11 @@ interface IRebalancer {
     /// - DUTCH_AUCTION_ELIGIBLE: The leverage token is eligible for Dutch rebalancing
     /// - PRE_LIQUIDATION_ELIGIBLE: The leverage token is eligible for pre-liquidation rebalancing
     function getRebalanceStatus(address leverageToken) external view returns (RebalanceStatus status);
+
+    /// @notice Transfers the balance of a token held by the contract to an address
+    /// @param token The address of the token to sweep
+    /// @param to The address to sweep the token to
+    function sweepToken(address token, address to) external;
 
     /// @notice Try to create an auction for a leverage token
     /// @param leverageToken The address of the leverage token

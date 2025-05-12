@@ -17,9 +17,11 @@ export const publicClient = createPublicClient({
   transport: fallback([http(PRIMARY_RPC_URL), http(FALLBACK_RPC_URL)]),
 });
 
+export const primaryEthersProvider = new ethers.providers.JsonRpcProvider(PRIMARY_RPC_URL);
+
 export const ethersProvider = new ethers.providers.FallbackProvider([
   {
-    provider: new ethers.providers.JsonRpcProvider(PRIMARY_RPC_URL),
+    provider: primaryEthersProvider,
     priority: 1,
   },
   {

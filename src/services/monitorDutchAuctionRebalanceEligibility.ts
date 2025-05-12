@@ -1,11 +1,12 @@
-import { LeverageToken, RebalanceStatus } from "../types";
-
-import { getContract } from "viem";
-import { RebalancerAbi } from "../../abis/Rebalancer";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
-import { readJsonArrayFromFile } from "../utils/fileHelpers";
+import { LeverageToken, LogLevel, RebalanceStatus } from "../types";
+import { getContract, parseEventLogs } from "viem";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
+
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { RebalancerAbi } from "../../abis/Rebalancer";
+import { readJsonArrayFromFile } from "../utils/fileHelpers";
+import { sendAlert } from "../utils/alerts";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
@@ -50,13 +51,32 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
 
   const tx = await rebalancerContract.write.tryCreateAuction([leverageToken.address]);
 
-  console.log(`TryCreateAuction for ${leverageToken.address}:`, tx);
+  console.log(`TryCreateAuction for LeverageToken ${leverageToken.address}, transaction hash ${tx}`);
 
-  await publicClient.waitForTransactionReceipt({
+  const receipt = await publicClient.waitForTransactionReceipt({
     hash: tx,
   });
 
-  console.log(`TryCreateAuction successful for LeverageToken ${leverageToken.address}`);
+  const tryCreateAuctionEvent = parseEventLogs({
+    abi: RebalancerAbi,
+    eventName: "TryCreateAuction",
+    logs: receipt.logs,
+  })[0];
+  const { auctionCreated } = tryCreateAuctionEvent.args;
+
+  if (auctionCreated) {
+    console.log(
+      `Rebalancer.TryCreateAuction successful for LeverageToken ${leverageToken.address}, auction created. Transaction hash: ${tx}`
+    );
+    await sendAlert(
+      `*Rebalance auction created successfully*\n• LeverageToken: \`${leverageToken.address}\`\n• Transaction Hash: \`${tx}\``,
+      LogLevel.INFO
+    );
+  } else {
+    console.log(
+      `Rebalancer.TryCreateAuction successful for LeverageToken ${leverageToken.address}, but auction was not created. Transaction hash: ${tx}`
+    );
+  }
 };
 
 const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
@@ -74,13 +94,21 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
 
             handledLeverageTokens.delete(leverageToken.address);
           } catch (handleError) {
-            console.error(`Error handling DutchAuctionRebalance for ${leverageToken.address}:`, handleError);
             handledLeverageTokens.delete(leverageToken.address);
+            console.error(`Error creating DutchAuctionRebalance for ${leverageToken.address}: ${handleError}`);
+            await sendAlert(
+              `*Error creating DutchAuctionRebalance*\n• LeverageToken: \`${leverageToken.address}\`\n• Error Message: \`${(handleError as Error).message}\``,
+              LogLevel.ERROR
+            );
           }
         }
       });
     } catch (err) {
       console.error("Error monitoring rebalance eligibility:", err);
+      await sendAlert(
+        `*Error monitoring rebalance eligibility*\n• Error Message: \`${(err as Error).message}\``,
+        LogLevel.ERROR
+      );
     }
   }, interval);
 };

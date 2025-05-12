@@ -1,5 +1,5 @@
 {
-  "ignorePatterns": ["dist/**/*"],
+  "ignorePatterns": ["dist/**/*", "contracts/**/*"],
   "root": true,
   "env": {
     "node": true,
