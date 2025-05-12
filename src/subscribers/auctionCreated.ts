@@ -1,9 +1,9 @@
 import { Address, BaseError, ContractFunctionRevertedError } from "viem";
 import {
   BASE_RATIO,
-  DEFAULT_DUTCH_AUCTION_STEP_COUNT,
   DUTCH_AUCTION_ACTIVE_INTERVALS,
   DUTCH_AUCTION_POLLING_INTERVAL,
+  DUTCH_AUCTION_STEP_COUNT,
 } from "../constants/values";
 import { LeverageToken, LogLevel, RebalanceType } from "../types";
 import {
@@ -101,7 +101,7 @@ const handleAuctionCreatedEvent = async (rebalanceAdapter: Address) => {
     const maxAmountToTake = isOverCollateralized ? targetDebt - debt : targetCollateral - collateral;
 
     // Calculate for how much will amount to take decrease per step so we can check profitability with smaller slippage
-    const stepCount = DEFAULT_DUTCH_AUCTION_STEP_COUNT;
+    const stepCount = DUTCH_AUCTION_STEP_COUNT;
     const decreasePerStep = maxAmountToTake / BigInt(stepCount);
 
     // TODO: Instead of for loop maybe put this in big multicall
