@@ -21,10 +21,11 @@ struct LIFISwap {
     uint256 value;
 }
 
-struct StakeData {
+struct StakeContext {
     StakeType stakeType;
     address stakeTo;
     address assetIn;
+    uint256 amountIn;
 }
 
 struct SwapData {

@@ -87,10 +87,11 @@ export interface ExchangeAddresses {
   uniswapV2Router02: Address;
 }
 
-export interface StakeData {
+export interface StakeContext {
   stakeType: StakeType;
   stakeTo: Address;
   assetIn: Address;
+  amountIn: bigint;
 }
 
 export interface SwapContext {

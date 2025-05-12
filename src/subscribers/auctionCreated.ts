@@ -159,7 +159,7 @@ const handleAuctionCreatedEvent = async (
           takeAmount,
           RebalanceType.REBALANCE_DOWN,
           rebalanceSwapParams,
-          stakeParams.stakeData,
+          stakeParams.stakeContext,
         ]);
 
         console.log(`Auction taken. Transaction hash: ${tx}`);

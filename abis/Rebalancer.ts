@@ -214,9 +214,9 @@ export const RebalancerAbi = [
         ],
       },
       {
-        name: "stakeData",
+        name: "stakeContext",
         type: "tuple",
-        internalType: "struct StakeData",
+        internalType: "struct StakeContext",
         components: [
           {
             name: "stakeType",
@@ -232,6 +232,11 @@ export const RebalancerAbi = [
             name: "assetIn",
             type: "address",
             internalType: "address",
+          },
+          {
+            name: "amountIn",
+            type: "uint256",
+            internalType: "uint256",
           },
         ],
       },
