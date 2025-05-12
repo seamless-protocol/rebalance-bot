@@ -3,6 +3,11 @@ pragma solidity ^0.8.13;
 
 import {ISwapAdapter} from "./interfaces/ISwapAdapter.sol";
 
+enum StakeType {
+    NONE,
+    ETHERFI_ETH_WEETH // Staking ETH to receive weETH
+}
+
 struct LeverageTokenState {
     uint256 collateralInDebtAsset;
     uint256 debt;
@@ -14,6 +19,13 @@ struct LIFISwap {
     address to;
     bytes data;
     uint256 value;
+}
+
+struct StakeData {
+    StakeType stakeType;
+    address stakeTo;
+    address assetIn;
+    uint256 amountIn;
 }
 
 struct SwapData {
