@@ -1,24 +1,29 @@
 import { GetLIFIQuoteInput, GetLIFIQuoteOutput } from "../../types";
+import { LIFI_API_KEY, LIFI_API_URL } from "../../constants/values";
 
+import { CHAIN_ID } from "@/constants/chain";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
-import { LIFI_API_URL } from "../../constants/values";
 import axios from "axios";
 
 export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuoteOutput | null> => {
+  if (!LIFI_API_KEY) {
+    return null;
+  }
+
   const { fromToken, toToken, fromAmount } = args;
 
   try {
     const result = await axios.get(LIFI_API_URL, {
       params: {
-        fromChain: 8453,
-        toChain: 8453,
+        fromChain: CHAIN_ID,
+        toChain: CHAIN_ID,
         fromToken,
         toToken,
         fromAmount,
         fromAddress: CONTRACT_ADDRESSES.REBALANCER,
       },
       headers: {
-        "x-lifi-api-key": process.env.LIFI_API_KEY,
+        "x-lifi-api-key": LIFI_API_KEY,
       },
     });
 

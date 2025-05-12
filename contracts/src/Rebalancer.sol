@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -207,4 +207,6 @@ contract Rebalancer is IRebalancer, Ownable {
         (bool success,) = target.call(data);
         if (!success) revert LIFISwapFailed();
     }
+
+    receive() external payable {}
 }

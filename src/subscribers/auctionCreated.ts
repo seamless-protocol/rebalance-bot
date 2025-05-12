@@ -20,7 +20,7 @@ import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
-import { getStakeParams } from "@/services/routing/getStakeParams";
+import { getStakeParams } from "../services/routing/getStakeParams";
 import { publicClient } from "../utils/transactionHelpers";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { sendAlert } from "../utils/alerts";
@@ -101,6 +101,8 @@ const handleAuctionCreatedEvent = async (
     const assetOut = isOverCollateralized ? debtAsset : collateralAsset;
     const maxAmountToTake = isOverCollateralized ? targetDebt - debt : targetCollateral - collateral;
 
+    const rebalanceType = isOverCollateralized ? RebalanceType.REBALANCE_DOWN : RebalanceType.REBALANCE_UP;
+
     // Calculate for how much will amount to take decrease per step so we can check profitability with smaller slippage
     const stepCount = DUTCH_AUCTION_STEP_COUNT;
     const decreasePerStep = maxAmountToTake / BigInt(stepCount);
@@ -157,12 +159,10 @@ const handleAuctionCreatedEvent = async (
         const tx = await rebalancerContract.write.takeAuction([
           leverageToken,
           takeAmount,
-          RebalanceType.REBALANCE_DOWN,
+          rebalanceType,
           rebalanceSwapParams,
           stakeParams.stakeContext,
         ]);
-
-        console.log(`Auction taken. Transaction hash: ${tx}`);
 
         await publicClient.waitForTransactionReceipt({
           hash: tx,

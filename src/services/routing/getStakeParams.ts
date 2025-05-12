@@ -1,10 +1,10 @@
 import { Address, zeroAddress } from "viem";
-import { StakeContext, StakeType } from "@/types";
+import { StakeContext, StakeType } from "../../types";
 
-import { CONTRACT_ADDRESSES } from "@/constants/contracts";
-import RebalanceAdapterAbi from "abis/RebalanceAdapter";
+import { CONTRACT_ADDRESSES } from "../../constants/contracts";
+import RebalanceAdapterAbi from "../../../abis/RebalanceAdapter";
 import { getEtherFiEthStakeQuote } from "./etherFi";
-import { publicClient } from "@/utils/transactionHelpers";
+import { publicClient } from "../../utils/transactionHelpers";
 
 const getDummyStakeContext = (): StakeContext => {
   return {
