@@ -13,6 +13,8 @@ interface IRebalanceAdapter {
 
     function getAmountIn(uint256 amountToTake) external view returns (uint256 amountIn);
 
+    function getRebalanceReward() external view returns (uint256);
+
     function createAuction() external;
 
     function take(uint256 amount) external;

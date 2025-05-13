@@ -1,3 +1,4 @@
+import { RouteWithValidQuote, V3Route } from "@uniswap/smart-order-router";
 import { Address, zeroAddress } from "viem";
 import {
   Exchange,
@@ -7,16 +8,12 @@ import {
   SwapContext,
   SwapType,
 } from "../../types";
-import { RouteWithValidQuote, V3Route } from "@uniswap/smart-order-router";
 
-import { EXCHANGE_ADDRESSES } from "../../constants/contracts";
-import RebalanceAdapterAbi from "../../../abis/RebalanceAdapter";
 import { encodeRouteToPath } from "@uniswap/v3-sdk";
-import { getAmountsOutUniswapV2 } from "./uniswapV2";
+import { EXCHANGE_ADDRESSES } from "../../constants/contracts";
 import { getLIFIQuote } from "./lifi";
-import { getLeverageTokenRebalanceAdapter } from "../../utils/contractHelpers";
+import { getAmountsOutUniswapV2 } from "./uniswapV2";
 import { getRouteUniswapV3ExactInput } from "./uniswapV3";
-import { publicClient } from "../../utils/transactionHelpers";
 
 export const getDummySwapParams = (): GetRebalanceSwapParamsOutput => {
   return {
@@ -97,22 +94,13 @@ export const getFallbackSwapParams = async (
 export const getRebalanceSwapParams = async (
   input: GetRebalanceSwapParamsInput
 ): Promise<GetRebalanceSwapParamsOutput> => {
-  const { leverageToken, assetIn, assetOut, takeAmount } = input;
-  const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken);
+  const { assetIn, assetOut, takeAmount, requiredAmountIn } = input;
 
-  const [requiredAmountIn, lifiQuote] = await Promise.all([
-    publicClient.readContract({
-      address: rebalanceAdapter,
-      abi: RebalanceAdapterAbi,
-      functionName: "getAmountIn",
-      args: [takeAmount],
-    }),
-    getLIFIQuote({
-      fromToken: assetOut,
-      toToken: assetIn,
-      fromAmount: takeAmount,
-    }),
-  ]);
+  const lifiQuote = await getLIFIQuote({
+    fromToken: assetOut,
+    toToken: assetIn,
+    fromAmount: takeAmount,
+  });
 
   // In this part fetching LIFI quote failed, so we proceed with fallback option
   // We fetch quotes directly from Uniswap V2 and V3 and return the best quote with smart contract call parameters

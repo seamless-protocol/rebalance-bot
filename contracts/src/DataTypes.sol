@@ -51,3 +51,15 @@ enum RebalanceType {
     REBALANCE_DOWN,
     REBALANCE_UP
 }
+
+enum ActionType {
+    AddCollateral,
+    RemoveCollateral,
+    Borrow,
+    Repay
+}
+
+struct RebalanceAction {
+    ActionType actionType;
+    uint256 amount;
+}

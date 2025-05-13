@@ -149,16 +149,14 @@ contract Rebalancer is IRebalancer, Ownable {
         IERC20(assetIn).approve(rebalanceAdapter, amountIn);
         IRebalanceAdapter(rebalanceAdapter).take(amountToTake);
 
-        uint256 assetOutReceived = IERC20(assetOut).balanceOf(address(this));
-
         if (swapData.swapType == SwapType.EXACT_INPUT_SWAP_ADAPTER) {
-            _swapExactInputOnSwapAdapter(assetOut, assetOutReceived, 0, swapData.swapContext);
+            _swapExactInputOnSwapAdapter(assetOut, amountToTake, 0, swapData.swapContext);
         } else if (swapData.swapType == SwapType.EXACT_OUTPUT_SWAP_ADAPTER) {
             _swapExactOutputOnSwapAdapter(assetOut, amountIn, type(uint256).max, swapData.swapContext);
         } else if (swapData.swapType == SwapType.LIFI_SWAP) {
             address lifiTarget = swapData.lifiSwap.to;
             bytes memory lifiCallData = swapData.lifiSwap.data;
-            _swapLIFI(IERC20(assetOut), assetOutReceived, lifiTarget, lifiCallData);
+            _swapLIFI(IERC20(assetOut), amountToTake, lifiTarget, lifiCallData);
         }
 
         IERC20 flashLoanAsset = IERC20(stakeContext.stakeType != StakeType.NONE ? stakeContext.assetIn : assetIn);

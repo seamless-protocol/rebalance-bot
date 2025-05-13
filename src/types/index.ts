@@ -108,6 +108,7 @@ export interface GetRebalanceSwapParamsInput {
   assetIn: Address;
   assetOut: Address;
   takeAmount: bigint;
+  requiredAmountIn: bigint;
 }
 
 export interface LIFISwap {
