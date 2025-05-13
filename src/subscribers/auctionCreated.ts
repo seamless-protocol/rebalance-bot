@@ -6,7 +6,7 @@ import {
   DUTCH_AUCTION_STEP_COUNT,
 } from "../constants/values";
 import { LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
-import { getDummyNoSwapParams, getRebalanceSwapParams } from "../services/routing/getSwapParams";
+import { getDummySwapParams, getRebalanceSwapParams } from "../services/routing/getSwapParams";
 import {
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
@@ -154,7 +154,7 @@ const handleAuctionCreatedEvent = async (
       );
       try {
         // Prefer staking over swapping, if profitable
-        const rebalanceSwapParams = stakeParams.isProfitable ? getDummyNoSwapParams() : swapParams;
+        const rebalanceSwapParams = stakeParams.isProfitable ? getDummySwapParams() : swapParams;
 
         const tx = await rebalancerContract.write.takeAuction([
           leverageToken,

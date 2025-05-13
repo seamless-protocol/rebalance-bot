@@ -18,17 +18,13 @@ import { getLeverageTokenRebalanceAdapter } from "../../utils/contractHelpers";
 import { getRouteUniswapV3ExactInput } from "./uniswapV3";
 import { publicClient } from "../../utils/transactionHelpers";
 
-export const getDummyNoSwapParams = (): GetRebalanceSwapParamsOutput => {
+export const getDummySwapParams = (): GetRebalanceSwapParamsOutput => {
   return {
     isProfitable: false,
     swapType: SwapType.NONE,
     swapContext: getDummySwapContext(),
     lifiSwap: getDummyLifiSwap(),
   };
-};
-
-const getDummySwapType = (): SwapType => {
-  return SwapType.EXACT_INPUT_SWAP_ADAPTER;
 };
 
 const getDummySwapContext = (): SwapContext => {
@@ -74,12 +70,7 @@ export const getFallbackSwapParams = async (
   // In this case swap will result in insufficient amount out and we will not be able to repay flash loan
   // In this case we return dummy values and isProfitable will be false
   if (requiredAmountIn > amountOutUniV2 && requiredAmountIn > amountOutUniV3) {
-    return {
-      isProfitable: false,
-      swapType: getDummySwapType(),
-      swapContext: getDummySwapContext(),
-      lifiSwap: getDummyLifiSwap(),
-    };
+    return getDummySwapParams();
   }
 
   // If the amount out from Uniswap V2 is greater than the amount out from Uniswap V3, we use the Uniswap V2 route
@@ -134,12 +125,7 @@ export const getRebalanceSwapParams = async (
 
   // Not profitable, return dummy values because smart contract is not going to be called anyway
   if (requiredAmountIn > amountOutLifi) {
-    return {
-      isProfitable: false,
-      swapType: getDummySwapType(),
-      swapContext: getDummySwapContext(),
-      lifiSwap: getDummyLifiSwap(),
-    };
+    return getDummySwapParams();
   }
 
   // Profitable, return LIFI swap calldata
