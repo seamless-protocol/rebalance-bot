@@ -213,6 +213,33 @@ export const RebalancerAbi = [
           },
         ],
       },
+      {
+        name: "stakeContext",
+        type: "tuple",
+        internalType: "struct StakeContext",
+        components: [
+          {
+            name: "stakeType",
+            type: "uint8",
+            internalType: "enum StakeType",
+          },
+          {
+            name: "stakeTo",
+            type: "address",
+            internalType: "address",
+          },
+          {
+            name: "assetIn",
+            type: "address",
+            internalType: "address",
+          },
+          {
+            name: "amountIn",
+            type: "uint256",
+            internalType: "uint256",
+          },
+        ],
+      },
     ],
     outputs: [],
     stateMutability: "nonpayable",

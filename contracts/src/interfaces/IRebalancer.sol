@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {RebalanceStatus, RebalanceType, SwapData} from "src/DataTypes.sol";
+import {StakeContext, SwapData, RebalanceStatus, RebalanceType} from "src/DataTypes.sol";
 
 interface IRebalancer {
     /// @notice Error thrown when the caller is not authorized
@@ -36,11 +36,15 @@ interface IRebalancer {
     /// @param leverageToken The address of the leverage token
     /// @param amountToTake The amount to take from the auction
     /// @param swapData The swap data for the auction
+    /// @param stakeContext The stake context for the auction
+    /// @dev If stakeContext.stakeType != NONE, the contract will flash loan stakeContext.assetIn and stake it to stakeContext.stakeTo
+    /// and use the resulting staked asset as the assetIn for the auction
     function takeAuction(
         address leverageToken,
         uint256 amountToTake,
         RebalanceType rebalanceType,
-        SwapData memory swapData
+        SwapData memory swapData,
+        StakeContext memory stakeContext
     ) external;
 
     /// @notice Called by Morpho when a flash loan is received
