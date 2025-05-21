@@ -13,7 +13,7 @@ import {
   getLeverageTokenForRebalanceAdapter,
   getLeverageTokenRebalanceAdapter,
   leverageManagerContract,
-  rebalancerContract,
+  dutchAuctionRebalancerContract,
 } from "../utils/contractHelpers";
 
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
@@ -166,7 +166,7 @@ const handleAuctionCreatedEvent = async (
         // Prefer staking over swapping, if profitable
         const rebalanceSwapParams = stakeParams.isProfitable ? getDummySwapParams() : swapParams;
 
-        const tx = await rebalancerContract.write.takeAuction([
+        const tx = await dutchAuctionRebalancerContract.write.takeAuction([
           leverageToken,
           takeAmount,
           rebalanceType,

@@ -9,13 +9,13 @@ import {ILeverageManager, LeverageTokenState} from "./interfaces/ILeverageManage
 import {IRebalanceAdapter} from "./interfaces/IRebalanceAdapter.sol";
 import {RebalanceStatus, StakeContext, StakeType, SwapData, SwapType, RebalanceType} from "./DataTypes.sol";
 import {IEtherFiL2ModeSyncPool} from "./interfaces/IEtherFiL2ModeSyncPool.sol";
-import {IRebalancer} from "./interfaces/IRebalancer.sol";
+import {IDutchAuctionRebalancer} from "./interfaces/IDutchAuctionRebalancer.sol";
 import {ISwapAdapter} from "./interfaces/ISwapAdapter.sol";
 import {ILendingAdapter} from "./interfaces/ILendingAdapter.sol";
 import {IMorpho} from "./interfaces/IMorpho.sol";
 import {IWETH9} from "./interfaces/IWETH9.sol";
 
-contract Rebalancer is IRebalancer, Ownable {
+contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
     /// @notice The ETH address per the EtherFi L2 Mode Sync Pool contract
     address internal constant ETHERFI_ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -29,19 +29,21 @@ contract Rebalancer is IRebalancer, Ownable {
         _;
     }
 
-    constructor(address _owner, address _leverageManager, address _swapAdapter, address _morpho, address _weth) Ownable(_owner) {
+    constructor(address _owner, address _leverageManager, address _swapAdapter, address _morpho, address _weth)
+        Ownable(_owner)
+    {
         leverageManager = ILeverageManager(_leverageManager);
         swapAdapter = ISwapAdapter(_swapAdapter);
         morpho = IMorpho(_morpho);
         weth = IWETH9(_weth);
     }
 
-    /// @inheritdoc IRebalancer
+    /// @inheritdoc IDutchAuctionRebalancer
     function sweepToken(address token, address to) external onlyOwner {
         SafeERC20.safeTransfer(IERC20(token), to, IERC20(token).balanceOf(address(this)));
     }
 
-    /// @inheritdoc IRebalancer
+    /// @inheritdoc IDutchAuctionRebalancer
     function getRebalanceStatus(address leverageToken) public view returns (RebalanceStatus status) {
         IRebalanceAdapter rebalanceAdapter =
             IRebalanceAdapter(leverageManager.getLeverageTokenRebalanceAdapter(leverageToken));
@@ -67,7 +69,7 @@ contract Rebalancer is IRebalancer, Ownable {
         return RebalanceStatus.NOT_ELIGIBLE;
     }
 
-    /// @inheritdoc IRebalancer
+    /// @inheritdoc IDutchAuctionRebalancer
     function tryCreateAuction(address leverageToken) public {
         RebalanceStatus status = getRebalanceStatus(leverageToken);
 
@@ -86,7 +88,7 @@ contract Rebalancer is IRebalancer, Ownable {
         emit TryCreateAuction(leverageToken, status, auctionCreated);
     }
 
-    /// @inheritdoc IRebalancer
+    /// @inheritdoc IDutchAuctionRebalancer
     function takeAuction(
         address leverageToken,
         uint256 amountToTake,
@@ -116,19 +118,11 @@ contract Rebalancer is IRebalancer, Ownable {
         morpho.flashLoan(
             flashLoanAsset,
             flashLoanAmount,
-            abi.encode(
-                assetIn,
-                assetOut,
-                rebalanceAdapter,
-                amountIn,
-                amountToTake,
-                swapData,
-                stakeContext
-            )
+            abi.encode(assetIn, assetOut, rebalanceAdapter, amountIn, amountToTake, swapData, stakeContext)
         );
     }
 
-    /// @inheritdoc IRebalancer
+    /// @inheritdoc IDutchAuctionRebalancer
     function onMorphoFlashLoan(uint256 flashLoanAmount, bytes calldata data) external onlyMorpho {
         (
             address assetIn,
@@ -163,19 +157,13 @@ contract Rebalancer is IRebalancer, Ownable {
         IERC20(flashLoanAsset).approve(msg.sender, flashLoanAmount);
     }
 
-    function _stakeWethForWeeth(
-        StakeContext memory stakeContext,
-        uint256 minAmountOut
-    ) internal {
+    function _stakeWethForWeeth(StakeContext memory stakeContext, uint256 minAmountOut) internal {
         IWETH9(address(weth)).withdraw(stakeContext.amountIn);
 
         // Deposit the ETH into the EtherFi L2 Mode Sync Pool to obtain weETH
         // Note: The EtherFi L2 Mode Sync Pool requires ETH to mint weETH. WETH is unsupported at time of writing
         IEtherFiL2ModeSyncPool(stakeContext.stakeTo).deposit{value: stakeContext.amountIn}(
-            ETHERFI_ETH_ADDRESS,
-            stakeContext.amountIn,
-            minAmountOut,
-            address(0)
+            ETHERFI_ETH_ADDRESS, stakeContext.amountIn, minAmountOut, address(0)
         );
     }
 

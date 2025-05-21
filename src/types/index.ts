@@ -47,7 +47,7 @@ export interface Chain {
 export interface ContractAddresses {
   ETHERFI_L2_MODE_SYNC_POOL: Address;
   LEVERAGE_MANAGER: Address;
-  REBALANCER: Address;
+  DUTCH_AUCTION_REBALANCER: Address;
   PRE_LIQUIDATION_REBALANCER: Address;
   UNISWAP_V2_ROUTER_02: Address;
   WETH: Address;
@@ -59,6 +59,7 @@ export interface LeverageToken {
   collateralAsset: Address;
   debtAsset: Address;
   rebalanceAdapter: Address;
+  lendingAdapter: Address;
 }
 
 export interface UniswapV2GetAmountsOutArgs {

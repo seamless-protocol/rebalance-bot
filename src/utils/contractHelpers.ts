@@ -7,7 +7,7 @@ import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import { readJsonArrayFromFile } from "./fileHelpers";
 import rebalanceAdapterAbi from "../../abis/RebalanceAdapter";
-import rebalancerAbi from "../../abis/Rebalancer";
+import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import uniswapV2Router02Abi from "../../abis/UniswapV2Router02";
 import { PreLiquidationRebalancerAbi } from "../../abis/PreLiquidationRebalancer";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
@@ -134,9 +134,9 @@ export const getUniswapV2Router02Contract = () => {
   });
 };
 
-export const rebalancerContract = getContract({
-  address: CONTRACT_ADDRESSES.REBALANCER,
-  abi: rebalancerAbi,
+export const dutchAuctionRebalancerContract = getContract({
+  address: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+  abi: DutchAuctionRebalancerAbi,
   client: walletClient,
 });
 

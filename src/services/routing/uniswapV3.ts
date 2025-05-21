@@ -40,7 +40,7 @@ export const getRouteUniswapV3ExactInput = async (
 
     const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);
     const options: SwapOptions = {
-      recipient: CONTRACT_ADDRESSES.REBALANCER,
+      recipient: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
       slippageTolerance: new Percent(100),
       deadline: Number.MAX_SAFE_INTEGER,
       type: SwapType.SWAP_ROUTER_02,

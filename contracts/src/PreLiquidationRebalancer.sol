@@ -30,14 +30,10 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer {
     }
 
     /// @inheritdoc IPreLiquidationRebalancer
-    function getAmountIn(address leverageToken, uint256 amountOut) external view returns (uint256 amountInWithoutReward, uint256 amountIn) {
+    function getAmountIn(address leverageToken, uint256 amountOut) external view returns (uint256 amountIn) {
         // Fetch lending adapter and rebalance adapter for given leverage token
         address lendingAdapter = leverageManager.getLeverageTokenLendingAdapter(leverageToken);
         address rebalanceAdapter = leverageManager.getLeverageTokenRebalanceAdapter(leverageToken);
-
-        // Fetch total collateral and debt for leverage token from lending adapter
-        uint256 totalCollateral = ILendingAdapter(lendingAdapter).getCollateral();
-        uint256 totalDebt = ILendingAdapter(lendingAdapter).getDebt();
 
         // Fetch liquidation penalty and pre liquidation reward
         uint256 liquidationPenalty = ILendingAdapter(lendingAdapter).getLiquidationPenalty();
@@ -48,9 +44,7 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer {
         // When LT is in pre-liquidation state, we can take reward which means that we don't need to cover entire collateral
 
         uint256 amountInWithoutReward = ILendingAdapter(lendingAdapter).convertCollateralToDebtAsset(amountOut);
-        amountIn = Math.mulDiv(amountInWithoutReward, 1e18, 1e18 + preLiquidationReward, Math.Rounding.Ceil);
-
-        return (amountInWithoutReward, amountIn);
+        return Math.mulDiv(amountInWithoutReward, 1e18, 1e18 + preLiquidationReward, Math.Rounding.Ceil);
     }
 
     /// @inheritdoc IPreLiquidationRebalancer

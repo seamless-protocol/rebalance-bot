@@ -20,7 +20,7 @@ export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuot
         fromToken,
         toToken,
         fromAmount,
-        fromAddress: CONTRACT_ADDRESSES.REBALANCER,
+        fromAddress: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
       },
       headers: {
         "x-lifi-api-key": LIFI_API_KEY,

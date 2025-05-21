@@ -2,7 +2,7 @@ import { getContract, parseEventLogs } from "viem";
 import { LeverageToken, LogLevel, RebalanceStatus } from "../types";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
 
-import { RebalancerAbi } from "../../abis/Rebalancer";
+import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { sendAlert } from "../utils/alerts";
@@ -14,7 +14,7 @@ import { startPreLiquidationRebalanceInInterval } from "./preLiquidationRebalanc
 const handledLeverageTokens = new Set<string>();
 
 const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceStatus[]): Promise<LeverageToken[]> => {
-  const { REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
+  const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
 
   const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH) as LeverageToken[];
   if (!leverageTokens.length) {
@@ -26,7 +26,7 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
   const tokenRebalanceStatuses = await publicClient.multicall({
     contracts: leverageTokens.map((token) => ({
       address: rebalancerAddress,
-      abi: RebalancerAbi,
+      abi: DutchAuctionRebalancerAbi,
       functionName: "getRebalanceStatus",
       args: [token.address],
     })),
@@ -42,11 +42,11 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
 };
 
 const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
-  const { REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
+  const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
 
   const rebalancerContract = getContract({
     address: rebalancerAddress,
-    abi: RebalancerAbi,
+    abi: DutchAuctionRebalancerAbi,
     client: walletClient,
   });
 
@@ -59,7 +59,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
   });
 
   const tryCreateAuctionEvent = parseEventLogs({
-    abi: RebalancerAbi,
+    abi: DutchAuctionRebalancerAbi,
     eventName: "TryCreateAuction",
     logs: receipt.logs,
   })[0];

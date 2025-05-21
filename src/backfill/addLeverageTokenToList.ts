@@ -31,6 +31,7 @@ export const addLeverageTokenToList = async (leverageToken: Address) => {
     collateralAsset,
     debtAsset,
     rebalanceAdapter,
+    lendingAdapter,
   });
 
   subscribeToAuctionCreated(rebalanceAdapter);

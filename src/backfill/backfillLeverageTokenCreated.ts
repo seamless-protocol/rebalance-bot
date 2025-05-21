@@ -41,6 +41,7 @@ export const backfillLeverageTokens = async (fromBlock: number, toBlock?: number
       collateralAsset: decodedEvent.args.collateralAsset,
       debtAsset: decodedEvent.args.debtAsset,
       rebalanceAdapter: decodedEvent.args.config.rebalanceAdapter,
+      lendingAdapter: decodedEvent.args.config.lendingAdapter,
     };
 
     console.log(`Backfilling LeverageToken: ${leverageToken.address}`);
