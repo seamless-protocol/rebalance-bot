@@ -115,7 +115,7 @@ const executePreLiquidationRebalance = async (
         assetIn,
         assetOut,
         takeAmount,
-        requiredAmountIn: requiredAmountIn[1],
+        requiredAmountIn: requiredAmountIn,
       });
 
       if (!swapParams.isProfitable) {
