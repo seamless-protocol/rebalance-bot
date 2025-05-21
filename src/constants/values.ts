@@ -13,6 +13,7 @@ export const DUTCH_AUCTION_STEP_COUNT = Number(process.env.DUTCH_AUCTION_STEP_CO
 export const DUTCH_AUCTION_POLLING_INTERVAL = Number(process.env.DUTCH_AUCTION_POLLING_INTERVAL) || 10000;
 
 export const PRE_LIQUIDATION_STEP_COUNT = Number(process.env.PRE_LIQUIDATION_STEP_COUNT) || 10;
+export const PRE_LIQUIDATION_POLLING_INTERVAL = Number(process.env.PRE_LIQUIDATION_POLLING_INTERVAL) || 10000;
 
 export const ETHERFI_L2_MODE_SYNC_POOL_ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
 

@@ -7,6 +7,7 @@ import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { sendAlert } from "../utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
+import { startPreLiquidationRebalanceInInterval } from "./preLiquidationRebalance";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
@@ -88,16 +89,31 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
     try {
       console.log("Checking dutch auction rebalance eligibility of LeverageTokens...");
 
-      const eligibleTokens = await getLeverageTokensByRebalanceStatus([
-        RebalanceStatus.DUTCH_AUCTION_ELIGIBLE,
-        RebalanceStatus.PRE_LIQUIDATION_ELIGIBLE,
+      // Get all eligible tokens but also get tokens that are pre liquidation eligible
+      // For pre liquidation eligible tokens we will still start dutch auction but we will also start pre liquidation rebalance
+      // It might happen that pre liquidation is fast enough to rebalance token properly for small price
+      const [eligibleTokens, preLiquidationEligibleTokens] = await Promise.all([
+        await getLeverageTokensByRebalanceStatus([
+          RebalanceStatus.DUTCH_AUCTION_ELIGIBLE,
+          RebalanceStatus.PRE_LIQUIDATION_ELIGIBLE,
+        ]),
+        getLeverageTokensByRebalanceStatus([RebalanceStatus.PRE_LIQUIDATION_ELIGIBLE]),
       ]);
+
+      console.log("Eligible tokens:", eligibleTokens);
+      console.log("Pre liquidation eligible tokens:", preLiquidationEligibleTokens);
+
+      // Start interval. Inside of this interval we will try to execute pre liquidation rebalance and save the strategy
+      // If the interval already exists for this leverage token function will not start the new one.
+      preLiquidationEligibleTokens.forEach(async (leverageToken) => {
+        startPreLiquidationRebalanceInInterval(leverageToken.address);
+      });
 
       eligibleTokens.forEach(async (leverageToken) => {
         if (!handledLeverageTokens.has(leverageToken.address)) {
           handledLeverageTokens.add(leverageToken.address);
           try {
-            await tryCreateDutchAuction(leverageToken);
+            // await tryCreateDutchAuction(leverageToken);
 
             handledLeverageTokens.delete(leverageToken.address);
           } catch (handleError) {

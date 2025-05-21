@@ -18,6 +18,7 @@ import { getRouteUniswapV3ExactInput } from "./uniswapV3";
 export const getDummySwapParams = (): GetRebalanceSwapParamsOutput => {
   return {
     isProfitable: false,
+    amountOut: 0n,
     swapType: SwapType.NONE,
     swapContext: getDummySwapContext(),
     lifiSwap: getDummyLifiSwap(),
@@ -75,6 +76,7 @@ export const getFallbackSwapParams = async (
   if (amountOutUniV2 > amountOutUniV3) {
     return {
       isProfitable: true,
+      amountOut: amountOutUniV2,
       swapType: SwapType.EXACT_INPUT_SWAP_ADAPTER,
       swapContext: prepareUniswapV2SwapContext(assetOut, assetIn),
       lifiSwap: getDummyLifiSwap(),
@@ -85,6 +87,7 @@ export const getFallbackSwapParams = async (
   // because it provides better price. lifiSwap field is not going to be used in smart contract so we put dummy values
   return {
     isProfitable: true,
+    amountOut: amountOutUniV3,
     swapType: SwapType.EXACT_INPUT_SWAP_ADAPTER,
     swapContext: prepareUniswapV3SwapContext(assetOut, uniswapV3Route!),
     lifiSwap: getDummyLifiSwap(),
@@ -121,6 +124,7 @@ export const getRebalanceSwapParams = async (
   // In case of LIFI swap we are not using swap adapter, so we put dummy values because smart contract is not going to use them at all
   return {
     isProfitable: true,
+    amountOut: amountOutLifi,
     swapType: SwapType.LIFI_SWAP,
     lifiSwap: {
       to: lifiQuote.to,

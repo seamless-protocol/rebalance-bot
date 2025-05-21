@@ -10,5 +10,7 @@ interface ILendingAdapter {
 
     function getDebt() external view returns (uint256);
 
+    function convertCollateralToDebtAsset(uint256 amount) external view returns (uint256);
+
     function getLiquidationPenalty() external view returns (uint256);
 }

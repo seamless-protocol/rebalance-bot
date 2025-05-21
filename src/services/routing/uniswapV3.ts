@@ -25,6 +25,7 @@ export const getRouteUniswapV3ExactInput = async (
   args: UniswapV3QuoteExactInputArgs
 ): Promise<RouteWithValidQuote | null> => {
   try {
+    return null;
     const { tokenInAddress, tokenOutAddress, amountInRaw } = args;
     const { tokenInDecimals, tokenOutDecimals } = await getTokensDecimals(tokenInAddress, tokenOutAddress);
 

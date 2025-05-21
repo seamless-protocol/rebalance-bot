@@ -48,6 +48,7 @@ export interface ContractAddresses {
   ETHERFI_L2_MODE_SYNC_POOL: Address;
   LEVERAGE_MANAGER: Address;
   REBALANCER: Address;
+  PRE_LIQUIDATION_REBALANCER: Address;
   UNISWAP_V2_ROUTER_02: Address;
   WETH: Address;
   WEETH: Address;
@@ -119,6 +120,7 @@ export interface LIFISwap {
 
 export interface GetRebalanceSwapParamsOutput {
   isProfitable: boolean;
+  amountOut: bigint;
   swapType: SwapType;
   swapContext: SwapContext;
   lifiSwap: LIFISwap;
@@ -135,4 +137,11 @@ export interface GetLIFIQuoteOutput {
   to: Address;
   data: `0x${string}`;
   value: bigint;
+}
+
+export interface LeverageTokenRebalanceData {
+  collateral: bigint;
+  collateralInDebtAsset: bigint;
+  equity: bigint;
+  targetRatio: bigint;
 }

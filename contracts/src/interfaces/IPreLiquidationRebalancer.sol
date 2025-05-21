@@ -13,9 +13,10 @@ interface IPreLiquidationRebalancer {
     /// @notice Calculates how much debt to give to LM in order to take specified collateral amount
     /// @param leverageToken Address of the leverage token to rebalance
     /// @param amountOut Amount of assets to take from leverage manager from removing collateral or borrowing debt
+    /// @return amountInWithoutReward Amount of debt to give to LM without pre liquidation reward
     /// @return amountIn Amount of debt to give to LM
     /// @dev This function takes pre liquidation reward into account
-    function getAmountIn(address leverageToken, uint256 amountOut) external view returns (uint256 amountIn);
+    function getAmountIn(address leverageToken, uint256 amountOut) external view returns (uint256 amountInWithoutReward, uint256 amountIn);
 
     /// @notice Rebalances leverage token before liquidation at takes premium reward
     /// @param leverageToken Address of the leverage token to rebalance
