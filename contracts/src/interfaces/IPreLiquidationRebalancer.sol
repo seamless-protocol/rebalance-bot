@@ -10,6 +10,11 @@ interface IPreLiquidationRebalancer {
     /// @notice Thrown when Lifi swap fails
     error LIFISwapFailed();
 
+    /// @notice Checks if LT is still eligible for pre liquidation rebalance
+    /// @param leverageToken Address of the leverage token to check
+    /// @return isEligible true if LT is eligible for pre liquidation rebalance, false otherwise
+    function isEligibleForPreLiquidationRebalance(address leverageToken) external view returns (bool isEligible);
+
     /// @notice Calculates how much debt to give to LM in order to take specified collateral amount
     /// @param leverageToken Address of the leverage token to rebalance
     /// @param amountOut Amount of assets to take from leverage manager from removing collateral or borrowing debt

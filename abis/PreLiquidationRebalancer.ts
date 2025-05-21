@@ -46,6 +46,25 @@ export const PreLiquidationRebalancerAbi = [
   },
   {
     type: "function",
+    name: "isEligibleForPreLiquidationRebalance",
+    inputs: [
+      {
+        name: "leverageToken",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "bool",
+        internalType: "bool",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "leverageManager",
     inputs: [],
     outputs: [

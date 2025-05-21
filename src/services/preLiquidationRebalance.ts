@@ -12,7 +12,6 @@ import {
   getLeverageTokenDebtAsset,
   getLeverageTokenLendingAdapter,
   getLeverageTokenRebalanceAdapter,
-  getLeverageTokenRebalanceAdapterContract,
   getPreLiquidationRebalancerContract,
   leverageManagerContract,
 } from "../utils/contractHelpers";
@@ -96,19 +95,25 @@ const executePreLiquidationRebalance = async (
     const stepCount = PRE_LIQUIDATION_STEP_COUNT;
     const decreasePerStep = maxAmountToTake / BigInt(stepCount);
 
-    const rebalanceAdapterContract = getLeverageTokenRebalanceAdapterContract(leverageToken);
-    const rebalanceReward = await rebalanceAdapterContract.read.getRebalanceReward();
+    for (let i = 0; i < stepCount; i++) {
+      const isPreLiquidationEligible = await preLiquidationRebalancer.read.isEligibleForPreLiquidationRebalance([
+        leverageToken,
+      ]);
 
-    console.log("rebalanceReward", rebalanceReward);
+      if (!isPreLiquidationEligible) {
+        console.log(
+          `LeverageToken ${leverageToken} is not eligible for pre liquidation rebalance. Closing interval...`
+        );
 
-    for (let i = 0; i < stepCount - 1; i++) {
-      console.log("Executing pre liquidation rebalance step", i);
-      const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i + 1);
-      console.log("takeAmount", takeAmount);
+        const interval = PRE_LIQUIDATION_ACTIVE_INTERVALS.get(leverageToken);
+        PRE_LIQUIDATION_ACTIVE_INTERVALS.delete(leverageToken);
+        clearInterval(interval);
+
+        return;
+      }
+
+      const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
       const requiredAmountIn = await preLiquidationRebalancer.read.getAmountIn([leverageToken, takeAmount]);
-
-      console.log("takeAmount", takeAmount);
-      console.log("requiredAmountIn", requiredAmountIn);
 
       const swapParams = await getRebalanceSwapParams({
         leverageToken,
@@ -153,9 +158,6 @@ const executePreLiquidationRebalance = async (
           LogLevel.REBALANCED
         );
       } catch (error) {
-        console.log("error in rebalance");
-        console.log(error);
-        break;
         if (error instanceof BaseError) {
           const revertError = error.walk((error) => error instanceof ContractFunctionRevertedError);
           if (revertError instanceof ContractFunctionRevertedError) {

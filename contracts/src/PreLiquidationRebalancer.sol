@@ -5,7 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import {RebalanceType, SwapType, SwapData, RebalanceAction, ActionType} from "./DataTypes.sol";
+import {LeverageTokenState, RebalanceType, SwapType, SwapData, RebalanceAction, ActionType} from "./DataTypes.sol";
 import {ILeverageManager} from "./interfaces/ILeverageManager.sol";
 import {IMorpho} from "./interfaces/IMorpho.sol";
 import {IPreLiquidationRebalancer} from "./interfaces/IPreLiquidationRebalancer.sol";
@@ -27,6 +27,16 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer {
         leverageManager = ILeverageManager(_leverageManager);
         swapAdapter = ISwapAdapter(_swapAdapter);
         morpho = IMorpho(_morpho);
+    }
+
+    /// @inheritdoc IPreLiquidationRebalancer
+    function isEligibleForPreLiquidationRebalance(address leverageToken) external view returns (bool) {
+        LeverageTokenState memory state = leverageManager.getLeverageTokenState(leverageToken);
+
+        address rebalanceAdapter = leverageManager.getLeverageTokenRebalanceAdapter(leverageToken);
+        uint256 collateralRatioThreshold = IRebalanceAdapter(rebalanceAdapter).getCollateralRatioThreshold();
+
+        return state.collateralRatio < collateralRatioThreshold;
     }
 
     /// @inheritdoc IPreLiquidationRebalancer
@@ -107,6 +117,7 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer {
 
         // Execute actual rebalance
         IERC20(assetIn).approve(address(leverageManager), amountIn);
+
         leverageManager.rebalance(leverageToken, rebalanceActions, assetIn, assetOut, amountIn, amountOut);
 
         // Execute swap to repay flashloan

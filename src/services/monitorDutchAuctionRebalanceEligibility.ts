@@ -100,9 +100,6 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
         getLeverageTokensByRebalanceStatus([RebalanceStatus.PRE_LIQUIDATION_ELIGIBLE]),
       ]);
 
-      console.log("Eligible tokens:", eligibleTokens);
-      console.log("Pre liquidation eligible tokens:", preLiquidationEligibleTokens);
-
       // Start interval. Inside of this interval we will try to execute pre liquidation rebalance and save the strategy
       // If the interval already exists for this leverage token function will not start the new one.
       preLiquidationEligibleTokens.forEach(async (leverageToken) => {
@@ -113,7 +110,7 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
         if (!handledLeverageTokens.has(leverageToken.address)) {
           handledLeverageTokens.add(leverageToken.address);
           try {
-            // await tryCreateDutchAuction(leverageToken);
+            await tryCreateDutchAuction(leverageToken);
 
             handledLeverageTokens.delete(leverageToken.address);
           } catch (handleError) {
