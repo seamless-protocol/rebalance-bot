@@ -54,11 +54,10 @@ const getLeverageTokenRebalanceData = async (
     targetRatioResponse?.result == undefined ||
     collateralResponse?.result == undefined
   ) {
-    console.error("Failed to get leverage token rebalance data");
-    throw new Error("Failed to get leverage token rebalance data");
+    const errorMsg = `Failed to get rebalance data for LeverageToken ${leverageToken}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
   }
-
-  console.log("Leverage token state", leverageTokenStateResponse.result);
 
   return {
     collateral: collateralResponse.result,

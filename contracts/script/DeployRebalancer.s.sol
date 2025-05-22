@@ -28,7 +28,7 @@ contract DeployRebalancer is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         PreLiquidationRebalancer preLiquidationRebalancer =
-            new PreLiquidationRebalancer(LEVERAGE_MANAGER, SWAP_ADAPTER, MORPHO);
+            new PreLiquidationRebalancer(OWNER, LEVERAGE_MANAGER, SWAP_ADAPTER, MORPHO);
         console.log("PreLiquidationRebalancer deployed to:", address(preLiquidationRebalancer));
 
         DutchAuctionRebalancer dutchAuctionRebalancer =

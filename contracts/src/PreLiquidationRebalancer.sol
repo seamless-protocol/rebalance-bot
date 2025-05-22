@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {LeverageTokenState, RebalanceType, SwapType, SwapData, RebalanceAction, ActionType} from "./DataTypes.sol";
 import {ILeverageManager} from "./interfaces/ILeverageManager.sol";
@@ -13,7 +14,9 @@ import {ISwapAdapter} from "./interfaces/ISwapAdapter.sol";
 import {ILendingAdapter} from "./interfaces/ILendingAdapter.sol";
 import {IRebalanceAdapter} from "./interfaces/IRebalanceAdapter.sol";
 
-contract PreLiquidationRebalancer is IPreLiquidationRebalancer {
+contract PreLiquidationRebalancer is IPreLiquidationRebalancer, Ownable {
+    uint256 public constant REWARD_BASE = 100_00;
+
     ILeverageManager public immutable leverageManager;
     ISwapAdapter public immutable swapAdapter;
     IMorpho public immutable morpho;
@@ -23,10 +26,15 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer {
         _;
     }
 
-    constructor(address _leverageManager, address _swapAdapter, address _morpho) {
+    constructor(address _owner, address _leverageManager, address _swapAdapter, address _morpho) Ownable(_owner) {
         leverageManager = ILeverageManager(_leverageManager);
         swapAdapter = ISwapAdapter(_swapAdapter);
         morpho = IMorpho(_morpho);
+    }
+
+    /// @inheritdoc IPreLiquidationRebalancer
+    function sweepToken(address token, address to) external onlyOwner {
+        SafeERC20.safeTransfer(IERC20(token), to, IERC20(token).balanceOf(address(this)));
     }
 
     /// @inheritdoc IPreLiquidationRebalancer
@@ -48,7 +56,7 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer {
         // Fetch liquidation penalty and pre liquidation reward
         uint256 liquidationPenalty = ILendingAdapter(lendingAdapter).getLiquidationPenalty();
         uint256 relPreLiquidationReward = IRebalanceAdapter(rebalanceAdapter).getRebalanceReward();
-        uint256 preLiquidationReward = Math.mulDiv(liquidationPenalty, relPreLiquidationReward, 100_00);
+        uint256 preLiquidationReward = Math.mulDiv(liquidationPenalty, relPreLiquidationReward, REWARD_BASE);
 
         // If LT is in pre liquidation state we are always withdrawing collateral and repaying debt
         // When LT is in pre-liquidation state, we can take reward which means that we don't need to cover entire collateral
@@ -85,23 +93,20 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer {
 
         // Flashloan from Morpho and putting all required parameters to execute rebalance and repay
         morpho.flashLoan(
-            assetIn,
-            amountIn,
-            abi.encode(leverageToken, assetIn, assetOut, amountIn, amountOut, rebalanceType, swapData)
+            assetIn, amountIn, abi.encode(leverageToken, assetIn, assetOut, amountOut, rebalanceType, swapData)
         );
     }
 
     /// @inheritdoc IPreLiquidationRebalancer
-    function onMorphoFlashLoan(uint256 amount, bytes calldata data) external onlyMorpho {
+    function onMorphoFlashLoan(uint256 amountIn, bytes calldata data) external onlyMorpho {
         (
             address leverageToken,
             address assetIn,
             address assetOut,
-            uint256 amountIn,
             uint256 amountOut,
             RebalanceType rebalanceType,
             SwapData memory swapData
-        ) = abi.decode(data, (address, address, address, uint256, uint256, RebalanceType, SwapData));
+        ) = abi.decode(data, (address, address, address, uint256, RebalanceType, SwapData));
 
         RebalanceAction[] memory rebalanceActions = new RebalanceAction[](2);
 
@@ -125,16 +130,16 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer {
         // If swap type is lifi swap execute it on lifi target
         // This data should be fetched off-chain and passed as a parameter
         if (swapData.swapType == SwapType.EXACT_INPUT_SWAP_ADAPTER) {
-            _swapExactInputOnSwapAdapter(assetOut, amountOut, 0, swapData.swapContext);
+            _swapExactInputOnSwapAdapter(assetOut, amountOut, amountIn, swapData.swapContext);
         } else if (swapData.swapType == SwapType.EXACT_OUTPUT_SWAP_ADAPTER) {
-            _swapExactOutputOnSwapAdapter(assetOut, amountOut, type(uint256).max, swapData.swapContext);
+            _swapExactOutputOnSwapAdapter(assetOut, amountIn, amountOut, swapData.swapContext);
         } else if (swapData.swapType == SwapType.LIFI_SWAP) {
             address lifiTarget = swapData.lifiSwap.to;
             bytes memory lifiCallData = swapData.lifiSwap.data;
             _swapLIFI(IERC20(assetOut), amountOut, lifiTarget, lifiCallData);
         }
 
-        IERC20(assetIn).approve(msg.sender, amount);
+        IERC20(assetIn).approve(msg.sender, amountIn);
     }
 
     /// @notice Swaps exact input on swap adapter

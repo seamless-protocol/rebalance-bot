@@ -10,6 +10,11 @@ interface IPreLiquidationRebalancer {
     /// @notice Thrown when Lifi swap fails
     error LIFISwapFailed();
 
+    /// @notice Sweeps token from contract
+    /// @param token Address of the token to sweep
+    /// @param to Address to send the token to
+    function sweepToken(address token, address to) external;
+
     /// @notice Checks if LT is still eligible for pre liquidation rebalance
     /// @param leverageToken Address of the leverage token to check
     /// @return isEligible true if LT is eligible for pre liquidation rebalance, false otherwise

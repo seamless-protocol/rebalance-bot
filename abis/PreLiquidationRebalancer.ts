@@ -3,6 +3,11 @@ export const PreLiquidationRebalancerAbi = [
     type: "constructor",
     inputs: [
       {
+        name: "_owner",
+        type: "address",
+        internalType: "address",
+      },
+      {
         name: "_leverageManager",
         type: "address",
         internalType: "address",
@@ -19,6 +24,19 @@ export const PreLiquidationRebalancerAbi = [
       },
     ],
     stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "REWARD_BASE",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
   },
   {
     type: "function",
@@ -94,7 +112,7 @@ export const PreLiquidationRebalancerAbi = [
     name: "onMorphoFlashLoan",
     inputs: [
       {
-        name: "amount",
+        name: "amountIn",
         type: "uint256",
         internalType: "uint256",
       },
@@ -106,6 +124,19 @@ export const PreLiquidationRebalancerAbi = [
     ],
     outputs: [],
     stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "owner",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    stateMutability: "view",
   },
   {
     type: "function",
@@ -235,6 +266,13 @@ export const PreLiquidationRebalancerAbi = [
   },
   {
     type: "function",
+    name: "renounceOwnership",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "swapAdapter",
     inputs: [],
     outputs: [
@@ -247,9 +285,81 @@ export const PreLiquidationRebalancerAbi = [
     stateMutability: "view",
   },
   {
+    type: "function",
+    name: "sweepToken",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "to",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "transferOwnership",
+    inputs: [
+      {
+        name: "newOwner",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "event",
+    name: "OwnershipTransferred",
+    inputs: [
+      {
+        name: "previousOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "newOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+    ],
+    anonymous: false,
+  },
+  {
     type: "error",
     name: "LIFISwapFailed",
     inputs: [],
+  },
+  {
+    type: "error",
+    name: "OwnableInvalidOwner",
+    inputs: [
+      {
+        name: "owner",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+  },
+  {
+    type: "error",
+    name: "OwnableUnauthorizedAccount",
+    inputs: [
+      {
+        name: "account",
+        type: "address",
+        internalType: "address",
+      },
+    ],
   },
   {
     type: "error",

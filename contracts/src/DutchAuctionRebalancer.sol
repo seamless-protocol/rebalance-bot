@@ -144,9 +144,9 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
         IRebalanceAdapter(rebalanceAdapter).take(amountToTake);
 
         if (swapData.swapType == SwapType.EXACT_INPUT_SWAP_ADAPTER) {
-            _swapExactInputOnSwapAdapter(assetOut, amountToTake, 0, swapData.swapContext);
+            _swapExactInputOnSwapAdapter(assetOut, amountToTake, flashLoanAmount, swapData.swapContext);
         } else if (swapData.swapType == SwapType.EXACT_OUTPUT_SWAP_ADAPTER) {
-            _swapExactOutputOnSwapAdapter(assetOut, amountIn, type(uint256).max, swapData.swapContext);
+            _swapExactOutputOnSwapAdapter(assetOut, amountIn, amountToTake, swapData.swapContext);
         } else if (swapData.swapType == SwapType.LIFI_SWAP) {
             address lifiTarget = swapData.lifiSwap.to;
             bytes memory lifiCallData = swapData.lifiSwap.data;
