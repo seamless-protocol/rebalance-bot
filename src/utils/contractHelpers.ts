@@ -7,8 +7,10 @@ import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import { readJsonArrayFromFile } from "./fileHelpers";
 import rebalanceAdapterAbi from "../../abis/RebalanceAdapter";
-import rebalancerAbi from "../../abis/Rebalancer";
+import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import uniswapV2Router02Abi from "../../abis/UniswapV2Router02";
+import { PreLiquidationRebalancerAbi } from "../../abis/PreLiquidationRebalancer";
+import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 
 export const getHistoricalLogs = async ({
   contractAddress,
@@ -61,12 +63,31 @@ export function getLeverageTokenRebalanceAdapter(leverageToken: Address): Addres
   return rebalanceAdapter;
 }
 
+export function getLeverageTokenLendingAdapter(leverageToken: Address): Address {
+  const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH);
+  const lendingAdapter = leverageTokens.find((token) => token.address === leverageToken)?.lendingAdapter;
+
+  if (!lendingAdapter) {
+    throw new Error(`No lending adapter found for leverage token ${leverageToken}`);
+  }
+
+  return lendingAdapter;
+}
+
 // Gets rebalance adapter contract for a given leverage token
 export const getLeverageTokenRebalanceAdapterContract = (leverageToken: Address) => {
   // Gets address from JSON file and wrap it into proper contract instance
   return getContract({
     address: getLeverageTokenRebalanceAdapter(leverageToken),
     abi: rebalanceAdapterAbi,
+    client: walletClient,
+  });
+};
+
+export const getLendingAdapterContract = (lendingAdapter: Address) => {
+  return getContract({
+    address: lendingAdapter,
+    abi: LendingAdapterAbi,
     client: walletClient,
   });
 };
@@ -113,9 +134,9 @@ export const getUniswapV2Router02Contract = () => {
   });
 };
 
-export const rebalancerContract = getContract({
-  address: CONTRACT_ADDRESSES.REBALANCER,
-  abi: rebalancerAbi,
+export const dutchAuctionRebalancerContract = getContract({
+  address: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+  abi: DutchAuctionRebalancerAbi,
   client: walletClient,
 });
 
@@ -130,5 +151,13 @@ export const getEtherFiL2ModeSyncPoolContract = () => {
     address: CONTRACT_ADDRESSES.ETHERFI_L2_MODE_SYNC_POOL,
     abi: EtherFiL2ModeSyncPoolAbi,
     client: publicClient,
+  });
+};
+
+export const getPreLiquidationRebalancerContract = () => {
+  return getContract({
+    address: CONTRACT_ADDRESSES.PRE_LIQUIDATION_REBALANCER,
+    abi: PreLiquidationRebalancerAbi,
+    client: walletClient,
   });
 };

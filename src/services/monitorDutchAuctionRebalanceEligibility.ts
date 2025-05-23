@@ -1,19 +1,20 @@
-import { LeverageToken, LogLevel, RebalanceStatus } from "../types";
 import { getContract, parseEventLogs } from "viem";
+import { LeverageToken, LogLevel, RebalanceStatus } from "../types";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
 
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { RebalancerAbi } from "../../abis/Rebalancer";
-import { readJsonArrayFromFile } from "../utils/fileHelpers";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { sendAlert } from "../utils/alerts";
+import { readJsonArrayFromFile } from "../utils/fileHelpers";
+import { startPreLiquidationRebalanceInInterval } from "./preLiquidationRebalance";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
 const handledLeverageTokens = new Set<string>();
 
 const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceStatus[]): Promise<LeverageToken[]> => {
-  const { REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
+  const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
 
   const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH) as LeverageToken[];
   if (!leverageTokens.length) {
@@ -25,7 +26,7 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
   const tokenRebalanceStatuses = await publicClient.multicall({
     contracts: leverageTokens.map((token) => ({
       address: rebalancerAddress,
-      abi: RebalancerAbi,
+      abi: DutchAuctionRebalancerAbi,
       functionName: "getRebalanceStatus",
       args: [token.address],
     })),
@@ -41,11 +42,11 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
 };
 
 const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
-  const { REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
+  const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
 
   const rebalancerContract = getContract({
     address: rebalancerAddress,
-    abi: RebalancerAbi,
+    abi: DutchAuctionRebalancerAbi,
     client: walletClient,
   });
 
@@ -58,18 +59,22 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
   });
 
   const tryCreateAuctionEvent = parseEventLogs({
-    abi: RebalancerAbi,
+    abi: DutchAuctionRebalancerAbi,
     eventName: "TryCreateAuction",
     logs: receipt.logs,
   })[0];
-  const { auctionCreated } = tryCreateAuctionEvent.args;
+  const { status, auctionCreated } = tryCreateAuctionEvent.args;
 
   if (auctionCreated) {
     console.log(
       `Rebalancer.TryCreateAuction successful for LeverageToken ${leverageToken.address}, auction created. Transaction hash: ${tx}`
     );
+
+    const statusMessage =
+      status === RebalanceStatus.PRE_LIQUIDATION_ELIGIBLE ? "Pre-liquidation eligible" : "Dutch auction eligible";
+
     await sendAlert(
-      `*Rebalance auction created successfully*\n• LeverageToken: \`${leverageToken.address}\`\n• Transaction Hash: \`${tx}\``,
+      `*Rebalance auction created successfully*\n• LeverageToken: \`${leverageToken.address}\`\n• Transaction Hash: \`${tx}\`\n• Status: \`${statusMessage}\``,
       LogLevel.INFO
     );
   } else {
@@ -84,7 +89,22 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
     try {
       console.log("Checking dutch auction rebalance eligibility of LeverageTokens...");
 
-      const eligibleTokens = await getLeverageTokensByRebalanceStatus([RebalanceStatus.DUTCH_AUCTION_ELIGIBLE]);
+      // Get all eligible tokens but also get tokens that are pre liquidation eligible
+      // For pre liquidation eligible tokens we will still start dutch auction but we will also start pre liquidation rebalance
+      // It might happen that pre liquidation is fast enough to rebalance token properly for small price
+      const [eligibleTokens, preLiquidationEligibleTokens] = await Promise.all([
+        await getLeverageTokensByRebalanceStatus([
+          RebalanceStatus.DUTCH_AUCTION_ELIGIBLE,
+          RebalanceStatus.PRE_LIQUIDATION_ELIGIBLE,
+        ]),
+        getLeverageTokensByRebalanceStatus([RebalanceStatus.PRE_LIQUIDATION_ELIGIBLE]),
+      ]);
+
+      // Start interval. Inside of this interval we will try to execute pre liquidation rebalance and save the strategy
+      // If the interval already exists for this leverage token function will not start the new one.
+      preLiquidationEligibleTokens.forEach(async (leverageToken) => {
+        startPreLiquidationRebalanceInInterval(leverageToken.address);
+      });
 
       eligibleTokens.forEach(async (leverageToken) => {
         if (!handledLeverageTokens.has(leverageToken.address)) {

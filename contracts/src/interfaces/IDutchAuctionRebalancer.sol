@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import {StakeContext, SwapData, RebalanceStatus, RebalanceType} from "src/DataTypes.sol";
 
-interface IRebalancer {
+interface IDutchAuctionRebalancer {
     /// @notice Error thrown when the caller is not authorized
     error Unauthorized();
 

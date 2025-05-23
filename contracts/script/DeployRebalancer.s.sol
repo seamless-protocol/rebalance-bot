@@ -4,7 +4,8 @@ pragma solidity ^0.8.26;
 import {console} from "forge-std/console.sol";
 import {Script} from "forge-std/Script.sol";
 
-import {Rebalancer} from "src/Rebalancer.sol";
+import {DutchAuctionRebalancer} from "src/DutchAuctionRebalancer.sol";
+import {PreLiquidationRebalancer} from "src/PreLiquidationRebalancer.sol";
 
 contract DeployRebalancer is Script {
     address public immutable OWNER = vm.envAddress("OWNER");
@@ -26,14 +27,13 @@ contract DeployRebalancer is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploying stateless contract
-        Rebalancer rebalancer = new Rebalancer(OWNER, LEVERAGE_MANAGER, SWAP_ADAPTER, MORPHO, WETH);
-        console.log("Rebalancer deployed to:", address(rebalancer));
-        console.log("    OWNER: ", rebalancer.owner());
-        console.log("    LEVERAGE_MANAGER: ", address(rebalancer.leverageManager()));
-        console.log("    SWAP_ADAPTER: ", address(rebalancer.swapAdapter()));
-        console.log("    MORPHO: ", address(rebalancer.morpho()));
-        console.log("    WETH: ", address(rebalancer.weth()));
+        PreLiquidationRebalancer preLiquidationRebalancer =
+            new PreLiquidationRebalancer(OWNER, LEVERAGE_MANAGER, SWAP_ADAPTER, MORPHO);
+        console.log("PreLiquidationRebalancer deployed to:", address(preLiquidationRebalancer));
+
+        DutchAuctionRebalancer dutchAuctionRebalancer =
+            new DutchAuctionRebalancer(OWNER, LEVERAGE_MANAGER, SWAP_ADAPTER, MORPHO, WETH);
+        console.log("DutchAuctionRebalancer deployed to:", address(dutchAuctionRebalancer));
 
         vm.stopBroadcast();
     }

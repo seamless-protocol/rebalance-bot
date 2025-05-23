@@ -5,25 +5,25 @@ import {
   DUTCH_AUCTION_POLLING_INTERVAL,
   DUTCH_AUCTION_STEP_COUNT,
 } from "../constants/values";
-import { LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
 import { getDummySwapParams, getRebalanceSwapParams } from "../services/routing/getSwapParams";
+import { LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
 import {
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
   getLeverageTokenForRebalanceAdapter,
   getLeverageTokenRebalanceAdapter,
   leverageManagerContract,
-  rebalancerContract,
+  dutchAuctionRebalancerContract,
 } from "../utils/contractHelpers";
 
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
+import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { getStakeParams } from "../services/routing/getStakeParams";
-import { publicClient } from "../utils/transactionHelpers";
-import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { sendAlert } from "../utils/alerts";
+import { readJsonArrayFromFile } from "../utils/fileHelpers";
+import { publicClient } from "../utils/transactionHelpers";
 import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAdapter: Address) => {
@@ -117,19 +117,18 @@ const handleAuctionCreatedEvent = async (
     for (let i = 0; i <= stepCount; i++) {
       const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
 
-      const [isAuctionValid, swapParams, stakeParams] = await Promise.all([
+      const [requiredAmountIn, isAuctionValid] = await Promise.all([
+        publicClient.readContract({
+          address: rebalanceAdapter,
+          abi: RebalanceAdapterAbi,
+          functionName: "getAmountIn",
+          args: [takeAmount],
+        }),
         publicClient.readContract({
           address: rebalanceAdapter,
           abi: RebalanceAdapterAbi,
           functionName: "isAuctionValid",
         }),
-        getRebalanceSwapParams({
-          leverageToken,
-          assetIn,
-          assetOut,
-          takeAmount,
-        }),
-        getStakeParams(rebalanceAdapter, stakeType, takeAmount),
       ]);
 
       if (!isAuctionValid) {
@@ -141,6 +140,17 @@ const handleAuctionCreatedEvent = async (
 
         return;
       }
+
+      const [swapParams, stakeParams] = await Promise.all([
+        getRebalanceSwapParams({
+          leverageToken,
+          assetIn,
+          assetOut,
+          takeAmount,
+          requiredAmountIn,
+        }),
+        getStakeParams(stakeType, takeAmount, requiredAmountIn),
+      ]);
 
       if (!swapParams.isProfitable && !stakeParams.isProfitable) {
         console.log(
@@ -156,7 +166,7 @@ const handleAuctionCreatedEvent = async (
         // Prefer staking over swapping, if profitable
         const rebalanceSwapParams = stakeParams.isProfitable ? getDummySwapParams() : swapParams;
 
-        const tx = await rebalancerContract.write.takeAuction([
+        const tx = await dutchAuctionRebalancerContract.write.takeAuction([
           leverageToken,
           takeAmount,
           rebalanceType,

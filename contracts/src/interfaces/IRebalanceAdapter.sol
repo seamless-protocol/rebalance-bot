@@ -9,9 +9,13 @@ interface IRebalanceAdapter {
         view
         returns (bool isEligible);
 
+    function getCollateralRatioThreshold() external view returns (uint256);
+
     function isAuctionValid() external view returns (bool isValid);
 
     function getAmountIn(uint256 amountToTake) external view returns (uint256 amountIn);
+
+    function getRebalanceReward() external view returns (uint256);
 
     function createAuction() external;
 

@@ -1,4 +1,4 @@
-export const RebalancerAbi = [
+export const DutchAuctionRebalancerAbi = [
   {
     type: "constructor",
     inputs: [
@@ -315,5 +315,3 @@ export const RebalancerAbi = [
     ],
   },
 ] as const;
-
-export default RebalancerAbi;

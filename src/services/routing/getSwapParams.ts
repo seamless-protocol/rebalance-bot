@@ -1,3 +1,4 @@
+import { RouteWithValidQuote, V3Route } from "@uniswap/smart-order-router";
 import { Address, zeroAddress } from "viem";
 import {
   Exchange,
@@ -7,20 +8,17 @@ import {
   SwapContext,
   SwapType,
 } from "../../types";
-import { RouteWithValidQuote, V3Route } from "@uniswap/smart-order-router";
 
-import { EXCHANGE_ADDRESSES } from "../../constants/contracts";
-import RebalanceAdapterAbi from "../../../abis/RebalanceAdapter";
 import { encodeRouteToPath } from "@uniswap/v3-sdk";
-import { getAmountsOutUniswapV2 } from "./uniswapV2";
+import { EXCHANGE_ADDRESSES } from "../../constants/contracts";
 import { getLIFIQuote } from "./lifi";
-import { getLeverageTokenRebalanceAdapter } from "../../utils/contractHelpers";
+import { getAmountsOutUniswapV2 } from "./uniswapV2";
 import { getRouteUniswapV3ExactInput } from "./uniswapV3";
-import { publicClient } from "../../utils/transactionHelpers";
 
 export const getDummySwapParams = (): GetRebalanceSwapParamsOutput => {
   return {
     isProfitable: false,
+    amountOut: 0n,
     swapType: SwapType.NONE,
     swapContext: getDummySwapContext(),
     lifiSwap: getDummyLifiSwap(),
@@ -78,6 +76,7 @@ export const getFallbackSwapParams = async (
   if (amountOutUniV2 > amountOutUniV3) {
     return {
       isProfitable: true,
+      amountOut: amountOutUniV2,
       swapType: SwapType.EXACT_INPUT_SWAP_ADAPTER,
       swapContext: prepareUniswapV2SwapContext(assetOut, assetIn),
       lifiSwap: getDummyLifiSwap(),
@@ -88,6 +87,7 @@ export const getFallbackSwapParams = async (
   // because it provides better price. lifiSwap field is not going to be used in smart contract so we put dummy values
   return {
     isProfitable: true,
+    amountOut: amountOutUniV3,
     swapType: SwapType.EXACT_INPUT_SWAP_ADAPTER,
     swapContext: prepareUniswapV3SwapContext(assetOut, uniswapV3Route!),
     lifiSwap: getDummyLifiSwap(),
@@ -97,22 +97,13 @@ export const getFallbackSwapParams = async (
 export const getRebalanceSwapParams = async (
   input: GetRebalanceSwapParamsInput
 ): Promise<GetRebalanceSwapParamsOutput> => {
-  const { leverageToken, assetIn, assetOut, takeAmount } = input;
-  const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken);
+  const { assetIn, assetOut, takeAmount, requiredAmountIn } = input;
 
-  const [requiredAmountIn, lifiQuote] = await Promise.all([
-    publicClient.readContract({
-      address: rebalanceAdapter,
-      abi: RebalanceAdapterAbi,
-      functionName: "getAmountIn",
-      args: [takeAmount],
-    }),
-    getLIFIQuote({
-      fromToken: assetOut,
-      toToken: assetIn,
-      fromAmount: takeAmount,
-    }),
-  ]);
+  const lifiQuote = await getLIFIQuote({
+    fromToken: assetOut,
+    toToken: assetIn,
+    fromAmount: takeAmount,
+  });
 
   // In this part fetching LIFI quote failed, so we proceed with fallback option
   // We fetch quotes directly from Uniswap V2 and V3 and return the best quote with smart contract call parameters
@@ -133,6 +124,7 @@ export const getRebalanceSwapParams = async (
   // In case of LIFI swap we are not using swap adapter, so we put dummy values because smart contract is not going to use them at all
   return {
     isProfitable: true,
+    amountOut: amountOutLifi,
     swapType: SwapType.LIFI_SWAP,
     lifiSwap: {
       to: lifiQuote.to,
