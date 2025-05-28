@@ -93,7 +93,7 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
       // For pre liquidation eligible tokens we will still start dutch auction but we will also start pre liquidation rebalance
       // It might happen that pre liquidation is fast enough to rebalance token properly for small price
       const [eligibleTokens, preLiquidationEligibleTokens] = await Promise.all([
-        await getLeverageTokensByRebalanceStatus([
+        getLeverageTokensByRebalanceStatus([
           RebalanceStatus.DUTCH_AUCTION_ELIGIBLE,
           RebalanceStatus.PRE_LIQUIDATION_ELIGIBLE,
         ]),

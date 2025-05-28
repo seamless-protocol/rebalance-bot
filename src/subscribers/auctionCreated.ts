@@ -24,7 +24,6 @@ import { getStakeParams } from "../services/routing/getStakeParams";
 import { sendAlert } from "../utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { publicClient } from "../utils/transactionHelpers";
-import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
@@ -221,11 +220,12 @@ export const handleAuctionCreatedEvent = async (
 export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
   console.log(`Listening for AuctionCreated events on RebalanceAdapter ${rebalanceAdapter}...`);
 
-  subscribeToEventWithWebSocket({
-    contractAddress: rebalanceAdapter,
+  publicClient.watchContractEvent({
+    address: rebalanceAdapter,
     abi: RebalanceAdapterAbi,
     eventName: "AuctionCreated",
-    onEvent: () => {
+    onError: error => console.error(error), 
+    onLogs: () => {
       console.log("AuctionCreated event received. Participating in Dutch auction...");
 
       // Get current Dutch auction interval for this rebalance adapter

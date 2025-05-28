@@ -2,7 +2,6 @@ import { Address } from "viem";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { subscribeToAuctionCreated } from "../subscribers/auctionCreated";
 import { leverageManagerContract } from "../utils/contractHelpers";
 import { appendObjectToJsonFile, readJsonArrayFromFile } from "../utils/fileHelpers";
 import { publicClient } from "../utils/transactionHelpers";
@@ -33,8 +32,6 @@ export const addLeverageTokenToList = async (leverageToken: Address) => {
     rebalanceAdapter,
     lendingAdapter,
   });
-
-  subscribeToAuctionCreated(rebalanceAdapter);
 };
 
 /**
