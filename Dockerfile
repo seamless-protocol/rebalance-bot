@@ -1,6 +1,12 @@
 # Usage:
 # - Build: docker build -t <image-name> .
 # - Run: docker run -it --env-file <env-file> <image-name>
+#   OR
+#   docker run -it -e KEY1=value1 -e KEY2=value2 <image-name>
+#   OR
+#   docker run -it --env-file .env <image-name>
+#
+# To backfill leverage tokens, set the BACKFILL_LEVERAGE_TOKENS environment variable to an array of addresses
 
 # -------------------------------------
 # ---------- 1️⃣  Build stage ----------
@@ -37,4 +43,8 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json .
 
+RUN if [ -n "$BACKFILL_LEVERAGE_TOKENS" ]; then npm run backfill:leverage-token $BACKFILL_LEVERAGE_TOKENS; fi
+
+# Environment variables will be passed through from the host to the container
+# and will be available as process.env in the Node.js application
 CMD ["npm", "start"]

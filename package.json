@@ -15,8 +15,10 @@
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "type-check": "tsc --noEmit",
-    "backfill:leverage-tokens": "tsx src/backfill/backfillLeverageTokenCreated.ts",
-    "backfill:leverage-token": "tsx src/backfill/addLeverageTokenToList.ts",
+    "dev:backfill:leverage-tokens": "tsx src/backfill/backfillLeverageTokenCreated.ts",
+    "dev:backfill:leverage-token": "tsx src/backfill/addLeverageTokenToList.ts",
+    "backfill:leverage-tokens": "node dist/backfill/backfillLeverageTokenCreated.js",
+    "backfill:leverage-token": "node dist/backfill/addLeverageTokenToList.js",
     "copy:leverage-tokens": "mkdir -p dist/src/data && [ -f src/data/leverageTokens.json ] && cp src/data/leverageTokens.json dist/src/data/ || true"
   },
   "devDependencies": {
