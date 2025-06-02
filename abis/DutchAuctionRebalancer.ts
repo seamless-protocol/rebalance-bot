@@ -3,6 +3,11 @@ export const DutchAuctionRebalancerAbi = [
     type: "constructor",
     inputs: [
       {
+        name: "_owner",
+        type: "address",
+        internalType: "address",
+      },
+      {
         name: "_leverageManager",
         type: "address",
         internalType: "address",
@@ -17,8 +22,17 @@ export const DutchAuctionRebalancerAbi = [
         type: "address",
         internalType: "address",
       },
+      {
+        name: "_weth",
+        type: "address",
+        internalType: "address",
+      },
     ],
     stateMutability: "nonpayable",
+  },
+  {
+    type: "receive",
+    stateMutability: "payable",
   },
   {
     type: "function",
@@ -70,7 +84,7 @@ export const DutchAuctionRebalancerAbi = [
     name: "onMorphoFlashLoan",
     inputs: [
       {
-        name: "amount",
+        name: "flashLoanAmount",
         type: "uint256",
         internalType: "uint256",
       },
@@ -80,6 +94,26 @@ export const DutchAuctionRebalancerAbi = [
         internalType: "bytes",
       },
     ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "owner",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "renounceOwnership",
+    inputs: [],
     outputs: [],
     stateMutability: "nonpayable",
   },
@@ -95,6 +129,24 @@ export const DutchAuctionRebalancerAbi = [
       },
     ],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "sweepToken",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "to",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
   },
   {
     type: "function",
@@ -187,6 +239,11 @@ export const DutchAuctionRebalancerAbi = [
                   },
                 ],
               },
+              {
+                name: "additionalData",
+                type: "bytes",
+                internalType: "bytes",
+              },
             ],
           },
           {
@@ -246,6 +303,19 @@ export const DutchAuctionRebalancerAbi = [
   },
   {
     type: "function",
+    name: "transferOwnership",
+    inputs: [
+      {
+        name: "newOwner",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "tryCreateAuction",
     inputs: [
       {
@@ -256,6 +326,38 @@ export const DutchAuctionRebalancerAbi = [
     ],
     outputs: [],
     stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "weth",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "contract IWETH9",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "event",
+    name: "OwnershipTransferred",
+    inputs: [
+      {
+        name: "previousOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+      {
+        name: "newOwner",
+        type: "address",
+        indexed: true,
+        internalType: "address",
+      },
+    ],
+    anonymous: false,
   },
   {
     type: "event",
@@ -289,6 +391,28 @@ export const DutchAuctionRebalancerAbi = [
   },
   {
     type: "error",
+    name: "OwnableInvalidOwner",
+    inputs: [
+      {
+        name: "owner",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+  },
+  {
+    type: "error",
+    name: "OwnableUnauthorizedAccount",
+    inputs: [
+      {
+        name: "account",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+  },
+  {
+    type: "error",
     name: "SafeERC20FailedOperation",
     inputs: [
       {
@@ -302,16 +426,5 @@ export const DutchAuctionRebalancerAbi = [
     type: "error",
     name: "Unauthorized",
     inputs: [],
-  },
-  {
-    type: "error",
-    name: "InvalidLeverageTokenStateAfterRebalance",
-    inputs: [
-      {
-        name: "leverageToken",
-        type: "address",
-        internalType: "address",
-      },
-    ],
   },
 ] as const;

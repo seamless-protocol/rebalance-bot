@@ -234,6 +234,11 @@ export const PreLiquidationRebalancerAbi = [
                   },
                 ],
               },
+              {
+                name: "additionalData",
+                type: "bytes",
+                internalType: "bytes",
+              },
             ],
           },
           {

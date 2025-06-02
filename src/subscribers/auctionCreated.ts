@@ -8,12 +8,12 @@ import {
 import { getDummySwapParams, getRebalanceSwapParams } from "../services/routing/getSwapParams";
 import { LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
 import {
+  dutchAuctionRebalancerContract,
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
   getLeverageTokenForRebalanceAdapter,
   getLeverageTokenRebalanceAdapter,
   leverageManagerContract,
-  dutchAuctionRebalancerContract,
 } from "../utils/contractHelpers";
 
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
@@ -67,7 +67,7 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAd
   };
 };
 
-const handleAuctionCreatedEvent = async (
+export const handleAuctionCreatedEvent = async (
   leverageToken: Address,
   rebalanceAdapter: Address,
   collateralAsset: Address,
@@ -91,8 +91,8 @@ const handleAuctionCreatedEvent = async (
     );
 
     const baseRatio = BASE_RATIO;
-    const targetCollateral = (equity * targetRatio) / baseRatio;
-    const targetDebt = (equity * (targetRatio - baseRatio)) / baseRatio;
+    const targetCollateral = (equity * targetRatio) / (targetRatio - baseRatio);
+    const targetDebt = (equity * baseRatio) / (targetRatio - baseRatio);
 
     // Calculate what is max amount to take to bring LT to target debt or target collateral
     // If strategy is over-collateralized we are adding collateral and borrowing debt
@@ -114,7 +114,7 @@ const handleAuctionCreatedEvent = async (
         : StakeType.NONE;
 
     // TODO: Instead of for loop maybe put this in big multicall
-    for (let i = 0; i <= stepCount; i++) {
+    for (let i = 0; i < stepCount; i++) {
       const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
 
       const [requiredAmountIn, isAuctionValid] = await Promise.all([
@@ -170,7 +170,11 @@ const handleAuctionCreatedEvent = async (
           leverageToken,
           takeAmount,
           rebalanceType,
-          rebalanceSwapParams,
+          {
+            swapType: rebalanceSwapParams.swapType,
+            swapContext: rebalanceSwapParams.swapContext,
+            lifiSwap: rebalanceSwapParams.lifiSwap,
+          },
           stakeParams.stakeContext,
         ]);
 
