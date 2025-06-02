@@ -19,7 +19,8 @@ export const addLeverageTokenToList = async (leverageToken: Address) => {
   const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH);
 
   if (leverageTokens.find((token) => token.address === leverageToken)) {
-    throw new Error(`Leverage token ${leverageToken} already exists in the list`);
+    console.warn(`Leverage token ${leverageToken} already exists in the list`);
+    return;
   }
 
   const { lendingAdapter, rebalanceAdapter } = await fetchLeverageTokenAdapters(leverageToken);
@@ -105,12 +106,3 @@ export const fetchCollateralAndDebtAssets = async (
     debtAsset: debtAssetResponse.result,
   };
 };
-
-// Get args from command line
-const leverageToken = process.argv[2] as Address;
-
-if (!leverageToken) {
-  throw new Error("Leverage token address is required");
-}
-
-addLeverageTokenToList(leverageToken);

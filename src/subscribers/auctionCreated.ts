@@ -224,35 +224,41 @@ export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
     address: rebalanceAdapter,
     abi: RebalanceAdapterAbi,
     eventName: "AuctionCreated",
-    onError: error => console.error(error), 
+    onError: error => console.error(error),
     onLogs: () => {
-      console.log("AuctionCreated event received. Participating in Dutch auction...");
-
-      // Get current Dutch auction interval for this rebalance adapter
-      const currentAuctionInterval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
-
-      // If there is an interval that is already running, clear it because auction has finished and new one started so we should start
-      // new interval from max amounts. Interval should close himself but it can happen that it is not closed right away so we need to
-      // close it to avoid having multiple intervals running at the same time for the same rebalance adapter.
-      if (currentAuctionInterval) {
-        clearInterval(currentAuctionInterval);
-      }
-
-      const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
-      const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
-      const debtAsset = getLeverageTokenDebtAsset(leverageToken);
-
-      const interval = setInterval(async () => {
-        await handleAuctionCreatedEvent(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);
-      }, DUTCH_AUCTION_POLLING_INTERVAL);
-
-      DUTCH_AUCTION_ACTIVE_INTERVALS.set(rebalanceAdapter, interval);
+      startDutchAuctionInterval(rebalanceAdapter);
     },
   });
 };
 
+export const startDutchAuctionInterval = (rebalanceAdapter: Address) => {
+  console.log("AuctionCreated event received. Participating in Dutch auction...");
+
+  // Get current Dutch auction interval for this rebalance adapter
+  const currentAuctionInterval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
+
+  // If there is an interval that is already running, clear it because auction has finished and new one started so we should start
+  // new interval from max amounts. Interval should close himself but it can happen that it is not closed right away so we need to
+  // close it to avoid having multiple intervals running at the same time for the same rebalance adapter.
+  if (currentAuctionInterval) {
+    clearInterval(currentAuctionInterval);
+  }
+
+  const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
+  const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
+  const debtAsset = getLeverageTokenDebtAsset(leverageToken);
+
+  const interval = setInterval(async () => {
+    await handleAuctionCreatedEvent(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);
+  }, DUTCH_AUCTION_POLLING_INTERVAL);
+
+  DUTCH_AUCTION_ACTIVE_INTERVALS.set(rebalanceAdapter, interval);
+}
+
 export const subscribeToAllAuctionCreatedEvents = () => {
   const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH) as LeverageToken[];
+  console.log(`Leverage tokens: ${leverageTokens.length}`);
+  console.log(`LEVERAGE_TOKENS_FILE_PATH: ${LEVERAGE_TOKENS_FILE_PATH}`);
   leverageTokens.forEach((leverageToken) => {
     const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken.address);
     subscribeToAuctionCreated(rebalanceAdapter);
