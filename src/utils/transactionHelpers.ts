@@ -14,7 +14,13 @@ export const walletClient = createWalletClient({
 
 export const publicClient = createPublicClient({
   chain: VIEM_CHAIN,
-  transport: fallback([webSocket(PRIMARY_RPC_URL_WS), http(PRIMARY_RPC_URL), http(FALLBACK_RPC_URL)]),
+  transport: fallback([
+    webSocket(PRIMARY_RPC_URL_WS, {
+      methods: { include: ["eth_subscribe", "eth_unsubscribe"] },
+    }),
+    http(PRIMARY_RPC_URL),
+    http(FALLBACK_RPC_URL),
+  ]),
 });
 
 export const primaryEthersProvider = new ethers.providers.JsonRpcProvider(PRIMARY_RPC_URL);
