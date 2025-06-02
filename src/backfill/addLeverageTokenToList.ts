@@ -6,13 +6,6 @@ import { leverageManagerContract } from "../utils/contractHelpers";
 import { appendObjectToJsonFile, readJsonArrayFromFile } from "../utils/fileHelpers";
 import { publicClient } from "../utils/transactionHelpers";
 
-/**
- * Adds a leverage token to the list of leverage tokens that this bot should monitor and starts listening for auction created events on rebalance adapter
- * @dev Usage: npm run backfill:add-leverage-token <leverageTokenAddress>
- * @param leverageToken The address of the leverage token
- * @dev This function fetches the lending adapter, rebalance adapter, collateral asset and debt asset for the given leverage token
- * @dev Finally, it appends the leverage token to the list of leverage tokens
- */
 export const addLeverageTokenToList = async (leverageToken: Address) => {
   console.log(`Adding leverage token ${leverageToken} to the list...`);
 
