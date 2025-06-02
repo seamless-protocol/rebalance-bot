@@ -33,6 +33,7 @@ const getDummySwapContext = (): SwapContext => {
     exchangeAddresses: EXCHANGE_ADDRESSES,
     fees: [],
     tickSpacing: [],
+    additionalData: "0x",
   };
 };
 
@@ -143,6 +144,7 @@ const prepareUniswapV2SwapContext = (assetIn: Address, assetOut: Address): SwapC
     encodedPath: "0x",
     fees: [], // Unused
     tickSpacing: [], // Unused
+    additionalData: "0x",
   };
 };
 
@@ -154,5 +156,6 @@ const prepareUniswapV3SwapContext = (assetIn: Address, route: RouteWithValidQuot
     path: [assetIn], // Only assetIn because SwapAdapter has special logic for path of length 2. Here we use the same logic no matter single swap or multi-hop.
     fees: [], // Unused
     tickSpacing: [], // Unused
+    additionalData: "0x",
   };
 };

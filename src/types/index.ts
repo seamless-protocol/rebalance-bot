@@ -103,6 +103,7 @@ export interface SwapContext {
   tickSpacing: number[];
   exchange: Exchange;
   exchangeAddresses: ExchangeAddresses;
+  additionalData: `0x${string}`;
 }
 
 export interface GetRebalanceSwapParamsInput {

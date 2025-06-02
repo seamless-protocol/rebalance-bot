@@ -27,6 +27,7 @@ interface ISwapAdapter {
         int24[] tickSpacing;
         Exchange exchange;
         ExchangeAddresses exchangeAddresses;
+        bytes additionalData;
     }
 
     function swapExactInput(
