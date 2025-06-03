@@ -24,7 +24,6 @@ import { getStakeParams } from "../services/routing/getStakeParams";
 import { sendAlert } from "../utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { publicClient } from "../utils/transactionHelpers";
-import { subscribeToEventWithWebSocket } from "../utils/websocketHelpers";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
@@ -221,38 +220,45 @@ export const handleAuctionCreatedEvent = async (
 export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
   console.log(`Listening for AuctionCreated events on RebalanceAdapter ${rebalanceAdapter}...`);
 
-  subscribeToEventWithWebSocket({
-    contractAddress: rebalanceAdapter,
+  publicClient.watchContractEvent({
+    address: rebalanceAdapter,
     abi: RebalanceAdapterAbi,
     eventName: "AuctionCreated",
-    onEvent: () => {
-      console.log("AuctionCreated event received. Participating in Dutch auction...");
-
-      // Get current Dutch auction interval for this rebalance adapter
-      const currentAuctionInterval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
-
-      // If there is an interval that is already running, clear it because auction has finished and new one started so we should start
-      // new interval from max amounts. Interval should close himself but it can happen that it is not closed right away so we need to
-      // close it to avoid having multiple intervals running at the same time for the same rebalance adapter.
-      if (currentAuctionInterval) {
-        clearInterval(currentAuctionInterval);
-      }
-
-      const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
-      const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
-      const debtAsset = getLeverageTokenDebtAsset(leverageToken);
-
-      const interval = setInterval(async () => {
-        await handleAuctionCreatedEvent(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);
-      }, DUTCH_AUCTION_POLLING_INTERVAL);
-
-      DUTCH_AUCTION_ACTIVE_INTERVALS.set(rebalanceAdapter, interval);
+    onError: error => console.error(error),
+    onLogs: () => {
+      startDutchAuctionInterval(rebalanceAdapter);
     },
   });
 };
 
+export const startDutchAuctionInterval = (rebalanceAdapter: Address) => {
+  console.log("AuctionCreated event received. Participating in Dutch auction...");
+
+  // Get current Dutch auction interval for this rebalance adapter
+  const currentAuctionInterval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
+
+  // If there is an interval that is already running, clear it because auction has finished and new one started so we should start
+  // new interval from max amounts. Interval should close himself but it can happen that it is not closed right away so we need to
+  // close it to avoid having multiple intervals running at the same time for the same rebalance adapter.
+  if (currentAuctionInterval) {
+    clearInterval(currentAuctionInterval);
+  }
+
+  const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
+  const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
+  const debtAsset = getLeverageTokenDebtAsset(leverageToken);
+
+  const interval = setInterval(async () => {
+    await handleAuctionCreatedEvent(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);
+  }, DUTCH_AUCTION_POLLING_INTERVAL);
+
+  DUTCH_AUCTION_ACTIVE_INTERVALS.set(rebalanceAdapter, interval);
+}
+
 export const subscribeToAllAuctionCreatedEvents = () => {
   const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH) as LeverageToken[];
+  console.log(`Leverage tokens: ${leverageTokens.length}`);
+  console.log(`LEVERAGE_TOKENS_FILE_PATH: ${LEVERAGE_TOKENS_FILE_PATH}`);
   leverageTokens.forEach((leverageToken) => {
     const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken.address);
     subscribeToAuctionCreated(rebalanceAdapter);

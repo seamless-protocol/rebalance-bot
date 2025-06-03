@@ -8,6 +8,8 @@ import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { sendAlert } from "../utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { startPreLiquidationRebalanceInInterval } from "./preLiquidationRebalance";
+import { startDutchAuctionInterval } from "../subscribers/auctionCreated";
+import { getLeverageTokenRebalanceAdapter } from "../utils/contractHelpers";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
@@ -78,6 +80,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
       LogLevel.INFO
     );
   } else {
+    startDutchAuctionInterval(getLeverageTokenRebalanceAdapter(leverageToken.address));
     console.log(
       `Rebalancer.TryCreateAuction successful for LeverageToken ${leverageToken.address}, but auction was not created. Transaction hash: ${tx}`
     );
@@ -93,7 +96,7 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
       // For pre liquidation eligible tokens we will still start dutch auction but we will also start pre liquidation rebalance
       // It might happen that pre liquidation is fast enough to rebalance token properly for small price
       const [eligibleTokens, preLiquidationEligibleTokens] = await Promise.all([
-        await getLeverageTokensByRebalanceStatus([
+        getLeverageTokensByRebalanceStatus([
           RebalanceStatus.DUTCH_AUCTION_ELIGIBLE,
           RebalanceStatus.PRE_LIQUIDATION_ELIGIBLE,
         ]),
