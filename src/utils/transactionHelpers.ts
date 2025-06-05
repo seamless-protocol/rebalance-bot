@@ -17,6 +17,9 @@ export const publicClient = createPublicClient({
   transport: fallback([
     webSocket(PRIMARY_RPC_URL_WS, {
       methods: { include: ["eth_subscribe", "eth_unsubscribe"] },
+      reconnect: {
+        attempts: Infinity,
+      },
     }),
     http(PRIMARY_RPC_URL),
     http(FALLBACK_RPC_URL),
