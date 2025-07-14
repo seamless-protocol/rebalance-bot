@@ -8,6 +8,7 @@ interface ISwapAdapter {
     enum Exchange {
         AERODROME,
         AERODROME_SLIPSTREAM,
+        ETHERFI,
         UNISWAP_V2,
         UNISWAP_V3
     }
