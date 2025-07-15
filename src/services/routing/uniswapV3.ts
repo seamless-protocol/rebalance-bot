@@ -46,7 +46,7 @@ export const getRouteUniswapV3ExactInput = async (
       v2Supported: [],
       v4Supported: [],
       mixedSupported: [],
-      gasPriceProvider: new StaticGasPriceProvider(BigNumber.from('100000000000')),
+      gasPriceProvider: new StaticGasPriceProvider(BigNumber.from('1000000000000000000')),
     });
 
     const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);
@@ -60,6 +60,8 @@ export const getRouteUniswapV3ExactInput = async (
     const route = await router.route(amountIn, tokenOut, TradeType.EXACT_INPUT, options);
 
     const v3Route = route?.route.find((route) => route.protocol === "V3");
+
+    console.log("v3Route", v3Route);
 
     if (!v3Route || !v3Route.quote || !v3Route.route) {
       console.log(
