@@ -1,10 +1,18 @@
 import { Address, erc20Abi } from "viem";
-import { AlphaRouter, RouteWithValidQuote, SwapOptions, SwapType } from "@uniswap/smart-order-router";
+import { AlphaRouter, GasPrice, IGasPriceProvider, RouteWithValidQuote, SwapOptions, SwapType } from "@uniswap/smart-order-router";
 import { ChainId, CurrencyAmount, Percent, Token, TradeType } from "@uniswap/sdk-core";
 import { primaryEthersProvider, publicClient } from "../../utils/transactionHelpers";
 
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { UniswapV3QuoteExactInputArgs } from "../../types";
+import { BigNumber } from "ethers";
+
+export class StaticGasPriceProvider implements IGasPriceProvider {
+  constructor(private gasPriceWei: BigNumber) {}
+  async getGasPrice(): Promise<GasPrice> {
+    return { gasPriceWei: this.gasPriceWei }
+  }
+}
 
 const getTokensDecimals = async (tokenInAddress: Address, tokenOutAddress: Address) => {
   const [tokenInDecimals, tokenOutDecimals] = await publicClient.multicall({
@@ -35,6 +43,10 @@ export const getRouteUniswapV3ExactInput = async (
       chainId: ChainId.BASE,
       // Fallback ethers provider is not supported by AlphaRouter (it calls provider.send which is not supported by ethers FallbackProvider)
       provider: primaryEthersProvider,
+      v2Supported: [],
+      v4Supported: [],
+      mixedSupported: [],
+      gasPriceProvider: new StaticGasPriceProvider(BigNumber.from('30000000000000000')),
     });
 
     const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);
@@ -47,13 +59,11 @@ export const getRouteUniswapV3ExactInput = async (
 
     const route = await router.route(amountIn, tokenOut, TradeType.EXACT_INPUT, options);
 
-    const bestRoute = route?.route.reduce((best, current) => {
-      return BigInt(best.quote.toExact()) > BigInt(current.quote.toExact()) ? best : current;
-    });
+    const v3Route = route?.route.find((route) => route.protocol === "V3");
 
-    if (!bestRoute) {
+    if (!v3Route || !v3Route.quote || !v3Route.route) {
       console.log(
-        `Uniswap V3: No route found for swap ${tokenInAddress} -> ${tokenOutAddress} with amount ${amountInRaw}`
+        `Uniswap V3: No route found for swap ${tokenInAddress} -> ${tokenOutAddress} with amount in ${amountInRaw}`
       );
       return null;
     }
@@ -61,10 +71,10 @@ export const getRouteUniswapV3ExactInput = async (
     console.log(`Uniswap V3 Exact Input Quote:
     From: ${tokenInAddress}
     To: ${tokenOutAddress}
-    Amount Out: ${bestRoute.quote.toExact()}
+    Amount Out: ${v3Route.quote.toExact()}
   `);
 
-    return bestRoute;
+    return v3Route;
   } catch (error) {
     console.error("Error getting Uniswap V3 route:", error);
     return null;

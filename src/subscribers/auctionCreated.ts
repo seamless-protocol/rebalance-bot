@@ -161,9 +161,12 @@ export const handleAuctionCreatedEvent = async (
       console.log(
         `Rebalance is profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} asset: ${assetIn}. Participating in Dutch auction...`
       );
+
       try {
         // Prefer staking over swapping, if profitable
         const rebalanceSwapParams = stakeParams.isProfitable ? getDummySwapParams() : swapParams;
+
+        console.log("rebalanceSwapParams", rebalanceSwapParams);
 
         const tx = await dutchAuctionRebalancerContract.write.takeAuction([
           leverageToken,
@@ -205,6 +208,8 @@ export const handleAuctionCreatedEvent = async (
               clearInterval(interval);
             }
           }
+          console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
+          throw error;
         } else {
           console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
           throw error;
