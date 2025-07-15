@@ -46,7 +46,7 @@ export const getRouteUniswapV3ExactInput = async (
       v2Supported: [],
       v4Supported: [],
       mixedSupported: [],
-      gasPriceProvider: new StaticGasPriceProvider(BigNumber.from('30000000000000000')),
+      gasPriceProvider: new StaticGasPriceProvider(BigNumber.from('100000000000')),
     });
 
     const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);
