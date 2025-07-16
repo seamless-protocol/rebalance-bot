@@ -248,8 +248,6 @@ export const startDutchAuctionInterval = (rebalanceAdapter: Address) => {
   const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
   const debtAsset = getLeverageTokenDebtAsset(leverageToken);
 
-  handleAuctionCreatedEvent(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);
-
   const interval = setInterval(async () => {
     await handleAuctionCreatedEvent(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);
   }, DUTCH_AUCTION_POLLING_INTERVAL);

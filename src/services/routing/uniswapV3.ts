@@ -6,6 +6,7 @@ import { primaryEthersProvider, publicClient } from "../../utils/transactionHelp
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { UniswapV3QuoteExactInputArgs } from "../../types";
 import { BigNumber } from "ethers";
+import { IS_USING_FORK } from "@/constants/values";
 
 class StaticGasPriceProvider implements IGasPriceProvider {
   constructor(private gasPriceWei: BigNumber) {}
@@ -46,8 +47,8 @@ export const getRouteUniswapV3ExactInput = async (
       v2Supported: [],
       v4Supported: [],
       mixedSupported: [],
-      // NOTE: This is required when testing on vnets.
-      gasPriceProvider: new StaticGasPriceProvider(BigNumber.from('1000000000000000000')),
+      // This is required when testing on forks where gas estimation is unavailable / gas price is zero
+      gasPriceProvider: IS_USING_FORK ? new StaticGasPriceProvider(BigNumber.from('1000000000000000000')) : undefined,
     });
 
     const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);
