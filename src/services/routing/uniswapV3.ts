@@ -61,8 +61,6 @@ export const getRouteUniswapV3ExactInput = async (
 
     const v3Route = route?.route.find((route) => route.protocol === "V3");
 
-    console.log("v3Route", v3Route);
-
     if (!v3Route || !v3Route.quote || !v3Route.route) {
       console.log(
         `Uniswap V3: No route found for swap ${tokenInAddress} -> ${tokenOutAddress} with amount in ${amountInRaw}`

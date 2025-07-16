@@ -48,6 +48,10 @@ export const getFallbackSwapParams = async (
   const { assetIn, assetOut, takeAmount } = input;
 
   console.log("fetching routes in fallback swap params");
+  console.log("assetIn", assetIn);
+  console.log("assetOut", assetOut);
+  console.log("takeAmount", takeAmount);
+  console.log("requiredAmountIn", requiredAmountIn);
 
   // Fetch the routes and quotes from Uniswap V2 and V3
   const [amountOutUniswapV2, uniswapV3Route] = await Promise.all([
@@ -73,6 +77,8 @@ export const getFallbackSwapParams = async (
   if (requiredAmountIn > amountOutUniV2 && requiredAmountIn > amountOutUniV3) {
     return getDummySwapParams();
   }
+
+  console.log("amountOutUniV3", amountOutUniV3);
 
   // // If the amount out from Uniswap V2 is greater than the amount out from Uniswap V3, we use the Uniswap V2 route
   // // because it provides better price. lifiSwap field is not going to be used in smart contract so we put dummy values

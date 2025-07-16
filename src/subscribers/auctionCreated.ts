@@ -1,4 +1,4 @@
-import { Address, BaseError, ContractFunctionRevertedError } from "viem";
+import { Address, BaseError, ContractFunctionRevertedError, encodeFunctionData } from "viem";
 import {
   BASE_RATIO,
   DUTCH_AUCTION_ACTIVE_INTERVALS,
@@ -166,8 +166,6 @@ export const handleAuctionCreatedEvent = async (
         // Prefer staking over swapping, if profitable
         const rebalanceSwapParams = stakeParams.isProfitable ? getDummySwapParams() : swapParams;
 
-        console.log("rebalanceSwapParams", rebalanceSwapParams);
-
         const tx = await dutchAuctionRebalancerContract.write.takeAuction([
           leverageToken,
           takeAmount,
@@ -209,7 +207,7 @@ export const handleAuctionCreatedEvent = async (
             }
           }
           console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
-          throw error;
+          // throw error;
         } else {
           console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
           throw error;
@@ -236,7 +234,7 @@ export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
   });
 };
 
-export const startDutchAuctionInterval = (rebalanceAdapter: Address) => {
+export const startDutchAuctionInterval = async (rebalanceAdapter: Address) => {
   console.log("AuctionCreated event received. Participating in Dutch auction...");
 
   // Get current Dutch auction interval for this rebalance adapter
@@ -252,6 +250,8 @@ export const startDutchAuctionInterval = (rebalanceAdapter: Address) => {
   const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
   const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
   const debtAsset = getLeverageTokenDebtAsset(leverageToken);
+
+  await handleAuctionCreatedEvent(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);
 
   const interval = setInterval(async () => {
     await handleAuctionCreatedEvent(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);
