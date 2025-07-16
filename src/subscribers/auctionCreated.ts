@@ -1,4 +1,4 @@
-import { Address, BaseError, ContractFunctionRevertedError, encodeFunctionData } from "viem";
+import { Address, BaseError, ContractFunctionRevertedError } from "viem";
 import {
   BASE_RATIO,
   DUTCH_AUCTION_ACTIVE_INTERVALS,
@@ -204,6 +204,7 @@ export const handleAuctionCreatedEvent = async (
               clearInterval(interval);
           } else {
             console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
+            throw error;
           }
         } else {
           console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
