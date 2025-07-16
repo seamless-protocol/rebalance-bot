@@ -19,3 +19,5 @@ export const ETHERFI_L2_MODE_SYNC_POOL_ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEE
 
 export const LIFI_API_URL = "https://li.quest/v1/quote";
 export const LIFI_API_KEY = process.env.LIFI_API_KEY || null;
+
+export const IS_USING_FORK = process.env.IS_USING_FORK && process.env.IS_USING_FORK.toLowerCase() === "true";

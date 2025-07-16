@@ -427,4 +427,15 @@ export const DutchAuctionRebalancerAbi = [
     name: "Unauthorized",
     inputs: [],
   },
+  {
+    type: "error",
+    name: "InvalidLeverageTokenStateAfterRebalance",
+    inputs: [
+      {
+        name: "token",
+        type: "address",
+        internalType: "contract ILeverageToken",
+      },
+    ],
+  },
 ] as const;
