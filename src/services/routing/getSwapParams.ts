@@ -47,12 +47,6 @@ export const getFallbackSwapParams = async (
 ): Promise<GetRebalanceSwapParamsOutput> => {
   const { assetIn, assetOut, takeAmount } = input;
 
-  console.log("fetching routes in fallback swap params");
-  console.log("assetIn", assetIn);
-  console.log("assetOut", assetOut);
-  console.log("takeAmount", takeAmount);
-  console.log("requiredAmountIn", requiredAmountIn);
-
   // Fetch the routes and quotes from Uniswap V2 and V3
   const [amountOutUniswapV2, uniswapV3Route] = await Promise.all([
     getAmountsOutUniswapV2({
@@ -78,19 +72,17 @@ export const getFallbackSwapParams = async (
     return getDummySwapParams();
   }
 
-  console.log("amountOutUniV3", amountOutUniV3);
-
-  // // If the amount out from Uniswap V2 is greater than the amount out from Uniswap V3, we use the Uniswap V2 route
-  // // because it provides better price. lifiSwap field is not going to be used in smart contract so we put dummy values
-  // if (amountOutUniV2 > amountOutUniV3) {
-  //   return {
-  //     isProfitable: true,
-  //     amountOut: amountOutUniV2,
-  //     swapType: SwapType.EXACT_INPUT_SWAP_ADAPTER,
-  //     swapContext: prepareUniswapV2SwapContext(assetOut, assetIn),
-  //     lifiSwap: getDummyLifiSwap(),
-  //   };
-  // }
+  // If the amount out from Uniswap V2 is greater than the amount out from Uniswap V3, we use the Uniswap V2 route
+  // because it provides better price. lifiSwap field is not going to be used in smart contract so we put dummy values
+  if (amountOutUniV2 > amountOutUniV3) {
+    return {
+      isProfitable: true,
+      amountOut: amountOutUniV2,
+      swapType: SwapType.EXACT_INPUT_SWAP_ADAPTER,
+      swapContext: prepareUniswapV2SwapContext(assetOut, assetIn),
+      lifiSwap: getDummyLifiSwap(),
+    };
+  }
 
   // If the amount out from Uniswap V3 is greater than the amount out from Uniswap V2, we use the Uniswap V3 route
   // because it provides better price. lifiSwap field is not going to be used in smart contract so we put dummy values

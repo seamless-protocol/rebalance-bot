@@ -98,7 +98,7 @@ export const handleAuctionCreatedEvent = async (
     // If strategy is under-collateralized we are repaying debt and removing collateral
     const assetIn = isOverCollateralized ? collateralAsset : debtAsset;
     const assetOut = isOverCollateralized ? debtAsset : collateralAsset;
-    const maxAmountToTake = isOverCollateralized ? targetDebt - debt : targetCollateral - collateral;
+    const maxAmountToTake = isOverCollateralized ? targetDebt - debt : collateral - targetCollateral;
 
     const rebalanceType = isOverCollateralized ? RebalanceType.REBALANCE_DOWN : RebalanceType.REBALANCE_UP;
 
@@ -195,19 +195,16 @@ export const handleAuctionCreatedEvent = async (
       } catch (error) {
         if (error instanceof BaseError) {
           const revertError = error.walk((error) => error instanceof ContractFunctionRevertedError);
-          if (revertError instanceof ContractFunctionRevertedError) {
-            const errorName = revertError.data?.errorName ?? "";
-            if (errorName === "InvalidLeverageTokenStateAfterRebalance") {
+          if (revertError instanceof ContractFunctionRevertedError && revertError.data?.errorName === "InvalidLeverageTokenStateAfterRebalance") {
               console.log(
                 `Auction taken for LeverageToken ${leverageToken} but failed due to invalid leverage token state post rebalance due to stale state. Closing interval...`
               );
               const interval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
               DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
               clearInterval(interval);
-            }
+          } else {
+            console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
           }
-          console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
-          // throw error;
         } else {
           console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
           throw error;
@@ -234,7 +231,7 @@ export const subscribeToAuctionCreated = (rebalanceAdapter: Address) => {
   });
 };
 
-export const startDutchAuctionInterval = async (rebalanceAdapter: Address) => {
+export const startDutchAuctionInterval = (rebalanceAdapter: Address) => {
   console.log("AuctionCreated event received. Participating in Dutch auction...");
 
   // Get current Dutch auction interval for this rebalance adapter
@@ -251,7 +248,7 @@ export const startDutchAuctionInterval = async (rebalanceAdapter: Address) => {
   const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
   const debtAsset = getLeverageTokenDebtAsset(leverageToken);
 
-  await handleAuctionCreatedEvent(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);
+  handleAuctionCreatedEvent(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);
 
   const interval = setInterval(async () => {
     await handleAuctionCreatedEvent(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);

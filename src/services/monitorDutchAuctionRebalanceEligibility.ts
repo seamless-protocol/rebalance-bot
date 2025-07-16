@@ -80,7 +80,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
       LogLevel.INFO
     );
   } else {
-    await startDutchAuctionInterval(getLeverageTokenRebalanceAdapter(leverageToken.address));
+    startDutchAuctionInterval(getLeverageTokenRebalanceAdapter(leverageToken.address));
     console.log(
       `Rebalancer.TryCreateAuction successful for LeverageToken ${leverageToken.address}, but auction was not created. Transaction hash: ${tx}`
     );

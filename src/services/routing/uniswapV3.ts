@@ -7,7 +7,7 @@ import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { UniswapV3QuoteExactInputArgs } from "../../types";
 import { BigNumber } from "ethers";
 
-export class StaticGasPriceProvider implements IGasPriceProvider {
+class StaticGasPriceProvider implements IGasPriceProvider {
   constructor(private gasPriceWei: BigNumber) {}
   async getGasPrice(): Promise<GasPrice> {
     return { gasPriceWei: this.gasPriceWei }
@@ -46,6 +46,7 @@ export const getRouteUniswapV3ExactInput = async (
       v2Supported: [],
       v4Supported: [],
       mixedSupported: [],
+      // NOTE: This is required when testing on vnets.
       gasPriceProvider: new StaticGasPriceProvider(BigNumber.from('1000000000000000000')),
     });
 
