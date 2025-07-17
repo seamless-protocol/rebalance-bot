@@ -95,7 +95,7 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
         RebalanceType rebalanceType,
         SwapData memory swapData,
         StakeContext memory stakeContext
-    ) external {
+    ) external onlyOwner {
         address rebalanceAdapter = leverageManager.getLeverageTokenRebalanceAdapter(leverageToken);
         address lendingAdapter = leverageManager.getLeverageTokenLendingAdapter(leverageToken);
 
