@@ -70,6 +70,33 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
     }
 
     /// @inheritdoc IDutchAuctionRebalancer
+    function previewTakeAuction(
+        address leverageToken,
+        uint256 amountToTake,
+        RebalanceType rebalanceType
+    ) external view returns (uint256 newCollateralRatio) {
+        address rebalanceAdapter = leverageManager.getLeverageTokenRebalanceAdapter(leverageToken);
+        address lendingAdapter = leverageManager.getLeverageTokenLendingAdapter(leverageToken);
+
+        LeverageTokenState memory leverageTokenState = leverageManager.getLeverageTokenState(leverageToken);
+
+        uint256 amountIn = IRebalanceAdapter(rebalanceAdapter).getAmountIn(amountToTake);
+
+        uint256 newCollateralInDebtAsset;
+        uint256 newDebt;
+
+        if (rebalanceType == RebalanceType.REBALANCE_DOWN) {
+            newCollateralInDebtAsset = leverageTokenState.collateralInDebtAsset + ILendingAdapter(lendingAdapter).convertCollateralToDebtAsset(amountIn);
+            newDebt = leverageTokenState.debt + amountToTake;
+        } else {
+            newCollateralInDebtAsset = leverageTokenState.collateralInDebtAsset - ILendingAdapter(lendingAdapter).convertCollateralToDebtAsset(amountToTake);
+            newDebt = leverageTokenState.debt - amountIn;
+        }
+
+        return newCollateralInDebtAsset * 1e18 / newDebt;
+    }
+
+    /// @inheritdoc IDutchAuctionRebalancer
     function tryCreateAuction(address leverageToken) public {
         RebalanceStatus status = getRebalanceStatus(leverageToken);
 

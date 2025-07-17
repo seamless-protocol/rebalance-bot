@@ -147,6 +147,34 @@ export const DutchAuctionRebalancerAbi = [
     ],
     outputs: [],
     stateMutability: "nonpayable",
+  },{
+    type: "function",
+    name: "testTakeAuction",
+    inputs: [
+      {
+        name: "leverageToken",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "amountToTake",
+        type: "uint256",
+        internalType: "uint256",
+      },
+      {
+        name: "rebalanceType",
+        type: "uint8",
+        internalType: "enum RebalanceType",
+      },
+    ],
+    outputs: [
+      {
+        name: "newCollateralRatio",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
   },
   {
     type: "function",

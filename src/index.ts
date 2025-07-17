@@ -10,7 +10,7 @@ const main = async () => {
   try {
     console.log("Starting bot...");
     const leverageTokens: Address[] = (process.env.BACKFILL_LEVERAGE_TOKENS?.split(",") ?? []) as Address[];
-    
+
     for (const leverageToken of leverageTokens) {
       await addLeverageTokenToList(leverageToken);
     }

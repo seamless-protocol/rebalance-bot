@@ -22,6 +22,13 @@ interface IDutchAuctionRebalancer {
     /// - PRE_LIQUIDATION_ELIGIBLE: The leverage token is eligible for pre-liquidation rebalancing
     function getRebalanceStatus(address leverageToken) external view returns (RebalanceStatus status);
 
+    /// @notice Preview the new collateral ratio after taking an auction
+    /// @param leverageToken The address of the leverage token
+    /// @param amountToTake The amount to take from the auction
+    /// @param rebalanceType The rebalance type
+    /// @return newCollateralRatio The new collateral ratio
+    function previewTakeAuction(address leverageToken, uint256 amountToTake, RebalanceType rebalanceType) external view returns (uint256 newCollateralRatio);
+
     /// @notice Transfers the balance of a token held by the contract to an address
     /// @param token The address of the token to sweep
     /// @param to The address to sweep the token to
