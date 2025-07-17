@@ -26,8 +26,9 @@ interface IDutchAuctionRebalancer {
     /// @param leverageToken The address of the leverage token
     /// @param amountToTake The amount to take from the auction
     /// @param rebalanceType The rebalance type
-    /// @return newCollateralRatio The new collateral ratio
-    function previewTakeAuction(address leverageToken, uint256 amountToTake, RebalanceType rebalanceType) external view returns (uint256 newCollateralRatio);
+    /// @return isAuctionValid Whether the auction is valid / if one exists
+    /// @return newCollateralRatio The new collateral ratio, or zero if the auction is not valid
+    function previewTakeAuction(address leverageToken, uint256 amountToTake, RebalanceType rebalanceType) external view returns (bool isAuctionValid, uint256 newCollateralRatio);
 
     /// @notice Transfers the balance of a token held by the contract to an address
     /// @param token The address of the token to sweep

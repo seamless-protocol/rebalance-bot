@@ -126,7 +126,7 @@ export const handleAuctionCreatedEvent = async (
 
     // Determine whether we can use native EtherFi staking for swapping assets
     const stakeType =
-      collateralAsset == CONTRACT_ADDRESSES.WEETH && debtAsset == CONTRACT_ADDRESSES.WETH
+      collateralAsset == CONTRACT_ADDRESSES.WEETH && debtAsset == CONTRACT_ADDRESSES.WETH && isOverCollateralized
         ? StakeType.ETHERFI_ETH_WEETH
         : StakeType.NONE;
 
@@ -134,7 +134,7 @@ export const handleAuctionCreatedEvent = async (
     for (let i = 0; i < stepCount; i++) {
       const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
 
-      const [requiredAmountIn, isAuctionValid, newCollateralRatio] = await Promise.all([
+      const [requiredAmountIn, [isAuctionValid, newCollateralRatio]] = await Promise.all([
         publicClient.readContract({
           address: rebalanceAdapter,
           abi: RebalanceAdapterAbi,
@@ -142,14 +142,9 @@ export const handleAuctionCreatedEvent = async (
           args: [takeAmount],
         }),
         publicClient.readContract({
-          address: rebalanceAdapter,
-          abi: RebalanceAdapterAbi,
-          functionName: "isAuctionValid",
-        }),
-        publicClient.readContract({
           address: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
           abi: DutchAuctionRebalancerAbi,
-          functionName: "testTakeAuction",
+          functionName: "previewTakeAuction",
           args: [leverageToken, takeAmount, rebalanceType],
         }),
       ]);
@@ -165,7 +160,8 @@ export const handleAuctionCreatedEvent = async (
       }
 
       // Check that the new collateral ratio does not switch from over the target ratio to under the target ratio or vice versa.
-      // This can occur on early steps due to borrow interest continuously accruing or oracle price fluctuations.
+      // This can occur on early steps for over-collateralized LeverageTokens due to borrow interest continuously accruing
+      // or oracle price fluctuations, which cause the maximum take amount to decrease
       if ((isOverCollateralized && newCollateralRatio < targetRatio) || (!isOverCollateralized && newCollateralRatio > targetRatio)) {
         console.log(
           `New collateral ratio ${newCollateralRatio} is not valid for ` +
@@ -189,24 +185,18 @@ export const handleAuctionCreatedEvent = async (
 
       if (!swapParams.isProfitable && !stakeParams.isProfitable) {
         console.log(
-          `Rebalance is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} asset: ${assetIn}. Skipping step ${i}...`
+          `Rebalance is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} assetOut: ${assetOut}. amountIn: ${requiredAmountIn} assetIn: ${assetIn}. Skipping step ${i}...`
         );
         continue;
       }
 
       console.log(
-        `Rebalance is profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} asset: ${assetIn}. Participating in Dutch auction...`
+        `Rebalance is profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} assetOut: ${assetOut}. amountIn: ${requiredAmountIn} assetIn: ${assetIn}. Participating in Dutch auction...`
       );
 
       try {
         // Prefer staking over swapping, if profitable
         const rebalanceSwapParams = stakeParams.isProfitable ? getDummySwapParams() : swapParams;
-
-        const newCollateralRatio = await dutchAuctionRebalancerContract.read.testTakeAuction([
-          leverageToken,
-          takeAmount,
-          rebalanceType,
-        ]);
 
         const tx = await dutchAuctionRebalancerContract.write.takeAuction([
           leverageToken,
@@ -237,13 +227,23 @@ export const handleAuctionCreatedEvent = async (
       } catch (error) {
         if (error instanceof BaseError) {
           const revertError = error.walk((error) => error instanceof ContractFunctionRevertedError);
-          if (revertError instanceof ContractFunctionRevertedError && revertError.data?.errorName === "InvalidLeverageTokenStateAfterRebalance") {
+          if (revertError instanceof ContractFunctionRevertedError) {
+            const errorName = revertError.data?.errorName;
+            if (errorName === "InvalidLeverageTokenStateAfterRebalance") {
               console.log(
                 `Auction taken for LeverageToken ${leverageToken} but failed due to invalid leverage token state post rebalance due to stale state. Closing interval...`
               );
               const interval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
               DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
               clearInterval(interval);
+            } else if (errorName === "AuctionNotValid") {
+              console.log(
+                `Auction taken for LeverageToken ${leverageToken} but failed due to auction not being valid. Closing interval...`
+              );
+              const interval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
+              DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
+              clearInterval(interval);
+            }
           } else {
             console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
             throw error;

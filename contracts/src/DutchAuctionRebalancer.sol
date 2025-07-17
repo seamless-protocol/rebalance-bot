@@ -74,13 +74,18 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
         address leverageToken,
         uint256 amountToTake,
         RebalanceType rebalanceType
-    ) external view returns (uint256 newCollateralRatio) {
-        address rebalanceAdapter = leverageManager.getLeverageTokenRebalanceAdapter(leverageToken);
+    ) external view returns (bool isAuctionValid, uint256 newCollateralRatio) {
+        IRebalanceAdapter rebalanceAdapter = IRebalanceAdapter(leverageManager.getLeverageTokenRebalanceAdapter(leverageToken));
+
+        if (!rebalanceAdapter.isAuctionValid()) {
+            return (false, 0);
+        }
+
         address lendingAdapter = leverageManager.getLeverageTokenLendingAdapter(leverageToken);
 
         LeverageTokenState memory leverageTokenState = leverageManager.getLeverageTokenState(leverageToken);
 
-        uint256 amountIn = IRebalanceAdapter(rebalanceAdapter).getAmountIn(amountToTake);
+        uint256 amountIn = rebalanceAdapter.getAmountIn(amountToTake);
 
         uint256 newCollateralInDebtAsset;
         uint256 newDebt;
@@ -93,7 +98,7 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
             newDebt = leverageTokenState.debt - amountIn;
         }
 
-        return newCollateralInDebtAsset * 1e18 / newDebt;
+        return (true, newCollateralInDebtAsset * 1e18 / newDebt);
     }
 
     /// @inheritdoc IDutchAuctionRebalancer
@@ -164,6 +169,7 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
         if (stakeContext.stakeType == StakeType.ETHERFI_ETH_WEETH) {
             // If stakeContext.stakeType == ETHERFI_ETH_WEETH, the contract will unwrap flash loaned WETH to ETH and stake
             // the ETH into the EtherFi L2 Mode Sync Pool to receive weETH in return, which is the assetIn for the rebalance
+            // when the LT is over-collateralized.
             _stakeWethForWeeth(stakeContext, amountIn);
         }
 

@@ -72,7 +72,7 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer, Ownable {
         uint256 amountOut,
         RebalanceType rebalanceType,
         SwapData memory swapData
-    ) external {
+    ) external onlyOwner {
         // Fetch collateral and debt asset for leverage token so we can determine what should be input asset and what should be output asset
         address lendingAdapter = leverageManager.getLeverageTokenLendingAdapter(leverageToken);
         address collateralAsset = ILendingAdapter(lendingAdapter).getCollateralAsset();

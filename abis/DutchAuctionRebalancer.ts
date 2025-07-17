@@ -149,7 +149,7 @@ export const DutchAuctionRebalancerAbi = [
     stateMutability: "nonpayable",
   },{
     type: "function",
-    name: "testTakeAuction",
+    name: "previewTakeAuction",
     inputs: [
       {
         name: "leverageToken",
@@ -168,6 +168,11 @@ export const DutchAuctionRebalancerAbi = [
       },
     ],
     outputs: [
+      {
+        name: "isAuctionValid",
+        type: "bool",
+        internalType: "bool",
+      },
       {
         name: "newCollateralRatio",
         type: "uint256",
@@ -466,4 +471,9 @@ export const DutchAuctionRebalancerAbi = [
       },
     ],
   },
+  {
+    type: "error",
+    name: "AuctionNotValid",
+    inputs: [],
+  }
 ] as const;
