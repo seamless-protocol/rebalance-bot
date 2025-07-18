@@ -94,7 +94,8 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
             newCollateralInDebtAsset = leverageTokenState.collateralInDebtAsset + ILendingAdapter(lendingAdapter).convertCollateralToDebtAsset(amountIn);
             newDebt = leverageTokenState.debt + amountToTake;
         } else {
-            newCollateralInDebtAsset = leverageTokenState.collateralInDebtAsset - ILendingAdapter(lendingAdapter).convertCollateralToDebtAsset(amountToTake);
+            uint256 collateralToAddInDebtAsset = ILendingAdapter(lendingAdapter).convertCollateralToDebtAsset(amountToTake);
+            newCollateralInDebtAsset = leverageTokenState.collateralInDebtAsset > collateralToAddInDebtAsset ? leverageTokenState.collateralInDebtAsset - collateralToAddInDebtAsset : 0;
             newDebt = leverageTokenState.debt - amountIn;
         }
 
