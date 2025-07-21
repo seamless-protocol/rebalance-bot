@@ -17,7 +17,8 @@
     "type-check": "tsc --noEmit",
     "dev:backfill:leverage-tokens": "tsx src/backfill/backfillLeverageTokenCreated.ts",
     "backfill:leverage-tokens": "node dist/backfill/backfillLeverageTokenCreated.js",
-    "copy:leverage-tokens": "mkdir -p dist/src/data && [ -f src/data/leverageTokens.json ] && cp src/data/leverageTokens.json dist/src/data/ || true"
+    "copy:leverage-tokens": "mkdir -p dist/src/data && [ -f src/data/leverageTokens.json ] && cp src/data/leverageTokens.json dist/src/data/ || true",
+    "create-order": "tsx src/createOrder.ts"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
@@ -37,6 +38,7 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
+    "@cowprotocol/cow-sdk": "^5.10.3",
     "@slack/web-api": "^7.9.1",
     "@uniswap/sdk-core": "^7.7.2",
     "@uniswap/smart-order-router": "^4.20.10",
