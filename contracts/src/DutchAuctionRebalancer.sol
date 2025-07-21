@@ -96,10 +96,12 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
         } else {
             uint256 collateralToAddInDebtAsset = ILendingAdapter(lendingAdapter).convertCollateralToDebtAsset(amountToTake);
             newCollateralInDebtAsset = leverageTokenState.collateralInDebtAsset > collateralToAddInDebtAsset ? leverageTokenState.collateralInDebtAsset - collateralToAddInDebtAsset : 0;
-            newDebt = leverageTokenState.debt - amountIn;
+            newDebt = leverageTokenState.debt > amountIn ? leverageTokenState.debt - amountIn : 0;
         }
 
-        return (true, newCollateralInDebtAsset * 1e18 / newDebt);
+        newCollateralRatio = newDebt > 0 ? newCollateralInDebtAsset * 1e18 / newDebt : type(uint256).max;
+
+        return (true, newCollateralRatio);
     }
 
     /// @inheritdoc IDutchAuctionRebalancer
