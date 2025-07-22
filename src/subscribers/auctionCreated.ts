@@ -25,8 +25,8 @@ import { getStakeParams } from "../services/routing/getStakeParams";
 import { sendAlert } from "../utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { publicClient } from "../utils/transactionHelpers";
-import { DutchAuctionRebalancerAbi } from "abis/DutchAuctionRebalancer";
-import { LendingAdapterAbi } from "abis/LendingAdapterAbi";
+import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
+import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdapter: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, collateralResponse, equityInCollateralAssetResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
