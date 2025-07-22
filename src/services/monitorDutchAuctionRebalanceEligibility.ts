@@ -9,7 +9,7 @@ import { sendAlert } from "../utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { startPreLiquidationRebalanceInInterval } from "./preLiquidationRebalance";
 import { startDutchAuctionInterval } from "../subscribers/auctionCreated";
-import { getLeverageTokenRebalanceAdapter } from "../utils/contractHelpers";
+import { getLeverageTokenLendingAdapter, getLeverageTokenRebalanceAdapter } from "../utils/contractHelpers";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
@@ -80,7 +80,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
       LogLevel.INFO
     );
   } else {
-    startDutchAuctionInterval(getLeverageTokenRebalanceAdapter(leverageToken.address));
+    startDutchAuctionInterval(getLeverageTokenLendingAdapter(leverageToken.address), getLeverageTokenRebalanceAdapter(leverageToken.address));
     console.log(
       `Rebalancer.TryCreateAuction successful for LeverageToken ${leverageToken.address}, but auction was not created. Transaction hash: ${tx}`
     );

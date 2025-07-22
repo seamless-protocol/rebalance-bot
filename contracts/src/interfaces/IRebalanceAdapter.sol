@@ -11,6 +11,8 @@ interface IRebalanceAdapter {
 
     function getCollateralRatioThreshold() external view returns (uint256);
 
+    function getCurrentAuctionMultiplier() external view returns (uint256 multiplier);
+
     function isAuctionValid() external view returns (bool isValid);
 
     function getAmountIn(uint256 amountToTake) external view returns (uint256 amountIn);
