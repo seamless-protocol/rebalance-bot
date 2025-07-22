@@ -6,7 +6,7 @@ import { primaryEthersProvider, publicClient } from "../../utils/transactionHelp
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { UniswapV3QuoteExactInputArgs } from "../../types";
 import { BigNumber } from "ethers";
-import { IS_USING_FORK } from "@/constants/values";
+import { IS_USING_FORK } from "../../constants/values";
 
 class StaticGasPriceProvider implements IGasPriceProvider {
   constructor(private gasPriceWei: BigNumber) {}
