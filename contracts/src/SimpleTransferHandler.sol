@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {IConditionalOrderGenerator} from "cowprotocol/composable-cow/src/interfaces/IConditionalOrder.sol";
-import {GPv2Order} from "./interfaces/GPv2Order.sol";
+import {IConditionalOrderGenerator, GPv2Order} from "cowprotocol/composable-cow/src/interfaces/IConditionalOrder.sol";
+import {IERC20} from "cowprotocol/contracts/interfaces/IERC20.sol";
+// import {GPv2Order} from "./interfaces/GPv2Order.sol";
 
 contract SimpleTransferHandler is IConditionalOrderGenerator {
   address public immutable tokenIn;
@@ -43,28 +44,41 @@ contract SimpleTransferHandler is IConditionalOrderGenerator {
     bytes calldata staticInput,
     bytes calldata offchainInput,
     GPv2Order.Data calldata order
-  ) external view override returns (bool) {
-    return (address(order.sellToken) == tokenIn &&
+  ) external view override {
+    if (
+      address(order.sellToken) == tokenIn &&
       address(order.buyToken) == tokenOut &&
       order.sellAmount == amount &&
-      order.receiver == receiver);
+      order.receiver == receiver
+    ) {
+      revert("Invalid order");
+    }
   }
 
-  // Called off-chain to construct the order data & signature
+  /**
+   * @dev Get a tradeable order that can be posted to the CoW Protocol API and would pass signature validation.
+   *      **MUST** revert if the order condition is not met.
+   * @param owner the contract who is the owner of the order
+   * @param sender the `msg.sender` of the parent `isValidSignature` call
+   * @param ctx the context of the order (bytes32(0) if merkle tree is used, otherwise the H(params))
+   * @param staticInput the static input for all discrete orders cut from this conditional order
+   * @param offchainInput dynamic off-chain input for a discrete order cut from this conditional order
+   * @return order the tradeable order for submission to the CoW Protocol API
+   */
   function getTradeableOrder(
-    address /* owner */,
-    address /* sender */,
-    bytes calldata /* context */,
-    bytes calldata /* staticInput */,
-    bytes calldata /* offchainInput */
+    address owner,
+    address sender,
+    bytes32 ctx,
+    bytes calldata staticInput,
+    bytes calldata offchainInput
   ) external view override returns (GPv2Order.Data memory order) {
     order = GPv2Order.Data({
-      sellToken: tokenIn,
-      buyToken: tokenOut,
+      sellToken: IERC20(tokenIn),
+      buyToken: IERC20(tokenOut),
       receiver: receiver,
       sellAmount: amount,
       buyAmount: amount, // 1:1 implied price (for simplicity)
-      validTo: block.timestamp + 1 days,
+      validTo: uint32(block.timestamp + 1 days),
       appData: bytes32(0),
       feeAmount: 0,
       kind: GPv2Order.KIND_SELL,
@@ -72,5 +86,9 @@ contract SimpleTransferHandler is IConditionalOrderGenerator {
       sellTokenBalance: GPv2Order.BALANCE_ERC20,
       buyTokenBalance: GPv2Order.BALANCE_ERC20
     });
+  }
+
+  function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+    return interfaceId == type(IConditionalOrderGenerator).interfaceId;
   }
 }
