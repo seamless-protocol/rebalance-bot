@@ -38,7 +38,9 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
+    "@cowprotocol/app-data": "^3.3.0",
     "@cowprotocol/cow-sdk": "^5.10.3",
+    "@safe-global/protocol-kit": "^6.1.0",
     "@slack/web-api": "^7.9.1",
     "@uniswap/sdk-core": "^7.7.2",
     "@uniswap/smart-order-router": "^4.20.10",
