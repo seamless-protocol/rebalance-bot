@@ -13,6 +13,7 @@ import Safe from "@safe-global/protocol-kit";
 import { MetaTransactionData } from "@safe-global/types-kit";
 
 import LeverageManagerAbi from "./leverageManagerAbi.json";
+import RebalanceAdapterAbi from "../abis/RebalanceAdapter";
 // import ERC20Abi from "./erc20Abi.json";
 
 import { config } from "dotenv";
@@ -42,84 +43,6 @@ interface TrasableOrder {
   buyTokenBalance: string;
 }
 
-// 0x6a76120200000000000000000000000004c0599ae5a44757c0af6f9ec3b93da8976c150a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c00000000000000000000000000000000000000000000000000000000000000044a9059cbb00000000000000000000000018ff6f81d8718d97c379c86dd11a4953a3d5e0aa00000000000000000000000000000000000000000000000000003faa25226000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000041ad843a5d2343f6f2da91c3ed8b4e363e4cb220771db117431e357e164ea0da8c60099cbf5abb524a1265acd2773a7d1a3a4194dc320f360dcb2186041d9911a41b00000000000000000000000000000000000000000000000000000000000000
-
-// 0x6a76120200000000000000000000000004c0599ae5a44757c0af6f9ec3b93da8976c150a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c00000000000000000000000000000000000000000000000000000000000000044a9059cbb00000000000000000000000018ff6f81d8718d97c379c86dd11a4953a3d5e0aa0000000000000000000000000000000000000000000000000000065dd083700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004186c404ae6b6b46e5cd99418f0ee8f570f94356718f1564e57ea0b1246d9e1799033c9711ff770fdb6478d16e98746c6750da12f9e7df102ca927422634fc88951b00000000000000000000000000000000000000000000000000000000000000
-
-// {
-//   "domain": {
-//     "verifyingContract": "0x00329eeb09eeec0b7513dde76dbed168807a114f",
-//     "chainId": 8453
-//   },
-//   "message": {
-//     "to": "0x04c0599ae5a44757c0af6f9ec3b93da8976c150a",
-//     "value": "0",
-//     "data": "0xa9059cbb00000000000000000000000018ff6f81d8718d97c379c86dd11a4953a3d5e0aa0000000000000000000000000000000000000000000000000000065dd0837000",
-//     "operation": 0,
-//     "baseGas": "0",
-//     "gasPrice": "0",
-//     "gasToken": "0x0000000000000000000000000000000000000000",
-//     "refundReceiver": "0x0000000000000000000000000000000000000000",
-//     "nonce": 12,
-//     "safeTxGas": "0"
-//   },
-//   "primaryType": "SafeTx",
-//   "types": {
-//     "EIP712Domain": [
-//       {
-//         "name": "chainId",
-//         "type": "uint256"
-//       },
-//       {
-//         "name": "verifyingContract",
-//         "type": "address"
-//       }
-//     ],
-//     "SafeTx": [
-//       {
-//         "type": "address",
-//         "name": "to"
-//       },
-//       {
-//         "type": "uint256",
-//         "name": "value"
-//       },
-//       {
-//         "type": "bytes",
-//         "name": "data"
-//       },
-//       {
-//         "type": "uint8",
-//         "name": "operation"
-//       },
-//       {
-//         "type": "uint256",
-//         "name": "safeTxGas"
-//       },
-//       {
-//         "type": "uint256",
-//         "name": "baseGas"
-//       },
-//       {
-//         "type": "uint256",
-//         "name": "gasPrice"
-//       },
-//       {
-//         "type": "address",
-//         "name": "gasToken"
-//       },
-//       {
-//         "type": "address",
-//         "name": "refundReceiver"
-//       },
-//       {
-//         "type": "uint256",
-//         "name": "nonce"
-//       }
-//     ]
-//   }
-// }
-
 // script.ts
 const greet = async (name: string) => {
   console.log(`Hello, ${name}!`);
@@ -131,6 +54,7 @@ const greet = async (name: string) => {
   const WETHAddress = "0x4200000000000000000000000000000000000006";
   const leverageTokenAddress = "0xA2fceEAe99d2cAeEe978DA27bE2d95b0381dBB8c";
   const settlementContractAddress = "0x9008D19f58AAbD9eD0D60971565AA8510560ab41";
+  const rebalanceAdapterAddress = "0xA530e6eA09eb118a1549aCA73731379ba546DD32";
 
   const composableCowAddress = "0xfdafc9d1902f4e0b84f65f49f244b32b31013b74";
   const safeAddress = "0x00329eeB09eeeC0B7513dDE76dBEd168807a114F";
@@ -142,6 +66,7 @@ const greet = async (name: string) => {
 
   // const weETH = new ethers.Contract(weETHAddress, ERC20Abi, provider);
   const leverageManager = new ethers.Contract(leverageManagerAddress, LeverageManagerAbi, provider);
+  const rebalanceAdapter = new ethers.Contract(rebalanceAdapterAddress, RebalanceAdapterAbi, provider);
 
   const appCode = "CoW Swap";
   const environment = "production";
@@ -150,10 +75,10 @@ const greet = async (name: string) => {
   // const orderClass = { orderClass: "market" }; // "market" | "limit" | "liquidity"
 
   const equityInCallateral = ethers.utils.parseEther("0.00001");
-  const { collateral, debt, equity, shares }: ActionData = await leverageManager.previewMint(
-    leverageTokenAddress,
-    equityInCallateral
-  );
+  // const { collateral, debt, equity, shares }: ActionData = await leverageManager.previewMint(
+  //   leverageTokenAddress,
+  //   equityInCallateral
+  // );
 
   const safe = await Safe.init({
     provider: baseUrl,
@@ -167,10 +92,15 @@ const greet = async (name: string) => {
     shares,
   ]);
 
-  // const transferTx = weETH.interface.encodeFunctionData("transfer", [
-  //   "0x18fF6f81d8718D97C379C86dd11A4953a3D5e0aa",
-  //   ethers.utils.parseEther("0.000006"),
-  // ]);
+  const isOverCollateralized = (await rebalanceAdapter.getAuction()).isOverCollateralized;
+  const leverageTokenTargetCollateralRatio = await rebalanceAdapter.getLeverageTokenTargetCollateralRatio();
+  const { collateral, debt, equity, currentRatio } = await leverageManager.getLeverageTokenState(leverageTokenAddress);
+
+  const maxAmountOut = isOverCollateralized
+    ? collateral.sub(equity).mul(leverageTokenTargetCollateralRatio).div(10000)
+    : debt.sub(equity).mul(leverageTokenTargetCollateralRatio).div(10000);
+
+  const rebalanceTx = rebalanceAdapter.interface.encodeFunctionData("take", [maxAmountOut]);
 
   const repaySafeTxData: MetaTransactionData = {
     to: leverageManagerAddress, // Aave pool address in Sepolia
