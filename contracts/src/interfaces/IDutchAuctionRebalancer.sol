@@ -52,10 +52,11 @@ interface IDutchAuctionRebalancer {
     /// @param amountToTake The amount to take from the auction
     /// @param multicallExecutor The address of the multicall executor
     /// @param swapCallsAfterRebalance The calls to execute for the swap using the multicall executor after the rebalance
+    /// @param swapCallsBeforeRebalance The calls to execute for the swap using the multicall executor before the rebalance
     /// @dev The `swapCallsAfterRebalance` are executed with the assets received from the rebalance to get the assets required to
     /// repay the flash loan
-    /// @param swapCallsBeforeRebalance The calls to execute for the swap using the multicall executor before the rebalance
     /// @dev The `swapCallsBeforeRebalance` are executed with the flash loaned assets to get the assets required for the rebalance
+    /// @dev The amount of `flashLoanAsset` flash loaned is determined by `rebalanceAdapter.getAmountIn(amountToTake)`
     function takeAuction(
         IRebalanceAdapter rebalanceAdapter,
         IERC20 flashLoanAsset,
