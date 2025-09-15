@@ -6,11 +6,11 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import {LeverageTokenState, RebalanceType, SwapType, SwapData, RebalanceAction, ActionType} from "./DataTypes.sol";
+import {LeverageTokenState, RebalanceType, RebalanceAction, ActionType} from "./DataTypes.sol";
 import {ILeverageManager} from "./interfaces/ILeverageManager.sol";
 import {IMorpho} from "./interfaces/IMorpho.sol";
+import {IMulticallExecutor} from "./interfaces/IMulticallExecutor.sol";
 import {IPreLiquidationRebalancer} from "./interfaces/IPreLiquidationRebalancer.sol";
-import {ISwapAdapter} from "./interfaces/ISwapAdapter.sol";
 import {ILendingAdapter} from "./interfaces/ILendingAdapter.sol";
 import {IRebalanceAdapter} from "./interfaces/IRebalanceAdapter.sol";
 
@@ -18,7 +18,6 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer, Ownable {
     uint256 public constant REWARD_BASE = 100_00;
 
     ILeverageManager public immutable leverageManager;
-    ISwapAdapter public immutable swapAdapter;
     IMorpho public immutable morpho;
 
     modifier onlyMorpho() {
@@ -26,9 +25,8 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer, Ownable {
         _;
     }
 
-    constructor(address _owner, address _leverageManager, address _swapAdapter, address _morpho) Ownable(_owner) {
+    constructor(address _owner, address _leverageManager, address _morpho) Ownable(_owner) {
         leverageManager = ILeverageManager(_leverageManager);
-        swapAdapter = ISwapAdapter(_swapAdapter);
         morpho = IMorpho(_morpho);
     }
 
@@ -71,7 +69,8 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer, Ownable {
         uint256 amountIn,
         uint256 amountOut,
         RebalanceType rebalanceType,
-        SwapData memory swapData
+        IMulticallExecutor multicallExecutor,
+        IMulticallExecutor.Call[] calldata swapCalls
     ) external onlyOwner {
         // Fetch collateral and debt asset for leverage token so we can determine what should be input asset and what should be output asset
         address lendingAdapter = leverageManager.getLeverageTokenLendingAdapter(leverageToken);
@@ -93,94 +92,55 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer, Ownable {
 
         // Flashloan from Morpho and putting all required parameters to execute rebalance and repay
         morpho.flashLoan(
-            assetIn, amountIn, abi.encode(leverageToken, assetIn, assetOut, amountOut, rebalanceType, swapData)
+            assetIn,
+            amountIn,
+            abi.encode(leverageToken, assetIn, assetOut, amountOut, rebalanceType, multicallExecutor, swapCalls)
         );
     }
 
     /// @inheritdoc IPreLiquidationRebalancer
-    function onMorphoFlashLoan(uint256 amountIn, bytes calldata data) external onlyMorpho {
+    function onMorphoFlashLoan(uint256 flashLoanAmount, bytes calldata data) external onlyMorpho {
         (
             address leverageToken,
-            address assetIn,
-            address assetOut,
+            IERC20 assetIn,
+            IERC20 assetOut,
             uint256 amountOut,
             RebalanceType rebalanceType,
-            SwapData memory swapData
-        ) = abi.decode(data, (address, address, address, uint256, RebalanceType, SwapData));
+            IMulticallExecutor multicallExecutor,
+            IMulticallExecutor.Call[] memory swapCalls
+        ) = abi.decode(
+            data, (address, IERC20, IERC20, uint256, RebalanceType, IMulticallExecutor, IMulticallExecutor.Call[])
+        );
 
         RebalanceAction[] memory rebalanceActions = new RebalanceAction[](2);
 
         // If rebalance type is rebalance down this means that we need to add collateral and borrow debt
         // Otherwise we need to repay debt and remove collateral
         if (rebalanceType == RebalanceType.REBALANCE_DOWN) {
-            rebalanceActions[0] = RebalanceAction({actionType: ActionType.AddCollateral, amount: amountIn});
+            rebalanceActions[0] = RebalanceAction({actionType: ActionType.AddCollateral, amount: flashLoanAmount});
             rebalanceActions[1] = RebalanceAction({actionType: ActionType.Borrow, amount: amountOut});
         } else {
-            rebalanceActions[0] = RebalanceAction({actionType: ActionType.Repay, amount: amountIn});
+            rebalanceActions[0] = RebalanceAction({actionType: ActionType.Repay, amount: flashLoanAmount});
             rebalanceActions[1] = RebalanceAction({actionType: ActionType.RemoveCollateral, amount: amountOut});
         }
 
-        // Execute actual rebalance
-        IERC20(assetIn).approve(address(leverageManager), amountIn);
+        // Execute the rebalance
+        SafeERC20.forceApprove(assetIn, address(leverageManager), flashLoanAmount);
+        leverageManager.rebalance(
+            leverageToken, rebalanceActions, address(assetIn), address(assetOut), flashLoanAmount, amountOut
+        );
 
-        leverageManager.rebalance(leverageToken, rebalanceActions, assetIn, assetOut, amountIn, amountOut);
+        // Transfer the assets received from the rebalance to the multicall executor for swapping
+        SafeERC20.safeTransfer(assetOut, address(multicallExecutor), amountOut);
 
-        // Execute swap to repay flashloan
-        // If swap type is exact input or exact output execute it on swap adapter
-        // If swap type is lifi swap execute it on lifi target
-        // This data should be fetched off-chain and passed as a parameter
-        if (swapData.swapType == SwapType.EXACT_INPUT_SWAP_ADAPTER) {
-            _swapExactInputOnSwapAdapter(assetOut, amountOut, amountIn, swapData.swapContext);
-        } else if (swapData.swapType == SwapType.EXACT_OUTPUT_SWAP_ADAPTER) {
-            _swapExactOutputOnSwapAdapter(assetOut, amountIn, amountOut, swapData.swapContext);
-        } else if (swapData.swapType == SwapType.LIFI_SWAP) {
-            address lifiTarget = swapData.lifiSwap.to;
-            bytes memory lifiCallData = swapData.lifiSwap.data;
-            _swapLIFI(IERC20(assetOut), amountOut, lifiTarget, lifiCallData);
-        }
+        // Execute the swap using the multicall executor. Multicall executor will sweep any remaining tokens to the sender
+        // (this contract) after executing the swap calls
+        IERC20[] memory tokens = new IERC20[](2);
+        tokens[0] = assetIn;
+        tokens[1] = assetOut;
+        multicallExecutor.multicallAndSweep(swapCalls, tokens);
 
-        IERC20(assetIn).approve(msg.sender, amountIn);
-    }
-
-    /// @notice Swaps exact input on swap adapter
-    /// @param inputToken Address of the input token
-    /// @param inputAmount Amount of input tokens to swap
-    /// @param minOutputAmount Minimum amount of output tokens to receive
-    /// @param swapContext Swap context for swap adapter
-    function _swapExactInputOnSwapAdapter(
-        address inputToken,
-        uint256 inputAmount,
-        uint256 minOutputAmount,
-        ISwapAdapter.SwapContext memory swapContext
-    ) private {
-        SafeERC20.forceApprove(IERC20(inputToken), address(swapAdapter), inputAmount);
-        swapAdapter.swapExactInput(inputToken, inputAmount, minOutputAmount, swapContext);
-    }
-
-    /// @notice Swaps exact output on swap adapter
-    /// @param inputToken Address of the input token
-    /// @param outputAmount Amount of output tokens to receive
-    /// @param maxInputAmount Maximum amount of input tokens to spend
-    /// @param swapContext Swap context for swap adapter
-    function _swapExactOutputOnSwapAdapter(
-        address inputToken,
-        uint256 outputAmount,
-        uint256 maxInputAmount,
-        ISwapAdapter.SwapContext memory swapContext
-    ) private {
-        SafeERC20.forceApprove(IERC20(inputToken), address(swapAdapter), maxInputAmount);
-        swapAdapter.swapExactOutput(inputToken, outputAmount, maxInputAmount, swapContext);
-    }
-
-    /// @notice Swaps on lifi target
-    /// @param inputToken Address of the input token
-    /// @param inputAmount Amount of input tokens to swap
-    /// @param target Address of the lifi target
-    /// @param data Data for the lifi target
-    function _swapLIFI(IERC20 inputToken, uint256 inputAmount, address target, bytes memory data) internal {
-        SafeERC20.forceApprove(inputToken, target, inputAmount);
-
-        (bool success,) = target.call(data);
-        if (!success) revert LIFISwapFailed();
+        // Repay flash loan from Morpho
+        SafeERC20.forceApprove(assetIn, msg.sender, flashLoanAmount);
     }
 }
