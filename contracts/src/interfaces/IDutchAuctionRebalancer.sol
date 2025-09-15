@@ -46,19 +46,25 @@ interface IDutchAuctionRebalancer {
 
     /// @notice Take an auction for a leverage token
     /// @param rebalanceAdapter The address of the rebalance adapter
+    /// @param flashLoanAsset The asset to flash loan from Morpho
+    /// @param rebalanceAssetIn The asset to give for the rebalance
+    /// @param rebalanceAssetOut The asset to receive from the rebalance
     /// @param amountToTake The amount to take from the auction
-    /// @param flashLoanAsset The asset to flash loan
-    /// @param rebalanceAssetIn The asset to rebalance
     /// @param multicallExecutor The address of the multicall executor
-    /// @param swapCalls The calls to execute for the swap using the multicall executor
-    /// @dev The `swapCalls` are executed by the multicall executor with assets received from the Dutch auction
+    /// @param swapCallsAfterRebalance The calls to execute for the swap using the multicall executor after the rebalance
+    /// @dev The `swapCallsAfterRebalance` are executed with the assets received from the rebalance to get the assets required to
+    /// repay the flash loan
+    /// @param swapCallsBeforeRebalance The calls to execute for the swap using the multicall executor before the rebalance
+    /// @dev The `swapCallsBeforeRebalance` are executed with the flash loaned assets to get the assets required for the rebalance
     function takeAuction(
         IRebalanceAdapter rebalanceAdapter,
-        uint256 amountToTake,
         IERC20 flashLoanAsset,
         IERC20 rebalanceAssetIn,
+        IERC20 rebalanceAssetOut,
+        uint256 amountToTake,
         IMulticallExecutor multicallExecutor,
-        IMulticallExecutor.Call[] calldata swapCalls
+        IMulticallExecutor.Call[] calldata swapCallsAfterRebalance,
+        IMulticallExecutor.Call[] calldata swapCallsBeforeRebalance
     ) external;
 
     /// @notice Called by Morpho when a flash loan is received

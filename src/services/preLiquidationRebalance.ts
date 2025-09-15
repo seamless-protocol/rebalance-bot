@@ -6,7 +6,7 @@ import {
   PRE_LIQUIDATION_STEP_COUNT,
 } from "../constants/values";
 import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
-import { LeverageTokenRebalanceData, LogLevel, RebalanceType } from "../types";
+import { LeverageTokenRebalanceData, LogLevel, RebalanceType, StakeType } from "../types";
 import {
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
@@ -115,7 +115,7 @@ const executePreLiquidationRebalance = async (
       const requiredAmountIn = await preLiquidationRebalancer.read.getAmountIn([leverageToken, takeAmount]);
 
       const swapParams = await getRebalanceSwapParams({
-        leverageToken,
+        stakeType: StakeType.NONE,
         assetIn,
         assetOut,
         takeAmount,
@@ -136,10 +136,11 @@ const executePreLiquidationRebalance = async (
       try {
         const tx = await preLiquidationRebalancer.write.preLiquidationRebalance([
           leverageToken,
-          swapParams.amountOut,
+          requiredAmountIn,
           takeAmount,
           rebalanceType,
-          swapParams,
+          CONTRACT_ADDRESSES.MULTICALL_EXECUTOR,
+          swapParams.swapCalls,
         ]);
 
         await publicClient.waitForTransactionReceipt({

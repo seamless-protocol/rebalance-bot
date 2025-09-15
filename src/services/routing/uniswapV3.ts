@@ -1,12 +1,13 @@
-import { Address, erc20Abi } from "viem";
-import { AlphaRouter, GasPrice, IGasPriceProvider, RouteWithValidQuote, SwapOptions, SwapType } from "@uniswap/smart-order-router";
-import { ChainId, CurrencyAmount, Percent, Token, TradeType } from "@uniswap/sdk-core";
-import { primaryEthersProvider, publicClient } from "../../utils/transactionHelpers";
-
-import { CONTRACT_ADDRESSES } from "../../constants/contracts";
-import { UniswapV3QuoteExactInputArgs } from "../../types";
 import { BigNumber } from "ethers";
+import { Address, encodeFunctionData, erc20Abi } from "viem";
+import { AlphaRouter, GasPrice, IGasPriceProvider, RouteWithValidQuote, SwapOptions, SwapType, V3Route } from "@uniswap/smart-order-router";
+import { ChainId, CurrencyAmount, Percent, Token, TradeType } from "@uniswap/sdk-core";
+import { encodeRouteToPath } from "@uniswap/v3-sdk";
+import { CONTRACT_ADDRESSES } from "../../constants/contracts";
+import { Call, UniswapV3QuoteExactInputArgs } from "../../types";
 import { IS_USING_FORK } from "../../constants/values";
+import { primaryEthersProvider, publicClient } from "../../utils/transactionHelpers";
+import UniswapSwapRouter02Abi from "../../../abis/UniswapSwapRouter02";
 
 class StaticGasPriceProvider implements IGasPriceProvider {
   constructor(private gasPriceWei: BigNumber) {}
@@ -82,3 +83,40 @@ export const getRouteUniswapV3ExactInput = async (
     return null;
   }
 };
+
+export const prepareUniswapV3SwapCalldata = (assetIn: Address, route: RouteWithValidQuote, inputAmount: bigint, outputAmountMin: bigint): Call[] => {
+  const uniswapV3RouterAbi = UniswapSwapRouter02Abi;
+
+  const approveCalldata = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: 'approve',
+    args: [CONTRACT_ADDRESSES.UNISWAP_SWAP_ROUTER_02, inputAmount],
+  });
+
+  const encodedPath = route?.route ? (encodeRouteToPath(route.route as V3Route, false) as `0x${string}`) : "0x";
+
+  const swapCalldata = encodeFunctionData({
+    abi: uniswapV3RouterAbi,
+    functionName: 'exactInput',
+    args: [{
+      path: encodedPath,
+      recipient: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER, // Recipient of the swap is the rebalancer contract
+      amountIn: inputAmount,
+      amountOutMinimum: outputAmountMin,
+    }],
+  });
+
+  return [
+    {
+      target: assetIn,
+      data: approveCalldata,
+      value: 0n,
+    },
+    {
+      target: CONTRACT_ADDRESSES.UNISWAP_SWAP_ROUTER_02,
+      data: swapCalldata,
+      value: 0n,
+    },
+  ];
+};
+

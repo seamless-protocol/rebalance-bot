@@ -120,11 +120,13 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
     /// @inheritdoc IDutchAuctionRebalancer
     function takeAuction(
         IRebalanceAdapter rebalanceAdapter,
-        uint256 amountToTake,
         IERC20 flashLoanAsset,
         IERC20 rebalanceAssetIn,
+        IERC20 rebalanceAssetOut,
+        uint256 amountToTake,
         IMulticallExecutor multicallExecutor,
-        IMulticallExecutor.Call[] calldata swapCalls
+        IMulticallExecutor.Call[] calldata swapCallsAfterRebalance,
+        IMulticallExecutor.Call[] calldata swapCallsBeforeRebalance
     ) external onlyOwner {
         uint256 amountIn = IRebalanceAdapter(rebalanceAdapter).getAmountIn(amountToTake);
 
@@ -132,7 +134,15 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
             address(flashLoanAsset),
             amountIn,
             abi.encode(
-                flashLoanAsset, rebalanceAssetIn, rebalanceAdapter, amountIn, amountToTake, multicallExecutor, swapCalls
+                rebalanceAdapter,
+                flashLoanAsset,
+                rebalanceAssetIn,
+                rebalanceAssetOut,
+                amountIn,
+                amountToTake,
+                multicallExecutor,
+                swapCallsAfterRebalance,
+                swapCallsBeforeRebalance
             )
         );
     }
@@ -140,29 +150,54 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
     /// @inheritdoc IDutchAuctionRebalancer
     function onMorphoFlashLoan(uint256 flashLoanAmount, bytes calldata data) external onlyMorpho {
         (
-            IERC20 assetIn,
-            IERC20 assetOut,
-            address rebalanceAdapter,
+            IRebalanceAdapter rebalanceAdapter,
+            IERC20 flashLoanAsset,
+            IERC20 rebalanceAssetIn,
+            IERC20 rebalanceAssetOut,
             uint256 amountIn,
             uint256 amountToTake,
             IMulticallExecutor multicallExecutor,
-            IMulticallExecutor.Call[] memory swapCalls
-        ) = abi.decode(data, (IERC20, IERC20, address, uint256, uint256, IMulticallExecutor, IMulticallExecutor.Call[]));
+            IMulticallExecutor.Call[] memory swapCallsAfterRebalance,
+            IMulticallExecutor.Call[] memory swapCallsBeforeRebalance
+        ) = abi.decode(
+            data,
+            (
+                IRebalanceAdapter,
+                IERC20,
+                IERC20,
+                IERC20,
+                uint256,
+                uint256,
+                IMulticallExecutor,
+                IMulticallExecutor.Call[],
+                IMulticallExecutor.Call[]
+            )
+        );
 
-        SafeERC20.forceApprove(assetIn, rebalanceAdapter, amountIn);
-        IRebalanceAdapter(rebalanceAdapter).take(amountToTake);
-
-        // Transfer the taken assets to the multicall executor for swapping
-        SafeERC20.safeTransfer(assetOut, address(multicallExecutor), amountToTake);
-
-        // Execute the swap using the multicall executor. Multicall executor will sweep any remaining tokens to the sender
-        // (this contract) after executing the swap calls
         IERC20[] memory tokens = new IERC20[](2);
-        tokens[0] = assetIn;
-        tokens[1] = assetOut;
-        multicallExecutor.multicallAndSweep(swapCalls, tokens);
+        tokens[0] = flashLoanAsset;
+
+        if (swapCallsBeforeRebalance.length > 0) {
+            SafeERC20.safeTransfer(flashLoanAsset, address(multicallExecutor), flashLoanAmount);
+
+            tokens[1] = rebalanceAssetIn;
+
+            multicallExecutor.multicallAndSweep(swapCallsBeforeRebalance, tokens);
+        }
+
+        // Participate in the auction to rebalance
+        SafeERC20.forceApprove(rebalanceAssetIn, address(rebalanceAdapter), amountIn);
+        rebalanceAdapter.take(amountToTake);
+
+        if (swapCallsAfterRebalance.length > 0) {
+            SafeERC20.safeTransfer(rebalanceAssetOut, address(multicallExecutor), amountToTake);
+
+            tokens[1] = rebalanceAssetOut;
+
+            multicallExecutor.multicallAndSweep(swapCallsAfterRebalance, tokens);
+        }
 
         // Repay flash loan from Morpho
-        SafeERC20.forceApprove(assetIn, msg.sender, flashLoanAmount);
+        SafeERC20.forceApprove(flashLoanAsset, msg.sender, flashLoanAmount);
     }
 }
