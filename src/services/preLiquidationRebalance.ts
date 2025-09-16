@@ -5,7 +5,7 @@ import {
   PRE_LIQUIDATION_POLLING_INTERVAL,
   PRE_LIQUIDATION_STEP_COUNT,
 } from "../constants/values";
-import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
+import { getRebalanceSwapParams } from "./routing/getSwapParams";
 import { LeverageTokenRebalanceData, LogLevel, RebalanceType, StakeType } from "../types";
 import {
   getLeverageTokenCollateralAsset,
@@ -119,7 +119,7 @@ const executePreLiquidationRebalance = async (
         assetIn,
         assetOut,
         takeAmount,
-        requiredAmountIn: requiredAmountIn,
+        requiredAmountIn,
       });
 
       if (!swapParams.isProfitable) {

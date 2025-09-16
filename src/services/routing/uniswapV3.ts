@@ -1,16 +1,18 @@
 import { BigNumber } from "ethers";
 import { Address, encodeFunctionData, erc20Abi } from "viem";
 import { AlphaRouter, GasPrice, IGasPriceProvider, RouteWithValidQuote, SwapOptions, SwapType, V3Route } from "@uniswap/smart-order-router";
-import { ChainId, CurrencyAmount, Percent, Token, TradeType } from "@uniswap/sdk-core";
+import { CurrencyAmount, Percent, Token, TradeType } from "@uniswap/sdk-core";
 import { encodeRouteToPath } from "@uniswap/v3-sdk";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { Call, UniswapV3QuoteExactInputArgs } from "../../types";
 import { IS_USING_FORK } from "../../constants/values";
 import { primaryEthersProvider, publicClient } from "../../utils/transactionHelpers";
 import UniswapSwapRouter02Abi from "../../../abis/UniswapSwapRouter02";
+import { CHAIN_ID } from "../../constants/chain";
 
 class StaticGasPriceProvider implements IGasPriceProvider {
   constructor(private gasPriceWei: BigNumber) {}
+
   async getGasPrice(): Promise<GasPrice> {
     return { gasPriceWei: this.gasPriceWei }
   }
@@ -38,11 +40,11 @@ export const getRouteUniswapV3ExactInput = async (
     const { tokenInAddress, tokenOutAddress, amountInRaw } = args;
     const { tokenInDecimals, tokenOutDecimals } = await getTokensDecimals(tokenInAddress, tokenOutAddress);
 
-    const tokenIn = new Token(ChainId.BASE, tokenInAddress, tokenInDecimals);
-    const tokenOut = new Token(ChainId.BASE, tokenOutAddress, tokenOutDecimals);
+    const tokenIn = new Token(CHAIN_ID, tokenInAddress, tokenInDecimals);
+    const tokenOut = new Token(CHAIN_ID, tokenOutAddress, tokenOutDecimals);
 
     const router = new AlphaRouter({
-      chainId: ChainId.BASE,
+      chainId: CHAIN_ID,
       // Fallback ethers provider is not supported by AlphaRouter (it calls provider.send which is not supported by ethers FallbackProvider)
       provider: primaryEthersProvider,
       v2Supported: [],

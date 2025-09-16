@@ -1,5 +1,5 @@
 import { GetLIFIQuoteInput, GetLIFIQuoteOutput } from "../../types";
-import { LIFI_API_KEY, LIFI_API_URL } from "../../constants/values";
+import { LIFI_API_KEY, LIFI_API_URL, LIFI_SLIPPAGE } from "../../constants/values";
 
 import { CHAIN_ID } from "../../constants/chain";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
@@ -20,7 +20,10 @@ export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuot
         fromToken,
         toToken,
         fromAmount,
-        fromAddress: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+        fromAddress: CONTRACT_ADDRESSES.MULTICALL_EXECUTOR,
+        toAddress: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+        allowBridges: "none",
+        slippage: LIFI_SLIPPAGE
       },
       headers: {
         "x-lifi-api-key": LIFI_API_KEY,
@@ -28,7 +31,8 @@ export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuot
     });
 
     return {
-      amountOut: result.data.estimate.toAmount,
+      // We use the guaranteed minimum amount to account for any potential slippage
+      amountOut: result.data.estimate.toAmountMin,
       to: result.data.transactionRequest.to,
       data: result.data.transactionRequest.data,
       value: result.data.transactionRequest.value,

@@ -1,3 +1,4 @@
+import { erc20Abi, encodeFunctionData } from "viem";
 import {getEtherFiEthStakeQuote, prepareEtherFiEthStakeCalldata} from "./etherFi";
 import { getLIFIQuote } from "./lifi";
 import { getAmountsOutUniswapV2, prepareUniswapV2SwapCalldata } from "./uniswapV2";
@@ -72,7 +73,7 @@ export const getRebalanceSwapParams = async (
   const { assetIn, assetOut, takeAmount, requiredAmountIn, stakeType } = input;
 
   // We first check if staking / custom route can be used to swap, which typically provides the best price
-  if (stakeType == StakeType.ETHERFI_ETH_WEETH) {
+  if (stakeType === StakeType.ETHERFI_ETH_WEETH) {
     const weethAmountOut = await getEtherFiEthStakeQuote(takeAmount);
 
     if (weethAmountOut >= requiredAmountIn) {
@@ -104,14 +105,28 @@ export const getRebalanceSwapParams = async (
     return getDummySwapParams();
   }
 
+  // Encode approve calldata for lifiQuote.to to spend the asset received from the rebalance (executed by the Multicall Executor contract)
+  const approveCalldata = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: 'approve',
+    args: [lifiQuote.to, takeAmount],
+  });
+
   // Profitable, return LIFI swap calldata
   return {
     isProfitable: true,
     amountOut: amountOutLifi,
-    swapCalls: [{
-      target: lifiQuote.to,
-      data: lifiQuote.data,
-      value: lifiQuote.value,
-    }]
+    swapCalls: [
+      {
+        target: assetOut,
+        data: approveCalldata,
+        value: 0n,
+      },
+      {
+        target: lifiQuote.to,
+        data: lifiQuote.data,
+        value: 0n,
+      }
+    ]
   };
 };
