@@ -195,9 +195,6 @@ export const handleAuctionCreatedEvent = async (
       );
 
       try {
-        // If stake type is ETHERFI_ETH_WEETH we flash loan WETH and deposit it into the ETHERFI_L2_MODE_SYNC_POOL to get
-        // WEETH for the rebalance. In this case, no swap is required afterwards to get the flash loan asset, since the
-        // asset out is already WETH.
         const tx = await dutchAuctionRebalancerContract.write.takeAuction([
           rebalanceAdapter,
           assetIn,
