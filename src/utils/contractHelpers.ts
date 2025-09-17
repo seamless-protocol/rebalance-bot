@@ -1,16 +1,18 @@
 import { Abi, AbiEvent, Address, Log, getAbiItem, getContract } from "viem";
 import { publicClient, walletClient } from "./transactionHelpers";
 
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
-import EtherFiL2ModeSyncPoolAbi from "../../abis/EtherFiL2ModeSyncPool";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import { readJsonArrayFromFile } from "./fileHelpers";
+import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import eETHAbi from "../../abis/eETH";
+import EtherFiLiquidityPoolAbi from "../../abis/EtherFiLiquidityPool";
+import EtherFiL2ModeSyncPoolAbi from "../../abis/EtherFiL2ModeSyncPool";
+import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
+import { LeverageManagerAbi } from "../../abis/LeverageManager";
+import { PreLiquidationRebalancerAbi } from "../../abis/PreLiquidationRebalancer";
 import rebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import uniswapV2Router02Abi from "../../abis/UniswapV2Router02";
-import { PreLiquidationRebalancerAbi } from "../../abis/PreLiquidationRebalancer";
-import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 
 export const getHistoricalLogs = async ({
   contractAddress,
@@ -145,6 +147,22 @@ export const leverageManagerContract = getContract({
   abi: LeverageManagerAbi,
   client: walletClient,
 });
+
+export const getEethContract = () => {
+  return getContract({
+    address: CONTRACT_ADDRESSES.EETH,
+    abi: eETHAbi,
+    client: publicClient,
+  });
+};
+
+export const getEtherFiLiquidityPoolContract = () => {
+  return getContract({
+    address: CONTRACT_ADDRESSES.ETHERFI_LIQUIDITY_POOL,
+    abi: EtherFiLiquidityPoolAbi,
+    client: publicClient,
+  });
+};
 
 export const getEtherFiL2ModeSyncPoolContract = () => {
   return getContract({

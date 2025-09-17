@@ -165,11 +165,6 @@ export const DutchAuctionRebalancerAbi = [
                 "internalType": "contract IRebalanceAdapter"
             },
             {
-                "name": "flashLoanAsset",
-                "type": "address",
-                "internalType": "contract IERC20"
-            },
-            {
                 "name": "rebalanceAssetIn",
                 "type": "address",
                 "internalType": "contract IERC20"
@@ -190,29 +185,7 @@ export const DutchAuctionRebalancerAbi = [
                 "internalType": "contract IMulticallExecutor"
             },
             {
-                "name": "swapCallsAfterRebalance",
-                "type": "tuple[]",
-                "internalType": "struct IMulticallExecutor.Call[]",
-                "components": [
-                    {
-                        "name": "target",
-                        "type": "address",
-                        "internalType": "address"
-                    },
-                    {
-                        "name": "value",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    {
-                        "name": "data",
-                        "type": "bytes",
-                        "internalType": "bytes"
-                    }
-                ]
-            },
-            {
-                "name": "swapCallsBeforeRebalance",
+                "name": "swapCalls",
                 "type": "tuple[]",
                 "internalType": "struct IMulticallExecutor.Call[]",
                 "components": [

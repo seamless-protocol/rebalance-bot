@@ -16,7 +16,7 @@ export const FALLBACK_RPC_URL = process.env.FALLBACK_RPC_URL || "";
 export const VIEM_CHAIN = (() => {
   if (CHAIN_ID === 1) {
     return mainnet;
-  } else if (CHAIN_ID === 8453) {
+  } if (CHAIN_ID === 8453) {
     return base;
   }
   throw new Error(`Unsupported CHAIN_ID: ${CHAIN_ID}`);

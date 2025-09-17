@@ -46,26 +46,20 @@ interface IDutchAuctionRebalancer {
 
     /// @notice Take an auction for a leverage token
     /// @param rebalanceAdapter The address of the rebalance adapter
-    /// @param flashLoanAsset The asset to flash loan from Morpho
-    /// @param rebalanceAssetIn The asset to give for the rebalance
+    /// @param rebalanceAssetIn The asset to give for the rebalance, which is flash loaned from Morpho
     /// @param rebalanceAssetOut The asset to receive from the rebalance
     /// @param amountToTake The amount to take from the auction
     /// @param multicallExecutor The address of the multicall executor
-    /// @param swapCallsAfterRebalance The calls to execute for the swap using the multicall executor after the rebalance
-    /// @param swapCallsBeforeRebalance The calls to execute for the swap using the multicall executor before the rebalance
-    /// @dev The `swapCallsAfterRebalance` are executed with the assets received from the rebalance to get the assets required to
-    /// repay the flash loan
-    /// @dev The `swapCallsBeforeRebalance` are executed with the flash loaned assets to get the assets required for the rebalance
-    /// @dev The amount of `flashLoanAsset` flash loaned is determined by `rebalanceAdapter.getAmountIn(amountToTake)`
+    /// @param swapCalls The calls to execute for the swap of the asset received from the rebalance using the multicall executor
+    /// to get the assets required to repay the flash loan
+    /// @dev The amount of `rebalanceAssetIn` flash loaned is determined by `rebalanceAdapter.getAmountIn(amountToTake)`
     function takeAuction(
         IRebalanceAdapter rebalanceAdapter,
-        IERC20 flashLoanAsset,
         IERC20 rebalanceAssetIn,
         IERC20 rebalanceAssetOut,
         uint256 amountToTake,
         IMulticallExecutor multicallExecutor,
-        IMulticallExecutor.Call[] calldata swapCallsAfterRebalance,
-        IMulticallExecutor.Call[] calldata swapCallsBeforeRebalance
+        IMulticallExecutor.Call[] calldata swapCalls
     ) external;
 
     /// @notice Called by Morpho when a flash loan is received

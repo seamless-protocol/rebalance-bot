@@ -133,8 +133,8 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer, Ownable {
         // Transfer the assets received from the rebalance to the multicall executor for swapping
         SafeERC20.safeTransfer(assetOut, address(multicallExecutor), amountOut);
 
-        // Execute the swap using the multicall executor. Multicall executor will sweep any remaining tokens to the sender
-        // (this contract) after executing the swap calls
+        // Execute the swap using the multicall executor. Multicall executor will sweep any remaining tokens to this contract
+        // after executing the swap calls
         IERC20[] memory tokens = new IERC20[](2);
         tokens[0] = assetIn;
         tokens[1] = assetOut;

@@ -200,13 +200,11 @@ export const handleAuctionCreatedEvent = async (
         // asset out is already WETH.
         const tx = await dutchAuctionRebalancerContract.write.takeAuction([
           rebalanceAdapter,
-          stakeType === StakeType.ETHERFI_ETH_WEETH ? CONTRACT_ADDRESSES.WETH : assetIn,
           assetIn,
           assetOut,
           takeAmount,
           CONTRACT_ADDRESSES.MULTICALL_EXECUTOR,
-          stakeType === StakeType.ETHERFI_ETH_WEETH ? [] : swapParams.swapCalls,
-          stakeType === StakeType.ETHERFI_ETH_WEETH ? swapParams.swapCalls: []
+          swapParams.swapCalls
         ]);
 
         await publicClient.waitForTransactionReceipt({
