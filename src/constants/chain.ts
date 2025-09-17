@@ -14,10 +14,12 @@ export const PRIMARY_RPC_URL = process.env.PRIMARY_RPC_URL || "";
 export const PRIMARY_RPC_URL_WS = process.env.PRIMARY_RPC_URL_WS || "";
 export const FALLBACK_RPC_URL = process.env.FALLBACK_RPC_URL || "";
 export const VIEM_CHAIN = (() => {
-  if (CHAIN_ID === 1) {
-    return mainnet;
-  } if (CHAIN_ID === 8453) {
-    return base;
+  switch (CHAIN_ID) {
+    case 1:
+      return mainnet;
+    case 8453:
+      return base;
+    default:
+      throw new Error(`Unsupported CHAIN_ID: ${CHAIN_ID}`);
   }
-  throw new Error(`Unsupported CHAIN_ID: ${CHAIN_ID}`);
 })();
