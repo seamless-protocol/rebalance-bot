@@ -311,9 +311,11 @@ const simulateAndCalculateProfitability = async (
 
   const maxFeeWei = paddedGas * perGasCap;
 
-  // At time of writing, CoinGecko only supports fetching one asset price per request
-  const assetInUsdPrice = (await fetchCoingeckoTokenUsdPrices(CHAIN_ID, [assetIn]))[assetIn.toLowerCase()];
-  const ethUsdPrice = (await fetchCoingeckoTokenUsdPrices(CHAIN_ID, [CONTRACT_ADDRESSES.WETH]))[CONTRACT_ADDRESSES.WETH];
+  // At time of writing, CoinGecko only supports fetching one asset price per request, but this may change in the future
+  const [assetInUsdPrice, ethUsdPrice] = await Promise.all([
+    fetchCoingeckoTokenUsdPrices(CHAIN_ID, [assetIn]).then(prices => prices[assetIn.toLowerCase()]),
+    fetchCoingeckoTokenUsdPrices(CHAIN_ID, [CONTRACT_ADDRESSES.WETH]).then(prices => prices[CONTRACT_ADDRESSES.WETH])
+  ]);
 
   const gasFeeUsd = Number(formatEther(maxFeeWei)) * ethUsdPrice;
 
