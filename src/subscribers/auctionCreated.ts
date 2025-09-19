@@ -1,12 +1,18 @@
-import { Address, BaseError, ContractFunctionRevertedError } from "viem";
+import { Address, BaseError, ContractFunctionRevertedError, erc20Abi, formatEther, formatUnits } from "viem";
 import {
   BASE_RATIO,
   DUTCH_AUCTION_ACTIVE_INTERVALS,
   DUTCH_AUCTION_POLLING_INTERVAL,
   DUTCH_AUCTION_STEP_COUNT,
 } from "../constants/values";
-import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
-import { LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
+import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
+import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
+import { LeverageManagerAbi } from "../../abis/LeverageManager";
+import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
+import { CHAIN_ID, LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import { sendAlert } from "../utils/alerts";
+import { fetchCoingeckoTokenUsdPrices } from "../utils/coingecko";
 import {
   dutchAuctionRebalancerContract,
   getLeverageTokenCollateralAsset,
@@ -16,16 +22,10 @@ import {
   getLeverageTokenRebalanceAdapter,
   leverageManagerContract,
 } from "../utils/contractHelpers";
-
-import { LeverageManagerAbi } from "../../abis/LeverageManager";
-import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
-import { sendAlert } from "../utils/alerts";
+import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
+import { GetRebalanceSwapParamsOutput, LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { publicClient } from "../utils/transactionHelpers";
-import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
-import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdapter: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, collateralResponse, equityInCollateralAssetResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
@@ -83,7 +83,7 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
 
 const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollateralized: boolean) => {
   // Determine whether we can use native EtherFi staking for swapping assets
-  if (collateralAsset == CONTRACT_ADDRESSES.WEETH && debtAsset == CONTRACT_ADDRESSES.WETH && isOverCollateralized) {
+  if (collateralAsset.toLowerCase() == CONTRACT_ADDRESSES.WEETH && debtAsset.toLowerCase() == CONTRACT_ADDRESSES.WETH && isOverCollateralized) {
     return StakeType.ETHERFI_ETH_WEETH;
   }
   return StakeType.NONE;
@@ -133,6 +133,12 @@ export const handleAuctionCreatedEvent = async (
 
     const stakeType = getStakeType(collateralAsset, debtAsset, isOverCollateralized);
 
+    const assetInDecimals = await publicClient.readContract({
+      address: assetIn,
+      abi: erc20Abi,
+      functionName: "decimals",
+    });
+
     // TODO: Instead of for loop maybe put this in big multicall
     for (let i = 0; i < stepCount; i++) {
       const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
@@ -176,18 +182,40 @@ export const handleAuctionCreatedEvent = async (
       }
 
       const swapParams = await getRebalanceSwapParams({
-          stakeType,
-          assetIn,
-          assetOut,
-          takeAmount,
-          requiredAmountIn
+        stakeType,
+        assetIn,
+        assetOut,
+        takeAmount,
+        requiredAmountIn
       });
 
       if (!swapParams.isProfitable) {
         console.log(
-          `Rebalance is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} assetOut: ${assetOut}. amountIn: ${requiredAmountIn} assetIn: ${assetIn}. Skipping step ${i}...`
+          `Rebalance swap is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} assetOut: ${assetOut}. amountIn: ${requiredAmountIn} assetIn: ${assetIn} swapAmountOut: ${swapParams.amountOut} deficit: ${requiredAmountIn - swapParams.amountOut}. Skipping step ${i}...`
         );
         continue;
+      }
+
+      try {
+        const { isProfitableWithGasFee, assetInProfitUsd, gasFeeUsd } = await simulateAndCalculateProfitability(
+          rebalanceAdapter,
+          assetIn,
+          assetInDecimals,
+          assetOut,
+          takeAmount,
+          swapParams,
+          requiredAmountIn
+        );
+
+        if (!isProfitableWithGasFee) {
+          console.log(
+            `Rebalance with gas fee is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} assetOut: ${assetOut}. amountIn: ${requiredAmountIn} assetIn: ${assetIn} assetInProfitUsd: ${assetInProfitUsd} gasFeeUsd: ${gasFeeUsd}. Skipping step ${i}...`
+          );
+          continue;
+        }
+      } catch (error) {
+        console.error(`Error simulating and calculating profitability for ${leverageToken}. Error: ${error}`);
+        throw error;
       }
 
       console.log(
@@ -254,7 +282,49 @@ export const handleAuctionCreatedEvent = async (
   }
 };
 
-export const subscribeToAuctionCreated = (lendingAdapter: Address, rebalanceAdapter: Address) => {
+const simulateAndCalculateProfitability = async (
+  rebalanceAdapter: Address,
+  assetIn: Address,
+  assetInDecimals: number,
+  assetOut: Address,
+  takeAmount: bigint,
+  swapParams: GetRebalanceSwapParamsOutput,
+  requiredAmountIn: bigint
+): Promise<{ isProfitableWithGasFee: boolean, assetInProfitUsd: number, gasFeeUsd: number }> => {
+  const { request } = await dutchAuctionRebalancerContract.simulate.takeAuction([
+    rebalanceAdapter,
+    assetIn,
+    assetOut,
+    takeAmount,
+    CONTRACT_ADDRESSES.MULTICALL_EXECUTOR,
+    swapParams.swapCalls
+  ]);
+
+  const gasEstimate = request.gas ?? 0n;
+  const paddedGas = (gasEstimate * 11n) / 10n; // +10% padding
+
+  // Price per unit (prioritize EIP-1559, then legacy)
+  const perGasCap =
+    request.maxFeePerGas ??
+    request.gasPrice ??
+    0n;
+
+  const maxFeeWei = paddedGas * perGasCap;
+
+  // At time of writing, CoinGecko only supports fetching one asset price per request
+  const assetInUsdPrice = (await fetchCoingeckoTokenUsdPrices(CHAIN_ID, [assetIn]))[assetIn.toLowerCase()];
+  const ethUsdPrice = (await fetchCoingeckoTokenUsdPrices(CHAIN_ID, [CONTRACT_ADDRESSES.WETH]))[CONTRACT_ADDRESSES.WETH];
+
+  const gasFeeUsd = Number(formatEther(maxFeeWei)) * ethUsdPrice;
+
+  const assetInProfit = Number(formatUnits(swapParams.amountOut - requiredAmountIn, assetInDecimals));
+
+  const assetInProfitUsd = assetInProfit * assetInUsdPrice;
+
+  return { isProfitableWithGasFee: assetInProfitUsd > gasFeeUsd, assetInProfitUsd, gasFeeUsd };
+};
+
+const subscribeToAuctionCreated = (lendingAdapter: Address, rebalanceAdapter: Address) => {
   console.log(`Listening for AuctionCreated events on RebalanceAdapter ${rebalanceAdapter}...`);
 
   publicClient.watchContractEvent({
