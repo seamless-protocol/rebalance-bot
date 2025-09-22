@@ -16,7 +16,7 @@ import { publicClient } from "../../utils/transactionHelpers";
 // DepositAdapter: https://github.com/etherfi-protocol/smart-contracts/blob/6fd14b1791b7b666ec9325ea9b8ce3b1bad9880b/src/DepositAdapter.sol#L67
 // High-level, when ETH is deposited into the LiquidityPool to get eETH, an exchange rate is calculated based on the total
 // amount of ETH in the LiquidityPool and the total amount of shares in the eETH contract.
-// The exchange rate between eETH and weETH is 1:1 with eETH shares (which is different from a user's balance of eETH,
+// The exchange rate between eETH and weETH is 1:1 with eETH shares (which is different from a balance of eETH,
 // see https://github.com/etherfi-protocol/smart-contracts/blob/6fd14b1791b7b666ec9325ea9b8ce3b1bad9880b/src/EETH.sol#L214 and
 // https://github.com/etherfi-protocol/smart-contracts/blob/6fd14b1791b7b666ec9325ea9b8ce3b1bad9880b/src/WeETH.sol#L66).
 export const getEtherFiEthStakeQuote = async (ethAmountIn: bigint): Promise<bigint> => {

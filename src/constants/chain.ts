@@ -13,6 +13,9 @@ export const REBALANCE_ELIGIBILITY_POLL_INTERVAL = parseInt(
 export const PRIMARY_RPC_URL = process.env.PRIMARY_RPC_URL || "";
 export const PRIMARY_RPC_URL_WS = process.env.PRIMARY_RPC_URL_WS || "";
 export const FALLBACK_RPC_URL = process.env.FALLBACK_RPC_URL || "";
+export const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL || "";
+export const MAINNET_FALLBACK_RPC_URL = process.env.MAINNET_FALLBACK_RPC_URL || "";
+
 export const VIEM_CHAIN = (() => {
   switch (CHAIN_ID) {
     case 1:

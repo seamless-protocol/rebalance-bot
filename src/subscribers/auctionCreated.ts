@@ -10,10 +10,9 @@ import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
-import { CHAIN_ID, LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { sendAlert } from "../utils/alerts";
-import { fetchCoingeckoTokenUsdPrices } from "../utils/coingecko";
 import {
   dutchAuctionRebalancerContract,
   getLeverageTokenCollateralAsset,
@@ -28,6 +27,7 @@ import { GetRebalanceSwapParamsOutput, LeverageToken, LogLevel, RebalanceType, S
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { tenderlySimulateTransaction } from "../utils/tenderly";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
+import { Pricer } from "../services/pricers/pricer";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdapter: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, collateralResponse, equityInCollateralAssetResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
@@ -96,7 +96,8 @@ export const handleAuctionCreatedEvent = async (
   lendingAdapter: Address,
   rebalanceAdapter: Address,
   collateralAsset: Address,
-  debtAsset: Address
+  debtAsset: Address,
+  pricers: Pricer[]
 ) => {
   try {
     const { collateral, debt, equityInDebtAsset, equityInCollateralAsset, currentRatio, targetRatio, isAuctionValid } = await getLeverageTokenRebalanceData(
@@ -199,7 +200,8 @@ export const handleAuctionCreatedEvent = async (
       }
 
       try {
-        const { isProfitableWithGasFee, assetInProfitUsd, gasFeeUsd } = await simulateAndCalculateProfitability(
+        const { isProfitableWithGasFee, errorFetchingPrices, assetInProfitUsd, gasFeeUsd } = await simulateAndCalculateProfitability(
+          pricers,
           rebalanceAdapter,
           assetIn,
           assetInDecimals,
@@ -209,7 +211,8 @@ export const handleAuctionCreatedEvent = async (
           requiredAmountIn
         );
 
-        if (!isProfitableWithGasFee) {
+        // If we failed to fetch prices for determining profitability, we should still try to take the auction
+        if (!isProfitableWithGasFee && !errorFetchingPrices) {
           console.log(
             `Rebalance with gas fee is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} assetOut: ${assetOut}. amountIn: ${requiredAmountIn} assetIn: ${assetIn} assetInProfitUsd: ${assetInProfitUsd} gasFeeUsd: ${gasFeeUsd}. Skipping step ${i}...`
           );
@@ -285,6 +288,7 @@ export const handleAuctionCreatedEvent = async (
 };
 
 const simulateAndCalculateProfitability = async (
+  pricers: Pricer[],
   rebalanceAdapter: Address,
   assetIn: Address,
   assetInDecimals: number,
@@ -292,7 +296,7 @@ const simulateAndCalculateProfitability = async (
   takeAmount: bigint,
   swapParams: GetRebalanceSwapParamsOutput,
   requiredAmountIn: bigint
-): Promise<{ isProfitableWithGasFee: boolean, assetInProfitUsd: number, gasFeeUsd: number }> => {
+): Promise<{ isProfitableWithGasFee: boolean, errorFetchingPrices: boolean, assetInProfitUsd: number, gasFeeUsd: number }> => {
 
   let gas: bigint | undefined;
   let maxFeePerGas: bigint | undefined;
@@ -340,11 +344,20 @@ const simulateAndCalculateProfitability = async (
 
   const maxFeeWei = paddedGas * perGasCap;
 
-  // At time of writing, CoinGecko only supports fetching one asset price per request, but this may change in the future
-  const [assetInUsdPrice, ethUsdPrice] = await Promise.all([
-    fetchCoingeckoTokenUsdPrices(CHAIN_ID, [assetIn]).then(prices => prices[assetIn.toLowerCase()]),
-    fetchCoingeckoTokenUsdPrices(CHAIN_ID, [CONTRACT_ADDRESSES.WETH]).then(prices => prices[CONTRACT_ADDRESSES.WETH])
-  ]);
+  const assetInUsdPrice = await pricers[0].price(assetIn);
+  const ethUsdPrice = await pricers[0].price(CONTRACT_ADDRESSES.WETH);
+
+  if (assetInUsdPrice === undefined) {
+    console.error(`Failed to get usd price for asset ${assetIn}`);
+    await sendAlert(`Failed to get usd price for asset ${assetIn}`, LogLevel.ERROR);
+    return { isProfitableWithGasFee: false, errorFetchingPrices: true, assetInProfitUsd: 0, gasFeeUsd: 0 };
+  }
+
+  if (ethUsdPrice === undefined) {
+    console.error(`Failed to get usd price for ETH`);
+    await sendAlert(`Failed to get usd price for ETH`, LogLevel.ERROR);
+    return { isProfitableWithGasFee: false, errorFetchingPrices: true, assetInProfitUsd: 0, gasFeeUsd: 0 };
+  }
 
   const gasFeeUsd = Number(formatEther(maxFeeWei)) * ethUsdPrice;
 
@@ -352,10 +365,10 @@ const simulateAndCalculateProfitability = async (
 
   const assetInProfitUsd = assetInProfit * assetInUsdPrice;
 
-  return { isProfitableWithGasFee: assetInProfitUsd > gasFeeUsd, assetInProfitUsd, gasFeeUsd };
+  return { isProfitableWithGasFee: assetInProfitUsd > gasFeeUsd, errorFetchingPrices: false, assetInProfitUsd, gasFeeUsd };
 };
 
-const subscribeToAuctionCreated = (lendingAdapter: Address, rebalanceAdapter: Address) => {
+const subscribeToAuctionCreated = (lendingAdapter: Address, rebalanceAdapter: Address, pricers: Pricer[]) => {
   console.log(`Listening for AuctionCreated events on RebalanceAdapter ${rebalanceAdapter}...`);
 
   publicClient.watchContractEvent({
@@ -364,12 +377,12 @@ const subscribeToAuctionCreated = (lendingAdapter: Address, rebalanceAdapter: Ad
     eventName: "AuctionCreated",
     onError: error => console.error(error),
     onLogs: () => {
-      startDutchAuctionInterval(lendingAdapter, rebalanceAdapter);
+      startDutchAuctionInterval(lendingAdapter, rebalanceAdapter, pricers);
     },
   });
 };
 
-export const startDutchAuctionInterval = (lendingAdapter: Address, rebalanceAdapter: Address) => {
+export const startDutchAuctionInterval = (lendingAdapter: Address, rebalanceAdapter: Address, pricers: Pricer[]) => {
   console.log("AuctionCreated event received. Participating in Dutch auction...");
 
   // Get current Dutch auction interval for this rebalance adapter
@@ -387,19 +400,19 @@ export const startDutchAuctionInterval = (lendingAdapter: Address, rebalanceAdap
   const debtAsset = getLeverageTokenDebtAsset(leverageToken);
 
   const interval = setInterval(async () => {
-    await handleAuctionCreatedEvent(leverageToken, lendingAdapter, rebalanceAdapter, collateralAsset, debtAsset);
+    await handleAuctionCreatedEvent(leverageToken, lendingAdapter, rebalanceAdapter, collateralAsset, debtAsset, pricers);
   }, DUTCH_AUCTION_POLLING_INTERVAL);
 
   DUTCH_AUCTION_ACTIVE_INTERVALS.set(rebalanceAdapter, interval);
 }
 
-export const subscribeToAllAuctionCreatedEvents = () => {
+export const subscribeToAllAuctionCreatedEvents = (pricers: Pricer[]) => {
   const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH) as LeverageToken[];
   console.log(`Leverage tokens: ${leverageTokens.length}`);
   console.log(`LEVERAGE_TOKENS_FILE_PATH: ${LEVERAGE_TOKENS_FILE_PATH}`);
   leverageTokens.forEach((leverageToken) => {
     const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken.address);
     const lendingAdapter = getLeverageTokenLendingAdapter(leverageToken.address);
-    subscribeToAuctionCreated(lendingAdapter, rebalanceAdapter);
+    subscribeToAuctionCreated(lendingAdapter, rebalanceAdapter, pricers);
   });
 };
