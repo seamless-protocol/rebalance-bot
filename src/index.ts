@@ -8,7 +8,7 @@ import { addLeverageTokenToList } from "./backfill/addLeverageTokenToList";
 import { ChainlinkPricer } from "./services/pricers/chainlink/chainlink";
 import { Pricer } from "./services/pricers/pricer";
 
-export const main = async () => {
+const main = async () => {
   try {
     console.log("Starting bot...");
 

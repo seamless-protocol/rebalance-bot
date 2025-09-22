@@ -21,6 +21,4 @@ export const LIFI_API_URL = "https://li.quest/v1/quote";
 export const LIFI_API_KEY = process.env.LIFI_API_KEY || null;
 export const LIFI_SLIPPAGE = Number(process.env.LIFI_SLIPPAGE) || 0.01;
 
-export const COINGECKO_API_KEY = process.env.COINGECKO_API_KEY || null;
-
 export const IS_USING_FORK = process.env.IS_USING_FORK && process.env.IS_USING_FORK.toLowerCase() === "true";
