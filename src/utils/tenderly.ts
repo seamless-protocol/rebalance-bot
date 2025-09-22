@@ -18,7 +18,7 @@ type TSimulationRequestParams = [simulationRequest: {
       "name": string,
       "logo": string,
       "decimals": number,
-      "dollarValue": "${number}"
+      "dollarValue": string
     },
     "type": string,
     "from": Hex,
@@ -90,6 +90,6 @@ export async function tenderlySimulateTransaction(client: Client, params: TSimul
       }
   >({
       method: "tenderly_simulateTransaction",
-      params: params,
+      params,
   });
 }

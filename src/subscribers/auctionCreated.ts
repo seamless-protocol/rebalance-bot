@@ -1,9 +1,10 @@
-import { Address, BaseError, ContractFunctionRevertedError, erc20Abi, formatEther, formatUnits } from "viem";
+import { Address, BaseError, ContractFunctionRevertedError, erc20Abi, formatEther, formatUnits, encodeFunctionData, toHex, hexToBigInt } from "viem";
 import {
   BASE_RATIO,
   DUTCH_AUCTION_ACTIVE_INTERVALS,
   DUTCH_AUCTION_POLLING_INTERVAL,
   DUTCH_AUCTION_STEP_COUNT,
+  IS_USING_FORK,
 } from "../constants/values";
 import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
@@ -25,7 +26,8 @@ import {
 import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
 import { GetRebalanceSwapParamsOutput, LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
-import { publicClient } from "../utils/transactionHelpers";
+import { tenderlySimulateTransaction } from "../utils/tenderly";
+import { publicClient, walletClient } from "../utils/transactionHelpers";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdapter: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, collateralResponse, equityInCollateralAssetResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
@@ -291,22 +293,49 @@ const simulateAndCalculateProfitability = async (
   swapParams: GetRebalanceSwapParamsOutput,
   requiredAmountIn: bigint
 ): Promise<{ isProfitableWithGasFee: boolean, assetInProfitUsd: number, gasFeeUsd: number }> => {
-  const { request } = await dutchAuctionRebalancerContract.simulate.takeAuction([
-    rebalanceAdapter,
-    assetIn,
-    assetOut,
-    takeAmount,
-    CONTRACT_ADDRESSES.MULTICALL_EXECUTOR,
-    swapParams.swapCalls
-  ]);
 
-  const gasEstimate = request.gas ?? 0n;
+  let gas: bigint | undefined;
+  let maxFeePerGas: bigint | undefined;
+  let gasPrice: bigint | undefined;
+  if (!IS_USING_FORK) {
+    const { request } = await dutchAuctionRebalancerContract.simulate.takeAuction([
+      rebalanceAdapter,
+      assetIn,
+      assetOut,
+      takeAmount,
+      CONTRACT_ADDRESSES.MULTICALL_EXECUTOR,
+      swapParams.swapCalls
+    ]);
+    ({ gas, maxFeePerGas, gasPrice } = request);
+  } else {
+    maxFeePerGas = 1000000000n; // 1 gwei
+    gasPrice = maxFeePerGas;
+
+    const simulation = await tenderlySimulateTransaction(walletClient, [
+      {
+        from: walletClient.account.address,
+        to: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+        gas: "0x0",
+        gasPrice: toHex(maxFeePerGas),
+        value: "0x0",
+        data: encodeFunctionData({
+          abi: DutchAuctionRebalancerAbi,
+          functionName: "takeAuction",
+          args: [rebalanceAdapter, assetIn, assetOut, takeAmount, CONTRACT_ADDRESSES.MULTICALL_EXECUTOR, swapParams.swapCalls],
+        }),
+      },
+      "latest",
+    ]);
+    gas = hexToBigInt(simulation.trace[0].gasUsed);
+  }
+
+  const gasEstimate = gas ?? 0n;
   const paddedGas = (gasEstimate * 11n) / 10n; // +10% padding
 
   // Price per unit (prioritize EIP-1559, then legacy)
   const perGasCap =
-    request.maxFeePerGas ??
-    request.gasPrice ??
+    maxFeePerGas ??
+    gasPrice ??
     0n;
 
   const maxFeeWei = paddedGas * perGasCap;
