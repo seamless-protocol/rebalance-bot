@@ -1,14 +1,15 @@
 import { encodeFunctionData, getContract } from "viem";
 import EtherFiDepositAdapterAbi from "../../../abis/EtherFiDepositAdapter";
 import EtherfiL2ExchangeRateProviderAbi from "../../../abis/EtherfiL2ExchangeRateProvider";
+import EtherFiLiquidityPoolAbi from "../../../abis/EtherFiLiquidityPool";
 import EtherfiL2ModeSyncPoolAbi from "../../../abis/EtherFiL2ModeSyncPool";
+import eETHAbi from "../../../abis/eETH";
 import WETH9Abi from "../../../abis/WETH9";
 import { CHAIN_ID } from "../../constants/chain";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { ETHERFI_L2_MODE_SYNC_POOL_ETH_ADDRESS } from "../../constants/values";
 import { Call } from "../../types";
-
-import { getEethContract, getEtherFiL2ModeSyncPoolContract, getEtherFiLiquidityPoolContract } from "../../utils/contractHelpers";
+import { getEtherFiL2ModeSyncPoolContract } from "../../utils/contractHelpers";
 import { publicClient } from "../../utils/transactionHelpers";
 
 // Logic based off EtherFi LiquidityPool and DepositAdapter contracts
@@ -24,18 +25,37 @@ export const getEtherFiEthStakeQuote = async (ethAmountIn: bigint): Promise<bigi
     return getL2EtherFiEthStakeQuote(ethAmountIn);
   }
 
-  const totalPooledEth = await getEtherFiLiquidityPoolContract().read.getTotalPooledEther() - ethAmountIn;
+  const [totalPooledEthResponse, eethTotalSharesResponse] = await publicClient.multicall({
+    contracts: [
+      {
+        address: CONTRACT_ADDRESSES.ETHERFI_LIQUIDITY_POOL,
+        abi: EtherFiLiquidityPoolAbi,
+        functionName: 'getTotalPooledEther',
+      },
+      {
+        address: CONTRACT_ADDRESSES.EETH,
+        abi: eETHAbi,
+        functionName: 'totalShares',
+      },
+    ],
+  });
+
+  // Handle potential errors from multicall
+  if (totalPooledEthResponse.status === 'failure' || eethTotalSharesResponse.status === 'failure') {
+    throw new Error('Failed to fetch EtherFi swap quote data via multicall');
+  }
+
+  const totalPooledEth = totalPooledEthResponse.result - ethAmountIn;
 
   if (totalPooledEth === 0n) {
     return ethAmountIn;
   }
 
-  const eethTotalShares = await getEethContract().read.totalShares();
-
+  const eethTotalShares = eethTotalSharesResponse.result;
   const weethAmountOut = (ethAmountIn * eethTotalShares) / totalPooledEth;
 
   return weethAmountOut;
-}
+};
 
 export const getL2EtherFiEthStakeQuote = async (ethAmountIn: bigint): Promise<bigint> => {
   const etherFiL2ModeSyncPool = getEtherFiL2ModeSyncPoolContract();
