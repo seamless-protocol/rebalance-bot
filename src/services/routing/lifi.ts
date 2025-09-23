@@ -33,8 +33,7 @@ export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuot
     });
 
     return {
-      // We use the guaranteed minimum amount to account for any potential slippage
-      amountOut: BigInt(result.data.estimate.toAmountMin),
+      amountOut: BigInt(result.data.estimate.toAmount),
       to: result.data.transactionRequest.to,
       data: result.data.transactionRequest.data,
       value: result.data.transactionRequest.value,
