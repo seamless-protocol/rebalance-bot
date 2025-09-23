@@ -99,10 +99,9 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
     }
 
     /// @inheritdoc IDutchAuctionRebalancer
-    function tryCreateAuction(address leverageToken) public {
+    function createAuction(address leverageToken) public {
         RebalanceStatus status = getRebalanceStatus(leverageToken);
 
-        bool auctionCreated;
         if (status != RebalanceStatus.NOT_ELIGIBLE) {
             IRebalanceAdapter rebalanceAdapter =
                 IRebalanceAdapter(leverageManager.getLeverageTokenRebalanceAdapter(leverageToken));
@@ -110,11 +109,13 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
             bool auctionExists = rebalanceAdapter.isAuctionValid();
             if (!auctionExists) {
                 rebalanceAdapter.createAuction();
-                auctionCreated = true;
+                emit AuctionCreated(leverageToken, status);
+            } else {
+                revert AuctionAlreadyExists();
             }
+        } else {
+            revert IneligibleForRebalance();
         }
-
-        emit TryCreateAuction(leverageToken, status, auctionCreated);
     }
 
     /// @inheritdoc IDutchAuctionRebalancer

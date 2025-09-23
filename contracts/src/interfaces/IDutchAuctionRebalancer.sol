@@ -8,11 +8,18 @@ import {IMulticallExecutor} from "./IMulticallExecutor.sol";
 import {IRebalanceAdapter} from "./IRebalanceAdapter.sol";
 
 interface IDutchAuctionRebalancer {
+
+    /// @notice Error thrown when the auction already exists
+    error AuctionAlreadyExists();
+
+    /// @notice Error thrown when the leverage token is not eligible for rebalancing
+    error IneligibleForRebalance();
+
     /// @notice Error thrown when the caller is not authorized
     error Unauthorized();
 
-    /// @notice Emitted when a tryCreateAuction call is made, status of the leverage token and whether the auction was created
-    event TryCreateAuction(address indexed leverageToken, RebalanceStatus indexed status, bool indexed auctionCreated);
+    /// @notice Emitted when an auction is created
+    event AuctionCreated(address indexed leverageToken, RebalanceStatus indexed status);
 
     /// @notice Get the rebalance status of a leverage token
     /// @param leverageToken The address of the leverage token
@@ -39,10 +46,10 @@ interface IDutchAuctionRebalancer {
     /// @param to The address to sweep the token to
     function sweepToken(address token, address to) external;
 
-    /// @notice Try to create an auction for a leverage token
+    /// @notice Create an auction for a leverage token
     /// @param leverageToken The address of the leverage token
-    /// @dev This function will not revert if the auction already exists, it will silently fail (return false)
-    function tryCreateAuction(address leverageToken) external;
+    /// @dev This function will revert if the auction already exists or if the leverage token is not eligible for rebalancing
+    function createAuction(address leverageToken) external;
 
     /// @notice Take an auction for a leverage token
     /// @param rebalanceAdapter The address of the rebalance adapter
