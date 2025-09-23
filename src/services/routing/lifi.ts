@@ -1,9 +1,9 @@
-import { GetLIFIQuoteInput, GetLIFIQuoteOutput } from "../../types";
+import axios from "axios";
+import { getAddress } from "viem";
 import { LIFI_API_KEY, LIFI_API_URL, LIFI_SLIPPAGE } from "../../constants/values";
-
 import { CHAIN_ID } from "../../constants/chain";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
-import axios from "axios";
+import { GetLIFIQuoteInput, GetLIFIQuoteOutput } from "../../types";
 
 export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuoteOutput | null> => {
   if (!LIFI_API_KEY) {
@@ -13,15 +13,16 @@ export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuot
   const { fromToken, toToken, fromAmount } = args;
 
   try {
+    // Addresses must be checksummed addresses
     const result = await axios.get(LIFI_API_URL, {
       params: {
         fromChain: CHAIN_ID,
         toChain: CHAIN_ID,
-        fromToken,
-        toToken,
+        fromToken: getAddress(fromToken),
+        toToken: getAddress(toToken),
         fromAmount,
-        fromAddress: CONTRACT_ADDRESSES.MULTICALL_EXECUTOR,
-        toAddress: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+        fromAddress: getAddress(CONTRACT_ADDRESSES.MULTICALL_EXECUTOR),
+        toAddress: getAddress(CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER),
         allowBridges: "none",
         slippage: LIFI_SLIPPAGE
       },
@@ -31,8 +32,7 @@ export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuot
     });
 
     return {
-      // We use the guaranteed minimum amount to account for any potential slippage
-      amountOut: result.data.estimate.toAmountMin,
+      amountOut: BigInt(result.data.estimate.toAmount),
       to: result.data.transactionRequest.to,
       data: result.data.transactionRequest.data,
       value: result.data.transactionRequest.value,
