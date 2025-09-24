@@ -8,6 +8,25 @@ import {IMulticallExecutor} from "./IMulticallExecutor.sol";
 import {IRebalanceAdapter} from "./IRebalanceAdapter.sol";
 
 interface IDutchAuctionRebalancer {
+    /// @notice Struct containing the data for taking an auction
+    struct TakeAuctionData {
+        /// @notice The rebalance adapter
+        IRebalanceAdapter rebalanceAdapter;
+        /// @notice The asset to give for the rebalance, which is flash loaned from Morpho
+        IERC20 rebalanceAssetIn;
+        /// @notice The asset to receive from the rebalance
+        IERC20 rebalanceAssetOut;
+        /// @notice The amount to give for the rebalance
+        uint256 amountIn;
+        /// @notice The amount to take from the auction
+        uint256 amountToTake;
+        /// @notice The multicall executor
+        IMulticallExecutor multicallExecutor;
+        /// @notice The calls to execute for the swap of the asset received from the rebalance using the multicall executor
+        /// to get the assets required to repay the flash loan
+        IMulticallExecutor.Call[] swapCalls;
+    }
+
     /// @notice Error thrown when the caller is not authorized
     error Unauthorized();
 
