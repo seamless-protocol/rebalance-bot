@@ -94,53 +94,66 @@ contract PreLiquidationRebalancer is IPreLiquidationRebalancer, Ownable {
         morpho.flashLoan(
             assetIn,
             amountIn,
-            abi.encode(leverageToken, assetIn, assetOut, amountOut, rebalanceType, multicallExecutor, swapCalls)
+            abi.encode(
+                PreLiquidationRebalanceData({
+                    leverageToken: leverageToken,
+                    assetIn: IERC20(assetIn),
+                    assetOut: IERC20(assetOut),
+                    amountOut: amountOut,
+                    rebalanceType: rebalanceType,
+                    multicallExecutor: multicallExecutor,
+                    swapCalls: swapCalls
+                })
+            )
         );
     }
 
     /// @inheritdoc IPreLiquidationRebalancer
     function onMorphoFlashLoan(uint256 flashLoanAmount, bytes calldata data) external onlyMorpho {
-        (
-            address leverageToken,
-            IERC20 assetIn,
-            IERC20 assetOut,
-            uint256 amountOut,
-            RebalanceType rebalanceType,
-            IMulticallExecutor multicallExecutor,
-            IMulticallExecutor.Call[] memory swapCalls
-        ) = abi.decode(
-            data, (address, IERC20, IERC20, uint256, RebalanceType, IMulticallExecutor, IMulticallExecutor.Call[])
-        );
+        PreLiquidationRebalanceData memory preLiquidationRebalanceData = abi.decode(data, (PreLiquidationRebalanceData));
 
         RebalanceAction[] memory rebalanceActions = new RebalanceAction[](2);
 
         // If rebalance type is rebalance down this means that we need to add collateral and borrow debt
         // Otherwise we need to repay debt and remove collateral
-        if (rebalanceType == RebalanceType.REBALANCE_DOWN) {
+        if (preLiquidationRebalanceData.rebalanceType == RebalanceType.REBALANCE_DOWN) {
             rebalanceActions[0] = RebalanceAction({actionType: ActionType.AddCollateral, amount: flashLoanAmount});
-            rebalanceActions[1] = RebalanceAction({actionType: ActionType.Borrow, amount: amountOut});
+            rebalanceActions[1] =
+                RebalanceAction({actionType: ActionType.Borrow, amount: preLiquidationRebalanceData.amountOut});
         } else {
             rebalanceActions[0] = RebalanceAction({actionType: ActionType.Repay, amount: flashLoanAmount});
-            rebalanceActions[1] = RebalanceAction({actionType: ActionType.RemoveCollateral, amount: amountOut});
+            rebalanceActions[1] = RebalanceAction({
+                actionType: ActionType.RemoveCollateral,
+                amount: preLiquidationRebalanceData.amountOut
+            });
         }
 
         // Execute the rebalance
-        SafeERC20.forceApprove(assetIn, address(leverageManager), flashLoanAmount);
+        SafeERC20.forceApprove(preLiquidationRebalanceData.assetIn, address(leverageManager), flashLoanAmount);
         leverageManager.rebalance(
-            leverageToken, rebalanceActions, address(assetIn), address(assetOut), flashLoanAmount, amountOut
+            preLiquidationRebalanceData.leverageToken,
+            rebalanceActions,
+            address(preLiquidationRebalanceData.assetIn),
+            address(preLiquidationRebalanceData.assetOut),
+            flashLoanAmount,
+            preLiquidationRebalanceData.amountOut
         );
 
         // Transfer the assets received from the rebalance to the multicall executor for swapping
-        SafeERC20.safeTransfer(assetOut, address(multicallExecutor), amountOut);
+        SafeERC20.safeTransfer(
+            preLiquidationRebalanceData.assetOut,
+            address(preLiquidationRebalanceData.multicallExecutor),
+            preLiquidationRebalanceData.amountOut
+        );
 
         // Execute the swap using the multicall executor. Multicall executor will sweep any remaining tokens to this contract
         // after executing the swap calls
         IERC20[] memory tokens = new IERC20[](2);
-        tokens[0] = assetIn;
-        tokens[1] = assetOut;
-        multicallExecutor.multicallAndSweep(swapCalls, tokens);
+        tokens[0] = preLiquidationRebalanceData.assetIn;
+        tokens[1] = preLiquidationRebalanceData.assetOut;
+        preLiquidationRebalanceData.multicallExecutor.multicallAndSweep(preLiquidationRebalanceData.swapCalls, tokens);
 
         // Repay flash loan from Morpho
-        SafeERC20.forceApprove(assetIn, msg.sender, flashLoanAmount);
+        SafeERC20.forceApprove(preLiquidationRebalanceData.assetIn, msg.sender, flashLoanAmount);
     }
 }
