@@ -3,7 +3,7 @@ import { LeverageToken, LogLevel, RebalanceStatus } from "../types";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
 
 import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { CHAIN_ID, LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { sendAlert } from "../utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
@@ -16,7 +16,7 @@ import { getLeverageTokenLendingAdapter, getLeverageTokenRebalanceAdapter } from
 const handledLeverageTokens = new Set<string>();
 
 const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceStatus[]): Promise<LeverageToken[]> => {
-  const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
+  const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES[CHAIN_ID];
 
   const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH) as LeverageToken[];
   if (!leverageTokens.length) {
@@ -44,7 +44,7 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
 };
 
 const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
-  const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
+  const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES[CHAIN_ID];
 
   const rebalancerContract = getContract({
     address: rebalancerAddress,

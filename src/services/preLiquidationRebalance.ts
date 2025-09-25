@@ -5,8 +5,8 @@ import {
   PRE_LIQUIDATION_POLLING_INTERVAL,
   PRE_LIQUIDATION_STEP_COUNT,
 } from "../constants/values";
-import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
-import { LeverageTokenRebalanceData, LogLevel, RebalanceType } from "../types";
+import { getRebalanceSwapParams } from "./routing/getSwapParams";
+import { LeverageTokenRebalanceData, LogLevel, RebalanceType, StakeType } from "../types";
 import {
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
@@ -21,6 +21,7 @@ import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { sendAlert } from "../utils/alerts";
 import { publicClient } from "../utils/transactionHelpers";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
+import { CHAIN_ID } from "../constants/chain";
 
 const getLeverageTokenRebalanceData = async (
   leverageToken: Address,
@@ -31,7 +32,7 @@ const getLeverageTokenRebalanceData = async (
   const [leverageTokenStateResponse, targetRatioResponse, collateralResponse] = await publicClient.multicall({
     contracts: [
       {
-        address: CONTRACT_ADDRESSES.LEVERAGE_MANAGER,
+        address: CONTRACT_ADDRESSES[CHAIN_ID].LEVERAGE_MANAGER,
         abi: LeverageManagerAbi,
         functionName: "getLeverageTokenState",
         args: [leverageToken],
@@ -115,11 +116,11 @@ const executePreLiquidationRebalance = async (
       const requiredAmountIn = await preLiquidationRebalancer.read.getAmountIn([leverageToken, takeAmount]);
 
       const swapParams = await getRebalanceSwapParams({
-        leverageToken,
+        stakeType: StakeType.NONE,
         assetIn,
         assetOut,
         takeAmount,
-        requiredAmountIn: requiredAmountIn,
+        requiredAmountIn,
       });
 
       if (!swapParams.isProfitable) {
@@ -136,10 +137,11 @@ const executePreLiquidationRebalance = async (
       try {
         const tx = await preLiquidationRebalancer.write.preLiquidationRebalance([
           leverageToken,
-          swapParams.amountOut,
+          requiredAmountIn,
           takeAmount,
           rebalanceType,
-          swapParams,
+          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
+          swapParams.swapCalls,
         ]);
 
         await publicClient.waitForTransactionReceipt({

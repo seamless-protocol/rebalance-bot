@@ -5,7 +5,7 @@ import {
   DUTCH_AUCTION_POLLING_INTERVAL,
   DUTCH_AUCTION_STEP_COUNT,
 } from "../constants/values";
-import { getDummySwapParams, getRebalanceSwapParams } from "../services/routing/getSwapParams";
+import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
 import { LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
 import {
   dutchAuctionRebalancerContract,
@@ -19,9 +19,8 @@ import {
 
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { CHAIN_ID,LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
-import { getStakeParams } from "../services/routing/getStakeParams";
 import { sendAlert } from "../utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { publicClient } from "../utils/transactionHelpers";
@@ -32,7 +31,7 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
   const [leverageTokenStateResponse, collateralResponse, equityInCollateralAssetResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
     contracts: [
       {
-        address: CONTRACT_ADDRESSES.LEVERAGE_MANAGER,
+        address: CONTRACT_ADDRESSES[CHAIN_ID].LEVERAGE_MANAGER,
         abi: LeverageManagerAbi,
         functionName: "getLeverageTokenState",
         args: [leverageToken],
@@ -82,6 +81,14 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
   };
 };
 
+const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollateralized: boolean) => {
+  // Determine whether we can use native EtherFi staking for swapping assets
+  if (collateralAsset == CONTRACT_ADDRESSES[CHAIN_ID].WEETH && debtAsset == CONTRACT_ADDRESSES[CHAIN_ID].WETH && isOverCollateralized) {
+    return StakeType.ETHERFI_ETH_WEETH;
+  }
+  return StakeType.NONE;
+};
+
 export const handleAuctionCreatedEvent = async (
   leverageToken: Address,
   lendingAdapter: Address,
@@ -124,11 +131,7 @@ export const handleAuctionCreatedEvent = async (
     const stepCount = DUTCH_AUCTION_STEP_COUNT;
     const decreasePerStep = maxAmountToTake / BigInt(stepCount);
 
-    // Determine whether we can use native EtherFi staking for swapping assets
-    const stakeType =
-      collateralAsset == CONTRACT_ADDRESSES.WEETH && debtAsset == CONTRACT_ADDRESSES.WETH && isOverCollateralized
-        ? StakeType.ETHERFI_ETH_WEETH
-        : StakeType.NONE;
+    const stakeType = getStakeType(collateralAsset, debtAsset, isOverCollateralized);
 
     // TODO: Instead of for loop maybe put this in big multicall
     for (let i = 0; i < stepCount; i++) {
@@ -142,7 +145,7 @@ export const handleAuctionCreatedEvent = async (
           args: [takeAmount],
         }),
         publicClient.readContract({
-          address: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+          address: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER,
           abi: DutchAuctionRebalancerAbi,
           functionName: "previewTakeAuction",
           args: [leverageToken, takeAmount, rebalanceType],
@@ -172,18 +175,15 @@ export const handleAuctionCreatedEvent = async (
         continue;
       }
 
-      const [swapParams, stakeParams] = await Promise.all([
-        getRebalanceSwapParams({
-          leverageToken,
+      const swapParams = await getRebalanceSwapParams({
+          stakeType,
           assetIn,
           assetOut,
           takeAmount,
-          requiredAmountIn,
-        }),
-        getStakeParams(stakeType, takeAmount, requiredAmountIn),
-      ]);
+          requiredAmountIn
+      });
 
-      if (!swapParams.isProfitable && !stakeParams.isProfitable) {
+      if (!swapParams.isProfitable) {
         console.log(
           `Rebalance is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} assetOut: ${assetOut}. amountIn: ${requiredAmountIn} assetIn: ${assetIn}. Skipping step ${i}...`
         );
@@ -195,19 +195,13 @@ export const handleAuctionCreatedEvent = async (
       );
 
       try {
-        // Prefer staking over swapping, if profitable
-        const rebalanceSwapParams = stakeParams.isProfitable ? getDummySwapParams() : swapParams;
-
         const tx = await dutchAuctionRebalancerContract.write.takeAuction([
-          leverageToken,
+          rebalanceAdapter,
+          assetIn,
+          assetOut,
           takeAmount,
-          rebalanceType,
-          {
-            swapType: rebalanceSwapParams.swapType,
-            swapContext: rebalanceSwapParams.swapContext,
-            lifiSwap: rebalanceSwapParams.lifiSwap,
-          },
-          stakeParams.stakeContext,
+          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
+          swapParams.swapCalls
         ]);
 
         await publicClient.waitForTransactionReceipt({

@@ -1,15 +1,18 @@
-import { Address, erc20Abi } from "viem";
-import { AlphaRouter, GasPrice, IGasPriceProvider, RouteWithValidQuote, SwapOptions, SwapType } from "@uniswap/smart-order-router";
-import { ChainId, CurrencyAmount, Percent, Token, TradeType } from "@uniswap/sdk-core";
-import { primaryEthersProvider, publicClient } from "../../utils/transactionHelpers";
-
-import { CONTRACT_ADDRESSES } from "../../constants/contracts";
-import { UniswapV3QuoteExactInputArgs } from "../../types";
 import { BigNumber } from "ethers";
+import { Address, encodeFunctionData, erc20Abi } from "viem";
+import { AlphaRouter, GasPrice, IGasPriceProvider, RouteWithValidQuote, SwapOptions, SwapType, V3Route } from "@uniswap/smart-order-router";
+import { CurrencyAmount, Percent, Token, TradeType } from "@uniswap/sdk-core";
+import { encodeRouteToPath } from "@uniswap/v3-sdk";
+import { CONTRACT_ADDRESSES } from "../../constants/contracts";
+import { Call, UniswapV3QuoteExactInputArgs } from "../../types";
 import { IS_USING_FORK } from "../../constants/values";
+import { primaryEthersProvider, publicClient } from "../../utils/transactionHelpers";
+import UniswapSwapRouter02Abi from "../../../abis/UniswapSwapRouter02";
+import { CHAIN_ID } from "../../constants/chain";
 
 class StaticGasPriceProvider implements IGasPriceProvider {
   constructor(private gasPriceWei: BigNumber) {}
+
   async getGasPrice(): Promise<GasPrice> {
     return { gasPriceWei: this.gasPriceWei }
   }
@@ -37,11 +40,11 @@ export const getRouteUniswapV3ExactInput = async (
     const { tokenInAddress, tokenOutAddress, amountInRaw } = args;
     const { tokenInDecimals, tokenOutDecimals } = await getTokensDecimals(tokenInAddress, tokenOutAddress);
 
-    const tokenIn = new Token(ChainId.BASE, tokenInAddress, tokenInDecimals);
-    const tokenOut = new Token(ChainId.BASE, tokenOutAddress, tokenOutDecimals);
+    const tokenIn = new Token(CHAIN_ID, tokenInAddress, tokenInDecimals);
+    const tokenOut = new Token(CHAIN_ID, tokenOutAddress, tokenOutDecimals);
 
     const router = new AlphaRouter({
-      chainId: ChainId.BASE,
+      chainId: CHAIN_ID,
       // Fallback ethers provider is not supported by AlphaRouter (it calls provider.send which is not supported by ethers FallbackProvider)
       provider: primaryEthersProvider,
       v2Supported: [],
@@ -53,7 +56,7 @@ export const getRouteUniswapV3ExactInput = async (
 
     const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);
     const options: SwapOptions = {
-      recipient: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+      recipient: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER,
       slippageTolerance: new Percent(100),
       deadline: Number.MAX_SAFE_INTEGER,
       type: SwapType.SWAP_ROUTER_02,
@@ -82,3 +85,40 @@ export const getRouteUniswapV3ExactInput = async (
     return null;
   }
 };
+
+export const prepareUniswapV3SwapCalldata = (assetIn: Address, route: RouteWithValidQuote, inputAmount: bigint, outputAmountMin: bigint): Call[] => {
+  const uniswapV3RouterAbi = UniswapSwapRouter02Abi;
+
+  const approveCalldata = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: 'approve',
+    args: [CONTRACT_ADDRESSES[CHAIN_ID].UNISWAP_SWAP_ROUTER_02, inputAmount],
+  });
+
+  const encodedPath = route?.route ? (encodeRouteToPath(route.route as V3Route, false) as `0x${string}`) : "0x";
+
+  const swapCalldata = encodeFunctionData({
+    abi: uniswapV3RouterAbi,
+    functionName: 'exactInput',
+    args: [{
+      path: encodedPath,
+      recipient: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER, // Recipient of the swap is the rebalancer contract
+      amountIn: inputAmount,
+      amountOutMinimum: outputAmountMin,
+    }],
+  });
+
+  return [
+    {
+      target: assetIn,
+      data: approveCalldata,
+      value: 0n,
+    },
+    {
+      target: CONTRACT_ADDRESSES[CHAIN_ID].UNISWAP_SWAP_ROUTER_02,
+      data: swapCalldata,
+      value: 0n,
+    },
+  ];
+};
+

@@ -11,24 +11,9 @@ export enum StakeType {
   ETHERFI_ETH_WEETH = 1,
 }
 
-export enum SwapType {
-  NONE = 0,
-  EXACT_INPUT_SWAP_ADAPTER = 1,
-  EXACT_OUTPUT_SWAP_ADAPTER = 2,
-  LIFI_SWAP = 3,
-}
-
 export enum RebalanceType {
   REBALANCE_DOWN = 0,
   REBALANCE_UP = 1,
-}
-
-export enum Exchange {
-  AERODROME = 0,
-  AERODROME_SLIPSTREAM = 1,
-  ETHERFI = 2,
-  UNISWAP_V2 = 3,
-  UNISWAP_V3 = 4,
 }
 
 export enum LogLevel {
@@ -46,10 +31,15 @@ export interface Chain {
 }
 
 export interface ContractAddresses {
-  ETHERFI_L2_MODE_SYNC_POOL: Address;
-  LEVERAGE_MANAGER: Address;
   DUTCH_AUCTION_REBALANCER: Address;
+  EETH?: Address;
+  ETHERFI_DEPOSIT_ADAPTER?: Address;
+  ETHERFI_L2_MODE_SYNC_POOL?: Address;
+  ETHERFI_LIQUIDITY_POOL?: Address;
+  LEVERAGE_MANAGER: Address;
+  MULTICALL_EXECUTOR: Address;
   PRE_LIQUIDATION_REBALANCER: Address;
+  UNISWAP_SWAP_ROUTER_02: Address;
   UNISWAP_V2_ROUTER_02: Address;
   WETH: Address;
   WEETH: Address;
@@ -82,14 +72,6 @@ export interface WebSocketConfig {
   onEvent: (event: Log) => void;
 }
 
-export interface ExchangeAddresses {
-  aerodromeRouter: Address;
-  aerodromePoolFactory: Address;
-  aerodromeSlipstreamRouter: Address;
-  uniswapSwapRouter02: Address;
-  uniswapV2Router02: Address;
-}
-
 export interface StakeContext {
   stakeType: StakeType;
   stakeTo: Address;
@@ -97,26 +79,16 @@ export interface StakeContext {
   amountIn: bigint;
 }
 
-export interface SwapContext {
-  path: Address[];
-  encodedPath: `0x${string}`;
-  fees: number[];
-  tickSpacing: number[];
-  exchange: Exchange;
-  exchangeAddresses: ExchangeAddresses;
-  additionalData: `0x${string}`;
-}
-
 export interface GetRebalanceSwapParamsInput {
-  leverageToken: Address;
+  stakeType: StakeType;
   assetIn: Address;
   assetOut: Address;
   takeAmount: bigint;
   requiredAmountIn: bigint;
 }
 
-export interface LIFISwap {
-  to: Address;
+export interface Call {
+  target: Address;
   data: `0x${string}`;
   value: bigint;
 }
@@ -124,9 +96,7 @@ export interface LIFISwap {
 export interface GetRebalanceSwapParamsOutput {
   isProfitable: boolean;
   amountOut: bigint;
-  swapType: SwapType;
-  swapContext: SwapContext;
-  lifiSwap: LIFISwap;
+  swapCalls: Call[];
 }
 
 export interface GetLIFIQuoteInput {

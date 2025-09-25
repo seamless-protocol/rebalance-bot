@@ -9,7 +9,7 @@ import { addLeverageTokenToList } from "./backfill/addLeverageTokenToList";
 const main = async () => {
   try {
     console.log("Starting bot...");
-    const leverageTokens: Address[] = (process.env.BACKFILL_LEVERAGE_TOKENS?.split(",") ?? []) as Address[];
+    const leverageTokens: Address[] = (process.env.BACKFILL_LEVERAGE_TOKENS?.split(",").filter(token => token.trim() !== "") ?? []) as Address[];
 
     for (const leverageToken of leverageTokens) {
       await addLeverageTokenToList(leverageToken);

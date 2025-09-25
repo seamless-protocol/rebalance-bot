@@ -7,35 +7,24 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {ILeverageManager, LeverageTokenState} from "./interfaces/ILeverageManager.sol";
 import {IRebalanceAdapter} from "./interfaces/IRebalanceAdapter.sol";
-import {RebalanceStatus, StakeContext, StakeType, SwapData, SwapType, RebalanceType} from "./DataTypes.sol";
-import {IEtherFiL2ModeSyncPool} from "./interfaces/IEtherFiL2ModeSyncPool.sol";
+import {RebalanceStatus, RebalanceType} from "./DataTypes.sol";
 import {IDutchAuctionRebalancer} from "./interfaces/IDutchAuctionRebalancer.sol";
-import {ISwapAdapter} from "./interfaces/ISwapAdapter.sol";
+import {IMulticallExecutor} from "./interfaces/IMulticallExecutor.sol";
 import {ILendingAdapter} from "./interfaces/ILendingAdapter.sol";
 import {IMorpho} from "./interfaces/IMorpho.sol";
-import {IWETH9} from "./interfaces/IWETH9.sol";
 
 contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
-    /// @notice The ETH address per the EtherFi L2 Mode Sync Pool contract
-    address internal constant ETHERFI_ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
-
     ILeverageManager public immutable leverageManager;
-    ISwapAdapter public immutable swapAdapter;
     IMorpho public immutable morpho;
-    IWETH9 public immutable weth;
 
     modifier onlyMorpho() {
         if (msg.sender != address(morpho)) revert Unauthorized();
         _;
     }
 
-    constructor(address _owner, address _leverageManager, address _swapAdapter, address _morpho, address _weth)
-        Ownable(_owner)
-    {
+    constructor(address _owner, address _leverageManager, address _morpho) Ownable(_owner) {
         leverageManager = ILeverageManager(_leverageManager);
-        swapAdapter = ISwapAdapter(_swapAdapter);
         morpho = IMorpho(_morpho);
-        weth = IWETH9(_weth);
     }
 
     /// @inheritdoc IDutchAuctionRebalancer
@@ -70,12 +59,13 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
     }
 
     /// @inheritdoc IDutchAuctionRebalancer
-    function previewTakeAuction(
-        address leverageToken,
-        uint256 amountToTake,
-        RebalanceType rebalanceType
-    ) external view returns (bool isAuctionValid, uint256 newCollateralRatio) {
-        IRebalanceAdapter rebalanceAdapter = IRebalanceAdapter(leverageManager.getLeverageTokenRebalanceAdapter(leverageToken));
+    function previewTakeAuction(address leverageToken, uint256 amountToTake, RebalanceType rebalanceType)
+        external
+        view
+        returns (bool isAuctionValid, uint256 newCollateralRatio)
+    {
+        IRebalanceAdapter rebalanceAdapter =
+            IRebalanceAdapter(leverageManager.getLeverageTokenRebalanceAdapter(leverageToken));
 
         if (!rebalanceAdapter.isAuctionValid()) {
             return (false, 0);
@@ -91,11 +81,15 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
         uint256 newDebt;
 
         if (rebalanceType == RebalanceType.REBALANCE_DOWN) {
-            newCollateralInDebtAsset = leverageTokenState.collateralInDebtAsset + ILendingAdapter(lendingAdapter).convertCollateralToDebtAsset(amountIn);
+            newCollateralInDebtAsset = leverageTokenState.collateralInDebtAsset
+                + ILendingAdapter(lendingAdapter).convertCollateralToDebtAsset(amountIn);
             newDebt = leverageTokenState.debt + amountToTake;
         } else {
-            uint256 collateralToAddInDebtAsset = ILendingAdapter(lendingAdapter).convertCollateralToDebtAsset(amountToTake);
-            newCollateralInDebtAsset = leverageTokenState.collateralInDebtAsset > collateralToAddInDebtAsset ? leverageTokenState.collateralInDebtAsset - collateralToAddInDebtAsset : 0;
+            uint256 collateralToAddInDebtAsset =
+                ILendingAdapter(lendingAdapter).convertCollateralToDebtAsset(amountToTake);
+            newCollateralInDebtAsset = leverageTokenState.collateralInDebtAsset > collateralToAddInDebtAsset
+                ? leverageTokenState.collateralInDebtAsset - collateralToAddInDebtAsset
+                : 0;
             newDebt = leverageTokenState.debt > amountIn ? leverageTokenState.debt - amountIn : 0;
         }
 
@@ -125,110 +119,58 @@ contract DutchAuctionRebalancer is IDutchAuctionRebalancer, Ownable {
 
     /// @inheritdoc IDutchAuctionRebalancer
     function takeAuction(
-        address leverageToken,
+        IRebalanceAdapter rebalanceAdapter,
+        IERC20 rebalanceAssetIn,
+        IERC20 rebalanceAssetOut,
         uint256 amountToTake,
-        RebalanceType rebalanceType,
-        SwapData memory swapData,
-        StakeContext memory stakeContext
+        IMulticallExecutor multicallExecutor,
+        IMulticallExecutor.Call[] calldata swapCalls
     ) external onlyOwner {
-        address rebalanceAdapter = leverageManager.getLeverageTokenRebalanceAdapter(leverageToken);
-        address lendingAdapter = leverageManager.getLeverageTokenLendingAdapter(leverageToken);
-
-        address assetIn;
-        address assetOut;
-        uint256 amountIn;
-
-        {
-            address collateralAsset = ILendingAdapter(lendingAdapter).getCollateralAsset();
-            address debtAsset = ILendingAdapter(lendingAdapter).getDebtAsset();
-
-            assetIn = rebalanceType == RebalanceType.REBALANCE_DOWN ? collateralAsset : debtAsset;
-            assetOut = rebalanceType == RebalanceType.REBALANCE_DOWN ? debtAsset : collateralAsset;
-            amountIn = IRebalanceAdapter(rebalanceAdapter).getAmountIn(amountToTake);
-        }
-
-        address flashLoanAsset = stakeContext.stakeType != StakeType.NONE ? stakeContext.assetIn : assetIn;
-        uint256 flashLoanAmount = stakeContext.stakeType != StakeType.NONE ? stakeContext.amountIn : amountIn;
+        uint256 amountIn = IRebalanceAdapter(rebalanceAdapter).getAmountIn(amountToTake);
 
         morpho.flashLoan(
-            flashLoanAsset,
-            flashLoanAmount,
-            abi.encode(assetIn, assetOut, rebalanceAdapter, amountIn, amountToTake, swapData, stakeContext)
+            address(rebalanceAssetIn),
+            amountIn,
+            abi.encode(
+                TakeAuctionData({
+                    rebalanceAdapter: rebalanceAdapter,
+                    rebalanceAssetIn: rebalanceAssetIn,
+                    rebalanceAssetOut: rebalanceAssetOut,
+                    amountIn: amountIn,
+                    amountToTake: amountToTake,
+                    multicallExecutor: multicallExecutor,
+                    swapCalls: swapCalls
+                })
+            )
         );
     }
 
     /// @inheritdoc IDutchAuctionRebalancer
     function onMorphoFlashLoan(uint256 flashLoanAmount, bytes calldata data) external onlyMorpho {
-        (
-            address assetIn,
-            address assetOut,
-            address rebalanceAdapter,
-            uint256 amountIn,
-            uint256 amountToTake,
-            SwapData memory swapData,
-            StakeContext memory stakeContext
-        ) = abi.decode(data, (address, address, address, uint256, uint256, SwapData, StakeContext));
+        TakeAuctionData memory takeAuctionData = abi.decode(data, (TakeAuctionData));
 
-        if (stakeContext.stakeType == StakeType.ETHERFI_ETH_WEETH) {
-            // If stakeContext.stakeType == ETHERFI_ETH_WEETH, the contract will unwrap flash loaned WETH to ETH and stake
-            // the ETH into the EtherFi L2 Mode Sync Pool to receive weETH in return, which is the assetIn for the rebalance
-            // when the LT is over-collateralized.
-            _stakeWethForWeeth(stakeContext, amountIn);
-        }
+        IERC20[] memory tokens = new IERC20[](2);
+        tokens[0] = takeAuctionData.rebalanceAssetIn;
+        tokens[1] = takeAuctionData.rebalanceAssetOut;
 
-        IERC20(assetIn).approve(rebalanceAdapter, amountIn);
-        IRebalanceAdapter(rebalanceAdapter).take(amountToTake);
-
-        if (swapData.swapType == SwapType.EXACT_INPUT_SWAP_ADAPTER) {
-            _swapExactInputOnSwapAdapter(assetOut, amountToTake, flashLoanAmount, swapData.swapContext);
-        } else if (swapData.swapType == SwapType.EXACT_OUTPUT_SWAP_ADAPTER) {
-            _swapExactOutputOnSwapAdapter(assetOut, amountIn, amountToTake, swapData.swapContext);
-        } else if (swapData.swapType == SwapType.LIFI_SWAP) {
-            address lifiTarget = swapData.lifiSwap.to;
-            bytes memory lifiCallData = swapData.lifiSwap.data;
-            _swapLIFI(IERC20(assetOut), amountToTake, lifiTarget, lifiCallData);
-        }
-
-        IERC20 flashLoanAsset = IERC20(stakeContext.stakeType != StakeType.NONE ? stakeContext.assetIn : assetIn);
-        IERC20(flashLoanAsset).approve(msg.sender, flashLoanAmount);
-    }
-
-    function _stakeWethForWeeth(StakeContext memory stakeContext, uint256 minAmountOut) internal {
-        IWETH9(address(weth)).withdraw(stakeContext.amountIn);
-
-        // Deposit the ETH into the EtherFi L2 Mode Sync Pool to obtain weETH
-        // Note: The EtherFi L2 Mode Sync Pool requires ETH to mint weETH. WETH is unsupported at time of writing
-        IEtherFiL2ModeSyncPool(stakeContext.stakeTo).deposit{value: stakeContext.amountIn}(
-            ETHERFI_ETH_ADDRESS, stakeContext.amountIn, minAmountOut, address(0)
+        // Participate in the auction to rebalance
+        SafeERC20.forceApprove(
+            takeAuctionData.rebalanceAssetIn, address(takeAuctionData.rebalanceAdapter), takeAuctionData.amountIn
         );
+        takeAuctionData.rebalanceAdapter.take(takeAuctionData.amountToTake);
+
+        // Execute the swap using the MulticallExecutor. MulticallExecutor will sweep any remaining tokens to this contract
+        // after executing the swap calls
+        if (takeAuctionData.swapCalls.length > 0) {
+            SafeERC20.safeTransfer(
+                takeAuctionData.rebalanceAssetOut,
+                address(takeAuctionData.multicallExecutor),
+                takeAuctionData.amountToTake
+            );
+            takeAuctionData.multicallExecutor.multicallAndSweep(takeAuctionData.swapCalls, tokens);
+        }
+
+        // Repay flash loan from Morpho
+        SafeERC20.forceApprove(takeAuctionData.rebalanceAssetIn, msg.sender, flashLoanAmount);
     }
-
-    function _swapExactInputOnSwapAdapter(
-        address inputToken,
-        uint256 inputAmount,
-        uint256 minOutputAmount,
-        ISwapAdapter.SwapContext memory swapContext
-    ) private {
-        SafeERC20.forceApprove(IERC20(inputToken), address(swapAdapter), inputAmount);
-        swapAdapter.swapExactInput(inputToken, inputAmount, minOutputAmount, swapContext);
-    }
-
-    function _swapExactOutputOnSwapAdapter(
-        address inputToken,
-        uint256 outputAmount,
-        uint256 maxInputAmount,
-        ISwapAdapter.SwapContext memory swapContext
-    ) private {
-        SafeERC20.forceApprove(IERC20(inputToken), address(swapAdapter), maxInputAmount);
-        swapAdapter.swapExactOutput(inputToken, outputAmount, maxInputAmount, swapContext);
-    }
-
-    function _swapLIFI(IERC20 inputToken, uint256 inputAmount, address target, bytes memory data) internal {
-        SafeERC20.forceApprove(inputToken, target, inputAmount);
-
-        (bool success,) = target.call(data);
-        if (!success) revert LIFISwapFailed();
-    }
-
-    receive() external payable {}
 }

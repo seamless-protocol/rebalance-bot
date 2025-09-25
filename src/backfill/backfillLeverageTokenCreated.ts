@@ -1,4 +1,4 @@
-import { LEVERAGE_TOKENS_FILE_PATH } from "@/constants/chain";
+import { CHAIN_ID, LEVERAGE_TOKENS_FILE_PATH } from "@/constants/chain";
 import { CONTRACT_ADDRESSES } from "@/constants/contracts";
 import { LeverageToken } from "@/types";
 import { getHistoricalLogs } from "@/utils/contractHelpers";
@@ -17,7 +17,7 @@ export const backfillLeverageTokens = async (fromBlock: number, toBlock?: number
   console.log(`Backfilling LeverageTokens from block ${fromBlock} to block ${toBlockString}`);
 
   const leverageTokenCreatedLogs = await getHistoricalLogs({
-    contractAddress: CONTRACT_ADDRESSES.LEVERAGE_MANAGER,
+    contractAddress: CONTRACT_ADDRESSES[CHAIN_ID].LEVERAGE_MANAGER,
     abi: LeverageManagerAbi,
     eventName: "LeverageTokenCreated",
     fromBlock,

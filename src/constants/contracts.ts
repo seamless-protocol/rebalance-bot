@@ -1,24 +1,34 @@
-import { Address, zeroAddress } from "viem";
-import { ContractAddresses, ExchangeAddresses } from "../types";
+import { zeroAddress } from "viem";
+import { base, mainnet } from "viem/chains";
+import { ContractAddresses } from "../types";
 
 import dotenv from "dotenv";
 
 dotenv.config();
 
-export const CONTRACT_ADDRESSES: ContractAddresses = {
-  ETHERFI_L2_MODE_SYNC_POOL: (process.env.ETHERFI_L2_MODE_SYNC_POOL as Address) || zeroAddress,
-  LEVERAGE_MANAGER: (process.env.LEVERAGE_MANAGER as Address) || zeroAddress,
-  DUTCH_AUCTION_REBALANCER: (process.env.DUTCH_AUCTION_REBALANCER as Address) || zeroAddress,
-  PRE_LIQUIDATION_REBALANCER: (process.env.PRE_LIQUIDATION_REBALANCER as Address) || zeroAddress,
-  UNISWAP_V2_ROUTER_02: (process.env.UNISWAP_V2_ROUTER_02 as Address) || zeroAddress,
-  WETH: (process.env.WETH as Address) || zeroAddress,
-  WEETH: (process.env.WEETH as Address) || zeroAddress,
-};
-
-export const EXCHANGE_ADDRESSES: ExchangeAddresses = {
-  aerodromeRouter: zeroAddress,
-  aerodromePoolFactory: zeroAddress,
-  aerodromeSlipstreamRouter: zeroAddress,
-  uniswapSwapRouter02: (process.env.UNISWAP_SWAP_ROUTER_02 as Address) || zeroAddress,
-  uniswapV2Router02: (process.env.UNISWAP_V2_ROUTER_02 as Address) || zeroAddress,
+export const CONTRACT_ADDRESSES: Record<number, ContractAddresses> = {
+  [mainnet.id]: {
+    DUTCH_AUCTION_REBALANCER: zeroAddress,
+    EETH: "0x35fA164735182de50811E8e2E824cFb9B6118ac2",
+    ETHERFI_DEPOSIT_ADAPTER: "0xcfC6d9Bd7411962Bfe7145451A7EF71A24b6A7A2",
+    ETHERFI_LIQUIDITY_POOL: "0x308861A430be4cce5502d0A12724771Fc6DaF216",
+    LEVERAGE_MANAGER: zeroAddress,
+    MULTICALL_EXECUTOR: zeroAddress,
+    PRE_LIQUIDATION_REBALANCER: zeroAddress,
+    UNISWAP_SWAP_ROUTER_02: "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45",
+    UNISWAP_V2_ROUTER_02: "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+    WETH: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    WEETH: "0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee",
+  },
+  [base.id]: {
+    DUTCH_AUCTION_REBALANCER: zeroAddress,
+    ETHERFI_L2_MODE_SYNC_POOL: "0xc38e046dFDAdf15f7F56853674242888301208a5",
+    LEVERAGE_MANAGER: zeroAddress,
+    MULTICALL_EXECUTOR: zeroAddress,
+    PRE_LIQUIDATION_REBALANCER: zeroAddress,
+    UNISWAP_SWAP_ROUTER_02: "0x2626664c2603336E57B271c5C0b26F421741e481",
+    UNISWAP_V2_ROUTER_02: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
+    WETH: "0x4200000000000000000000000000000000000006",
+    WEETH: "0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A",
+  }
 };

@@ -1,16 +1,18 @@
 import { Abi, AbiEvent, Address, Log, getAbiItem, getContract } from "viem";
 import { publicClient, walletClient } from "./transactionHelpers";
 
-import { CONTRACT_ADDRESSES } from "../constants/contracts";
-import EtherFiL2ModeSyncPoolAbi from "../../abis/EtherFiL2ModeSyncPool";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
-import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import { readJsonArrayFromFile } from "./fileHelpers";
+import { CHAIN_ID, LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { CONTRACT_ADDRESSES } from "../constants/contracts";
+import eETHAbi from "../../abis/eETH";
+import EtherFiLiquidityPoolAbi from "../../abis/EtherFiLiquidityPool";
+import EtherFiL2ModeSyncPoolAbi from "../../abis/EtherFiL2ModeSyncPool";
+import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
+import { LeverageManagerAbi } from "../../abis/LeverageManager";
+import { PreLiquidationRebalancerAbi } from "../../abis/PreLiquidationRebalancer";
 import rebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import uniswapV2Router02Abi from "../../abis/UniswapV2Router02";
-import { PreLiquidationRebalancerAbi } from "../../abis/PreLiquidationRebalancer";
-import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 
 export const getHistoricalLogs = async ({
   contractAddress,
@@ -128,27 +130,43 @@ export const getLeverageTokenDebtAsset = (leverageToken: Address): Address => {
 
 export const getUniswapV2Router02Contract = () => {
   return getContract({
-    address: CONTRACT_ADDRESSES.UNISWAP_V2_ROUTER_02,
+    address: CONTRACT_ADDRESSES[CHAIN_ID].UNISWAP_V2_ROUTER_02,
     abi: uniswapV2Router02Abi,
     client: walletClient,
   });
 };
 
 export const dutchAuctionRebalancerContract = getContract({
-  address: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+  address: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER,
   abi: DutchAuctionRebalancerAbi,
   client: walletClient,
 });
 
 export const leverageManagerContract = getContract({
-  address: CONTRACT_ADDRESSES.LEVERAGE_MANAGER,
+  address: CONTRACT_ADDRESSES[CHAIN_ID].LEVERAGE_MANAGER,
   abi: LeverageManagerAbi,
   client: walletClient,
 });
 
+export const getEethContract = () => {
+  return getContract({
+    address: CONTRACT_ADDRESSES[CHAIN_ID].EETH as Address,
+    abi: eETHAbi,
+    client: publicClient,
+  });
+};
+
+export const getEtherFiLiquidityPoolContract = () => {
+  return getContract({
+    address: CONTRACT_ADDRESSES[CHAIN_ID].ETHERFI_LIQUIDITY_POOL as Address,
+    abi: EtherFiLiquidityPoolAbi,
+    client: publicClient,
+  });
+};
+
 export const getEtherFiL2ModeSyncPoolContract = () => {
   return getContract({
-    address: CONTRACT_ADDRESSES.ETHERFI_L2_MODE_SYNC_POOL,
+    address: CONTRACT_ADDRESSES[CHAIN_ID].ETHERFI_L2_MODE_SYNC_POOL as Address,
     abi: EtherFiL2ModeSyncPoolAbi,
     client: publicClient,
   });
@@ -156,7 +174,7 @@ export const getEtherFiL2ModeSyncPoolContract = () => {
 
 export const getPreLiquidationRebalancerContract = () => {
   return getContract({
-    address: CONTRACT_ADDRESSES.PRE_LIQUIDATION_REBALANCER,
+    address: CONTRACT_ADDRESSES[CHAIN_ID].PRE_LIQUIDATION_REBALANCER as Address,
     abi: PreLiquidationRebalancerAbi,
     client: walletClient,
   });
