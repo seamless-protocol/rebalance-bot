@@ -312,8 +312,7 @@ const simulateAndCalculateProfitability = async (
     ]);
     ({ gas, maxFeePerGas, gasPrice } = request);
   } else {
-    // maxFeePerGas = 1000000000n; // 1 gwei
-    maxFeePerGas = 1n;
+    maxFeePerGas = 1000000000n; // 1 gwei
     gasPrice = maxFeePerGas;
 
     const simulation = await tenderlySimulateTransaction(walletClient, [
