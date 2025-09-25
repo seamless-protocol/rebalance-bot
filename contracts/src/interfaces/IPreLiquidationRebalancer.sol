@@ -1,10 +1,31 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import {RebalanceType} from "../DataTypes.sol";
 import {IMulticallExecutor} from "./IMulticallExecutor.sol";
 
 interface IPreLiquidationRebalancer {
+    /// @notice Struct containing the data for pre liquidation rebalance
+    struct PreLiquidationRebalanceData {
+        /// @notice The leverage token
+        address leverageToken;
+        /// @notice The asset to give for the rebalance, which is flash loaned from Morpho
+        IERC20 assetIn;
+        /// @notice The asset to receive from the rebalance
+        IERC20 assetOut;
+        /// @notice The amount to take from the auction
+        uint256 amountOut;
+        /// @notice The rebalance type
+        RebalanceType rebalanceType;
+        /// @notice The multicall executor
+        IMulticallExecutor multicallExecutor;
+        /// @notice The calls to execute for the swap of the asset received from the rebalance using the multicall executor
+        /// to get the assets required to repay the flash loan
+        IMulticallExecutor.Call[] swapCalls;
+    }
+
     /// @notice Thrown when caller is not Morpho
     error Unauthorized();
 

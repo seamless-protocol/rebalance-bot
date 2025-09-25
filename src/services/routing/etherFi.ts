@@ -1,4 +1,4 @@
-import { encodeFunctionData, getContract } from "viem";
+import { Address, encodeFunctionData, getContract } from "viem";
 import EtherFiDepositAdapterAbi from "../../../abis/EtherFiDepositAdapter";
 import EtherfiL2ExchangeRateProviderAbi from "../../../abis/EtherfiL2ExchangeRateProvider";
 import EtherFiLiquidityPoolAbi from "../../../abis/EtherFiLiquidityPool";
@@ -17,7 +17,7 @@ import { publicClient } from "../../utils/transactionHelpers";
 // DepositAdapter: https://github.com/etherfi-protocol/smart-contracts/blob/6fd14b1791b7b666ec9325ea9b8ce3b1bad9880b/src/DepositAdapter.sol#L67
 // High-level, when ETH is deposited into the LiquidityPool to get eETH, an exchange rate is calculated based on the total
 // amount of ETH in the LiquidityPool and the total amount of shares in the eETH contract.
-// The exchange rate between eETH and weETH is 1:1 with eETH shares (which is different from a balance of eETH,
+// The exchange rate between eETH and weETH is 1:1 with eETH shares (which is different from a user's balance of eETH,
 // see https://github.com/etherfi-protocol/smart-contracts/blob/6fd14b1791b7b666ec9325ea9b8ce3b1bad9880b/src/EETH.sol#L214 and
 // https://github.com/etherfi-protocol/smart-contracts/blob/6fd14b1791b7b666ec9325ea9b8ce3b1bad9880b/src/WeETH.sol#L66).
 export const getEtherFiEthStakeQuote = async (ethAmountIn: bigint): Promise<bigint> => {
@@ -28,12 +28,12 @@ export const getEtherFiEthStakeQuote = async (ethAmountIn: bigint): Promise<bigi
   const [totalPooledEthResponse, eethTotalSharesResponse] = await publicClient.multicall({
     contracts: [
       {
-        address: CONTRACT_ADDRESSES.ETHERFI_LIQUIDITY_POOL,
+        address: CONTRACT_ADDRESSES[CHAIN_ID].ETHERFI_LIQUIDITY_POOL as Address,
         abi: EtherFiLiquidityPoolAbi,
         functionName: 'getTotalPooledEther',
       },
       {
-        address: CONTRACT_ADDRESSES.EETH,
+        address: CONTRACT_ADDRESSES[CHAIN_ID].EETH as Address,
         abi: eETHAbi,
         functionName: 'totalShares',
       },
@@ -83,7 +83,7 @@ export const prepareEtherFiEthStakeCalldata = (inputAmount: bigint, outputAmount
   const approveWethCalldata = encodeFunctionData({
     abi: WETH9Abi,
     functionName: 'approve',
-    args: [CONTRACT_ADDRESSES.ETHERFI_DEPOSIT_ADAPTER, inputAmount],
+    args: [CONTRACT_ADDRESSES[CHAIN_ID].ETHERFI_DEPOSIT_ADAPTER as Address, inputAmount],
   });
 
   const depositWethCalldata = encodeFunctionData({
@@ -94,12 +94,12 @@ export const prepareEtherFiEthStakeCalldata = (inputAmount: bigint, outputAmount
 
   return [
     {
-      target: CONTRACT_ADDRESSES.WETH,
+      target: CONTRACT_ADDRESSES[CHAIN_ID].WETH,
       data: approveWethCalldata,
       value: 0n,
     },
     {
-      target: CONTRACT_ADDRESSES.ETHERFI_DEPOSIT_ADAPTER,
+      target: CONTRACT_ADDRESSES[CHAIN_ID].ETHERFI_DEPOSIT_ADAPTER as Address,
       data: depositWethCalldata,
       value: 0n,
     }
@@ -123,7 +123,7 @@ export const prepareL2EtherFiEthStakeCalldata = (inputAmount: bigint, outputAmou
 
   return [
     {
-      target: CONTRACT_ADDRESSES.WETH,
+      target: CONTRACT_ADDRESSES[CHAIN_ID].WETH,
       data: unwrapWethCalldata,
       value: 0n,
     },

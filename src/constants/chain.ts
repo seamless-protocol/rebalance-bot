@@ -1,3 +1,4 @@
+import { extractChain } from "viem";
 import { mainnet, base } from "viem/chains";
 import dotenv from "dotenv";
 import path from "path";
@@ -15,14 +16,4 @@ export const PRIMARY_RPC_URL_WS = process.env.PRIMARY_RPC_URL_WS || "";
 export const FALLBACK_RPC_URL = process.env.FALLBACK_RPC_URL || "";
 export const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL || "";
 export const MAINNET_FALLBACK_RPC_URL = process.env.MAINNET_FALLBACK_RPC_URL || "";
-
-export const VIEM_CHAIN = (() => {
-  switch (CHAIN_ID) {
-    case 1:
-      return mainnet;
-    case 8453:
-      return base;
-    default:
-      throw new Error(`Unsupported CHAIN_ID: ${CHAIN_ID}`);
-  }
-})();
+export const VIEM_CHAIN = extractChain({ chains: [mainnet, base], id: CHAIN_ID as any });

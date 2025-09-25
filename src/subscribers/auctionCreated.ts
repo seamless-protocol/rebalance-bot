@@ -10,7 +10,7 @@ import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { CHAIN_ID, LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { sendAlert } from "../utils/alerts";
 import {
@@ -33,7 +33,7 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
   const [leverageTokenStateResponse, collateralResponse, equityInCollateralAssetResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
     contracts: [
       {
-        address: CONTRACT_ADDRESSES.LEVERAGE_MANAGER,
+        address: CONTRACT_ADDRESSES[CHAIN_ID].LEVERAGE_MANAGER,
         abi: LeverageManagerAbi,
         functionName: "getLeverageTokenState",
         args: [leverageToken],
@@ -85,7 +85,7 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
 
 const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollateralized: boolean) => {
   // Determine whether we can use native EtherFi staking for swapping assets
-  if (collateralAsset.toLowerCase() == CONTRACT_ADDRESSES.WEETH && debtAsset.toLowerCase() == CONTRACT_ADDRESSES.WETH && isOverCollateralized) {
+  if (collateralAsset.toLowerCase() == CONTRACT_ADDRESSES[CHAIN_ID].WEETH.toLowerCase() && debtAsset.toLowerCase() == CONTRACT_ADDRESSES[CHAIN_ID].WETH.toLowerCase() && isOverCollateralized) {
     return StakeType.ETHERFI_ETH_WEETH;
   }
   return StakeType.NONE;
@@ -154,7 +154,7 @@ export const handleAuctionCreatedEvent = async (
           args: [takeAmount],
         }),
         publicClient.readContract({
-          address: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+          address: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER,
           abi: DutchAuctionRebalancerAbi,
           functionName: "previewTakeAuction",
           args: [leverageToken, takeAmount, rebalanceType],
@@ -233,7 +233,7 @@ export const handleAuctionCreatedEvent = async (
           assetIn,
           assetOut,
           takeAmount,
-          CONTRACT_ADDRESSES.MULTICALL_EXECUTOR,
+          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
           swapParams.swapCalls
         ]);
 
@@ -307,25 +307,26 @@ const simulateAndCalculateProfitability = async (
       assetIn,
       assetOut,
       takeAmount,
-      CONTRACT_ADDRESSES.MULTICALL_EXECUTOR,
+      CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
       swapParams.swapCalls
     ]);
     ({ gas, maxFeePerGas, gasPrice } = request);
   } else {
-    maxFeePerGas = 1000000000n; // 1 gwei
+    // maxFeePerGas = 1000000000n; // 1 gwei
+    maxFeePerGas = 1n;
     gasPrice = maxFeePerGas;
 
     const simulation = await tenderlySimulateTransaction(walletClient, [
       {
         from: walletClient.account.address,
-        to: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+        to: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER,
         gas: "0x0",
         gasPrice: toHex(maxFeePerGas),
         value: "0x0",
         data: encodeFunctionData({
           abi: DutchAuctionRebalancerAbi,
           functionName: "takeAuction",
-          args: [rebalanceAdapter, assetIn, assetOut, takeAmount, CONTRACT_ADDRESSES.MULTICALL_EXECUTOR, swapParams.swapCalls],
+          args: [rebalanceAdapter, assetIn, assetOut, takeAmount, CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR, swapParams.swapCalls],
         }),
       },
       "latest",
@@ -345,7 +346,7 @@ const simulateAndCalculateProfitability = async (
   const maxFeeWei = paddedGas * perGasCap;
 
   const assetInUsdPrice = await pricers[0].price(assetIn);
-  const ethUsdPrice = await pricers[0].price(CONTRACT_ADDRESSES.WETH);
+  const ethUsdPrice = await pricers[0].price(CONTRACT_ADDRESSES[CHAIN_ID].WETH);
 
   if (assetInUsdPrice === undefined) {
     console.error(`Failed to get usd price for asset ${assetIn}`);

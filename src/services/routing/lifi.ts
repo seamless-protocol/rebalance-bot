@@ -1,10 +1,9 @@
 import axios from "axios";
 import { getAddress } from "viem";
-import { GetLIFIQuoteInput, GetLIFIQuoteOutput } from "../../types";
 import { LIFI_API_KEY, LIFI_API_URL, LIFI_SLIPPAGE } from "../../constants/values";
-
 import { CHAIN_ID } from "../../constants/chain";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
+import { GetLIFIQuoteInput, GetLIFIQuoteOutput } from "../../types";
 
 export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuoteOutput | null> => {
   if (!LIFI_API_KEY) {
@@ -22,8 +21,8 @@ export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuot
         fromToken: getAddress(fromToken),
         toToken: getAddress(toToken),
         fromAmount,
-        fromAddress: getAddress(CONTRACT_ADDRESSES.MULTICALL_EXECUTOR),
-        toAddress: getAddress(CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER),
+        fromAddress: getAddress(CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR),
+        toAddress: getAddress(CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER),
         allowBridges: "none",
         slippage: LIFI_SLIPPAGE
       },
