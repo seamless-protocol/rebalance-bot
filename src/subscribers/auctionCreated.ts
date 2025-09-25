@@ -19,7 +19,7 @@ import {
 
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { CHAIN_ID,LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { sendAlert } from "../utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
@@ -31,7 +31,7 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
   const [leverageTokenStateResponse, collateralResponse, equityInCollateralAssetResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
     contracts: [
       {
-        address: CONTRACT_ADDRESSES.LEVERAGE_MANAGER,
+        address: CONTRACT_ADDRESSES[CHAIN_ID].LEVERAGE_MANAGER,
         abi: LeverageManagerAbi,
         functionName: "getLeverageTokenState",
         args: [leverageToken],
@@ -83,7 +83,7 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
 
 const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollateralized: boolean) => {
   // Determine whether we can use native EtherFi staking for swapping assets
-  if (collateralAsset == CONTRACT_ADDRESSES.WEETH && debtAsset == CONTRACT_ADDRESSES.WETH && isOverCollateralized) {
+  if (collateralAsset == CONTRACT_ADDRESSES[CHAIN_ID].WEETH && debtAsset == CONTRACT_ADDRESSES[CHAIN_ID].WETH && isOverCollateralized) {
     return StakeType.ETHERFI_ETH_WEETH;
   }
   return StakeType.NONE;
@@ -145,7 +145,7 @@ export const handleAuctionCreatedEvent = async (
           args: [takeAmount],
         }),
         publicClient.readContract({
-          address: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+          address: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER,
           abi: DutchAuctionRebalancerAbi,
           functionName: "previewTakeAuction",
           args: [leverageToken, takeAmount, rebalanceType],
@@ -200,7 +200,7 @@ export const handleAuctionCreatedEvent = async (
           assetIn,
           assetOut,
           takeAmount,
-          CONTRACT_ADDRESSES.MULTICALL_EXECUTOR,
+          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
           swapParams.swapCalls
         ]);
 

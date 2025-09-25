@@ -21,6 +21,7 @@ import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { sendAlert } from "../utils/alerts";
 import { publicClient } from "../utils/transactionHelpers";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
+import { CHAIN_ID } from "../constants/chain";
 
 const getLeverageTokenRebalanceData = async (
   leverageToken: Address,
@@ -31,7 +32,7 @@ const getLeverageTokenRebalanceData = async (
   const [leverageTokenStateResponse, targetRatioResponse, collateralResponse] = await publicClient.multicall({
     contracts: [
       {
-        address: CONTRACT_ADDRESSES.LEVERAGE_MANAGER,
+        address: CONTRACT_ADDRESSES[CHAIN_ID].LEVERAGE_MANAGER,
         abi: LeverageManagerAbi,
         functionName: "getLeverageTokenState",
         args: [leverageToken],
@@ -139,7 +140,7 @@ const executePreLiquidationRebalance = async (
           requiredAmountIn,
           takeAmount,
           rebalanceType,
-          CONTRACT_ADDRESSES.MULTICALL_EXECUTOR,
+          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
           swapParams.swapCalls,
         ]);
 

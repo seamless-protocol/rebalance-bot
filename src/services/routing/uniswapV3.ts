@@ -56,7 +56,7 @@ export const getRouteUniswapV3ExactInput = async (
 
     const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);
     const options: SwapOptions = {
-      recipient: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER,
+      recipient: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER,
       slippageTolerance: new Percent(100),
       deadline: Number.MAX_SAFE_INTEGER,
       type: SwapType.SWAP_ROUTER_02,
@@ -92,7 +92,7 @@ export const prepareUniswapV3SwapCalldata = (assetIn: Address, route: RouteWithV
   const approveCalldata = encodeFunctionData({
     abi: erc20Abi,
     functionName: 'approve',
-    args: [CONTRACT_ADDRESSES.UNISWAP_SWAP_ROUTER_02, inputAmount],
+    args: [CONTRACT_ADDRESSES[CHAIN_ID].UNISWAP_SWAP_ROUTER_02, inputAmount],
   });
 
   const encodedPath = route?.route ? (encodeRouteToPath(route.route as V3Route, false) as `0x${string}`) : "0x";
@@ -102,7 +102,7 @@ export const prepareUniswapV3SwapCalldata = (assetIn: Address, route: RouteWithV
     functionName: 'exactInput',
     args: [{
       path: encodedPath,
-      recipient: CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER, // Recipient of the swap is the rebalancer contract
+      recipient: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER, // Recipient of the swap is the rebalancer contract
       amountIn: inputAmount,
       amountOutMinimum: outputAmountMin,
     }],
@@ -115,7 +115,7 @@ export const prepareUniswapV3SwapCalldata = (assetIn: Address, route: RouteWithV
       value: 0n,
     },
     {
-      target: CONTRACT_ADDRESSES.UNISWAP_SWAP_ROUTER_02,
+      target: CONTRACT_ADDRESSES[CHAIN_ID].UNISWAP_SWAP_ROUTER_02,
       data: swapCalldata,
       value: 0n,
     },
