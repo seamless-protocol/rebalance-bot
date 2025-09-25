@@ -9,6 +9,7 @@ export enum RebalanceStatus {
 export enum StakeType {
   NONE = 0,
   ETHERFI_ETH_WEETH = 1,
+  LIDO_ETH_WSTETH = 2,
 }
 
 export enum RebalanceType {
@@ -39,6 +40,8 @@ export interface ContractAddresses {
   LEVERAGE_MANAGER: Address;
   MULTICALL_EXECUTOR: Address;
   PRE_LIQUIDATION_REBALANCER: Address;
+  STETH?: Address;
+  WSTETH?: Address;
   UNISWAP_SWAP_ROUTER_02: Address;
   UNISWAP_V2_ROUTER_02: Address;
   WETH: Address;
