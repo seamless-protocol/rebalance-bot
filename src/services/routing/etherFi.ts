@@ -1,4 +1,4 @@
-import { encodeFunctionData, getContract } from "viem";
+import { Address, encodeFunctionData, getContract } from "viem";
 import EtherFiDepositAdapterAbi from "../../../abis/EtherFiDepositAdapter";
 import EtherfiL2ExchangeRateProviderAbi from "../../../abis/EtherfiL2ExchangeRateProvider";
 import EtherFiLiquidityPoolAbi from "../../../abis/EtherFiLiquidityPool";
@@ -28,12 +28,12 @@ export const getEtherFiEthStakeQuote = async (ethAmountIn: bigint): Promise<bigi
   const [totalPooledEthResponse, eethTotalSharesResponse] = await publicClient.multicall({
     contracts: [
       {
-        address: CONTRACT_ADDRESSES.ETHERFI_LIQUIDITY_POOL,
+        address: CONTRACT_ADDRESSES[CHAIN_ID].ETHERFI_LIQUIDITY_POOL as Address,
         abi: EtherFiLiquidityPoolAbi,
         functionName: 'getTotalPooledEther',
       },
       {
-        address: CONTRACT_ADDRESSES.EETH,
+        address: CONTRACT_ADDRESSES[CHAIN_ID].EETH as Address,
         abi: eETHAbi,
         functionName: 'totalShares',
       },
@@ -83,7 +83,7 @@ export const prepareEtherFiEthStakeCalldata = (inputAmount: bigint, outputAmount
   const approveWethCalldata = encodeFunctionData({
     abi: WETH9Abi,
     functionName: 'approve',
-    args: [CONTRACT_ADDRESSES.ETHERFI_DEPOSIT_ADAPTER, inputAmount],
+    args: [CONTRACT_ADDRESSES[CHAIN_ID].ETHERFI_DEPOSIT_ADAPTER as Address, inputAmount],
   });
 
   const depositWethCalldata = encodeFunctionData({
@@ -94,12 +94,12 @@ export const prepareEtherFiEthStakeCalldata = (inputAmount: bigint, outputAmount
 
   return [
     {
-      target: CONTRACT_ADDRESSES.WETH,
+      target: CONTRACT_ADDRESSES[CHAIN_ID].WETH,
       data: approveWethCalldata,
       value: 0n,
     },
     {
-      target: CONTRACT_ADDRESSES.ETHERFI_DEPOSIT_ADAPTER,
+      target: CONTRACT_ADDRESSES[CHAIN_ID].ETHERFI_DEPOSIT_ADAPTER as Address,
       data: depositWethCalldata,
       value: 0n,
     }
@@ -123,7 +123,7 @@ export const prepareL2EtherFiEthStakeCalldata = (inputAmount: bigint, outputAmou
 
   return [
     {
-      target: CONTRACT_ADDRESSES.WETH,
+      target: CONTRACT_ADDRESSES[CHAIN_ID].WETH,
       data: unwrapWethCalldata,
       value: 0n,
     },

@@ -3,6 +3,7 @@ import { Call, UniswapV2GetAmountsOutArgs } from "../../types";
 import { getUniswapV2Router02Contract } from "../../utils/contractHelpers";
 import UniswapV2Router02Abi from "../../../abis/UniswapV2Router02";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
+import { CHAIN_ID } from "../../constants/chain";
 
 export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) => {
   try {
@@ -41,7 +42,7 @@ export const prepareUniswapV2SwapCalldata = (assetIn: Address, assetOut: Address
   const approveCalldata = encodeFunctionData({
     abi: erc20Abi,
     functionName: 'approve',
-    args: [CONTRACT_ADDRESSES.UNISWAP_V2_ROUTER_02, inputAmount],
+    args: [CONTRACT_ADDRESSES[CHAIN_ID].UNISWAP_V2_ROUTER_02, inputAmount],
   });
 
   const swapCalldata = encodeFunctionData({
@@ -51,7 +52,7 @@ export const prepareUniswapV2SwapCalldata = (assetIn: Address, assetOut: Address
       inputAmount,
       outputAmountMin,
       [assetIn, assetOut],
-      CONTRACT_ADDRESSES.DUTCH_AUCTION_REBALANCER, // Recipient of the swap is the rebalancer contract
+      CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER, // Recipient of the swap is the rebalancer contract
       BigInt(Math.floor(Date.now() / 1000) + 60) // Deadline is set to 60 seconds from now
     ],
   });
@@ -63,7 +64,7 @@ export const prepareUniswapV2SwapCalldata = (assetIn: Address, assetOut: Address
       value: 0n,
     },
     {
-      target: CONTRACT_ADDRESSES.UNISWAP_V2_ROUTER_02,
+      target: CONTRACT_ADDRESSES[CHAIN_ID].UNISWAP_V2_ROUTER_02,
       data: swapCalldata,
       value: 0n,
     },

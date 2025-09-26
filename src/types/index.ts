@@ -31,12 +31,12 @@ export interface Chain {
 }
 
 export interface ContractAddresses {
-  ETHERFI_L2_MODE_SYNC_POOL: Address;
-  LEVERAGE_MANAGER: Address;
   DUTCH_AUCTION_REBALANCER: Address;
-  EETH: Address;
-  ETHERFI_DEPOSIT_ADAPTER: Address;
-  ETHERFI_LIQUIDITY_POOL: Address;
+  EETH?: Address;
+  ETHERFI_DEPOSIT_ADAPTER?: Address;
+  ETHERFI_L2_MODE_SYNC_POOL?: Address;
+  ETHERFI_LIQUIDITY_POOL?: Address;
+  LEVERAGE_MANAGER: Address;
   MULTICALL_EXECUTOR: Address;
   PRE_LIQUIDATION_REBALANCER: Address;
   UNISWAP_SWAP_ROUTER_02: Address;

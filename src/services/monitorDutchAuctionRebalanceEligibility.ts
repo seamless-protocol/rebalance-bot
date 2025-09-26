@@ -3,20 +3,21 @@ import { LeverageToken, LogLevel, RebalanceStatus } from "../types";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
 
 import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
-import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
+import { CHAIN_ID, LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { sendAlert } from "../utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { startPreLiquidationRebalanceInInterval } from "./preLiquidationRebalance";
 import { startDutchAuctionInterval } from "../subscribers/auctionCreated";
 import { getLeverageTokenLendingAdapter, getLeverageTokenRebalanceAdapter } from "../utils/contractHelpers";
+import { Pricer } from "./pricers/pricer";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
 const handledLeverageTokens = new Set<string>();
 
 const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceStatus[]): Promise<LeverageToken[]> => {
-  const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
+  const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES[CHAIN_ID];
 
   const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH) as LeverageToken[];
   if (!leverageTokens.length) {
@@ -43,8 +44,8 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
   });
 };
 
-const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
-  const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES;
+const tryCreateDutchAuction = async (leverageToken: LeverageToken, pricers: Pricer[]) => {
+  const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES[CHAIN_ID];
 
   const rebalancerContract = getContract({
     address: rebalancerAddress,
@@ -88,7 +89,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
           console.log(
             `Rebalancer.CreateAuction unsuccessful for LeverageToken ${leverageToken.address}, auction already exists. Starting Dutch auction interval...`
           );
-          startDutchAuctionInterval(getLeverageTokenLendingAdapter(leverageToken.address), getLeverageTokenRebalanceAdapter(leverageToken.address));
+          startDutchAuctionInterval(getLeverageTokenLendingAdapter(leverageToken.address), getLeverageTokenRebalanceAdapter(leverageToken.address), pricers);
         } else if (errorName === "IneligibleForRebalance") {
           console.log(
             `Rebalancer.CreateAuction unsuccessful for LeverageToken ${leverageToken.address}, leverage token is not eligible for rebalancing.`
@@ -102,7 +103,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
   }
 };
 
-const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
+const monitorDutchAuctionRebalanceEligibility = (interval: number, pricers: Pricer[]) => {
   setInterval(async () => {
     try {
       console.log("Checking dutch auction rebalance eligibility of LeverageTokens...");
@@ -128,7 +129,7 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
         if (!handledLeverageTokens.has(leverageToken.address)) {
           handledLeverageTokens.add(leverageToken.address);
           try {
-            await tryCreateDutchAuction(leverageToken);
+            await tryCreateDutchAuction(leverageToken, pricers);
 
             handledLeverageTokens.delete(leverageToken.address);
           } catch (handleError) {
