@@ -1,6 +1,7 @@
 import { Address, BaseError, ContractFunctionRevertedError, encodeFunctionData, erc20Abi, formatEther, formatUnits, hexToBigInt, isAddressEqual, toHex } from "viem";
 import {
   BASE_RATIO,
+  CHECK_PROFITABILITY_WITH_GAS_FEE,
   DUTCH_AUCTION_ACTIVE_INTERVALS,
   DUTCH_AUCTION_POLLING_INTERVAL,
   DUTCH_AUCTION_STEP_COUNT,
@@ -205,28 +206,30 @@ export const handleAuctionCreatedEvent = async (
         continue;
       }
 
-      try {
-        const { isProfitableWithGasFee, errorFetchingPrices, assetInProfitUsd, gasFeeUsd } = await simulateAndCalculateProfitability(
-          pricers,
-          rebalanceAdapter,
-          assetIn,
-          assetInDecimals,
-          assetOut,
-          takeAmount,
-          swapParams,
-          requiredAmountIn
-        );
-
-        // If we failed to fetch prices for determining profitability, we should still try to take the auction
-        if (!isProfitableWithGasFee && !errorFetchingPrices) {
-          console.log(
-            `Rebalance with gas fee is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} assetOut: ${assetOut}. amountIn: ${requiredAmountIn} assetIn: ${assetIn} assetInProfitUsd: ${assetInProfitUsd} gasFeeUsd: ${gasFeeUsd}. Skipping step ${i}...`
+      if (CHECK_PROFITABILITY_WITH_GAS_FEE) {
+        try {
+          const { isProfitableWithGasFee, errorFetchingPrices, assetInProfitUsd, gasFeeUsd } = await simulateAndCalculateProfitability(
+            pricers,
+            rebalanceAdapter,
+            assetIn,
+            assetInDecimals,
+            assetOut,
+            takeAmount,
+            swapParams,
+            requiredAmountIn
           );
-          continue;
+
+          // If we failed to fetch prices for determining profitability, we should still try to take the auction
+          if (!isProfitableWithGasFee && !errorFetchingPrices) {
+            console.log(
+              `Rebalance with gas fee is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} assetOut: ${assetOut}. amountIn: ${requiredAmountIn} assetIn: ${assetIn} assetInProfitUsd: ${assetInProfitUsd} gasFeeUsd: ${gasFeeUsd}. Skipping step ${i}...`
+            );
+            continue;
+          }
+        } catch (error) {
+          console.error(`Error simulating gas fee and calculating profitability for ${leverageToken}. Error: ${error}`);
+          throw error;
         }
-      } catch (error) {
-        console.error(`Error simulating and calculating profitability for ${leverageToken}. Error: ${error}`);
-        throw error;
       }
 
       console.log(
