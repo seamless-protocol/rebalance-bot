@@ -118,7 +118,6 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number, pricers: Pric
 
             handledLeverageTokens.delete(leverageToken.address);
           } catch (handleError) {
-            console.log("handleError", handleError);
             handledLeverageTokens.delete(leverageToken.address);
             console.error(`Error creating DutchAuctionRebalance for ${leverageToken.address}: ${handleError}`);
             await sendAlert(
