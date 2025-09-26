@@ -9,12 +9,6 @@ import {IRebalanceAdapter} from "./IRebalanceAdapter.sol";
 
 interface IDutchAuctionRebalancer {
 
-    /// @notice Error thrown when the auction already exists
-    error AuctionAlreadyExists();
-
-    /// @notice Error thrown when the leverage token is not eligible for rebalancing
-    error IneligibleForRebalance();
-
     /// @notice Struct containing the data for taking an auction
     struct TakeAuctionData {
         /// @notice The rebalance adapter
@@ -33,6 +27,12 @@ interface IDutchAuctionRebalancer {
         /// to get the assets required to repay the flash loan
         IMulticallExecutor.Call[] swapCalls;
     }
+
+    /// @notice Error thrown when the auction already exists
+    error AuctionAlreadyExists();
+
+    /// @notice Error thrown when the leverage token is not eligible for rebalancing
+    error IneligibleForRebalance();
 
     /// @notice Error thrown when the caller is not authorized
     error Unauthorized();

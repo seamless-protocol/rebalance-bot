@@ -94,6 +94,9 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken, pricers: Pric
           console.log(
             `Rebalancer.CreateAuction unsuccessful for LeverageToken ${leverageToken.address}, leverage token is not eligible for rebalancing.`
           );
+        } else {
+          console.error(`Error in tryCreateDutchAuction for LeverageToken ${leverageToken.address}: ${error}`);
+          throw error;
         }
       }
     } else {
