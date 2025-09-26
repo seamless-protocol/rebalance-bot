@@ -10,6 +10,7 @@ import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { startPreLiquidationRebalanceInInterval } from "./preLiquidationRebalance";
 import { startDutchAuctionInterval } from "../subscribers/auctionCreated";
 import { getLeverageTokenLendingAdapter, getLeverageTokenRebalanceAdapter } from "../utils/contractHelpers";
+import { Pricer } from "./pricers/pricer";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
@@ -43,7 +44,7 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
   });
 };
 
-const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
+const tryCreateDutchAuction = async (leverageToken: LeverageToken, pricers: Pricer[]) => {
   const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES[CHAIN_ID];
 
   const rebalancerContract = getContract({
@@ -80,14 +81,14 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
       LogLevel.INFO
     );
   } else {
-    startDutchAuctionInterval(getLeverageTokenLendingAdapter(leverageToken.address), getLeverageTokenRebalanceAdapter(leverageToken.address));
+    startDutchAuctionInterval(getLeverageTokenLendingAdapter(leverageToken.address), getLeverageTokenRebalanceAdapter(leverageToken.address), pricers);
     console.log(
       `Rebalancer.TryCreateAuction successful for LeverageToken ${leverageToken.address}, but auction was not created. Transaction hash: ${tx}`
     );
   }
 };
 
-const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
+const monitorDutchAuctionRebalanceEligibility = (interval: number, pricers: Pricer[]) => {
   setInterval(async () => {
     try {
       console.log("Checking dutch auction rebalance eligibility of LeverageTokens...");
@@ -113,7 +114,7 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
         if (!handledLeverageTokens.has(leverageToken.address)) {
           handledLeverageTokens.add(leverageToken.address);
           try {
-            await tryCreateDutchAuction(leverageToken);
+            await tryCreateDutchAuction(leverageToken, pricers);
 
             handledLeverageTokens.delete(leverageToken.address);
           } catch (handleError) {
