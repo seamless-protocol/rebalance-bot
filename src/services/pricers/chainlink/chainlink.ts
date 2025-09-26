@@ -3,7 +3,6 @@ import {
   getAddress,
   type Address,
 } from "viem";
-import { readContract } from "viem/actions";
 import { base, mainnet } from "viem/chains";
 import ChainlinkFeedRegistryAbi from "../../../../abis/ChainlinkFeedRegistry";
 import { CHAIN_ID } from "../../../constants/chain";
@@ -84,32 +83,40 @@ export class ChainlinkPricer implements Pricer {
         const pricePathAsset = PRICE_PATH_TO_USD[baseAsset];
 
         // Query price from Feed Registry
-        const [roundDataA, decimalsA, roundDataB, decimalsB] = await Promise.all([
-          readContract(mainnetPublicClient, {
-            address: this.FEED_REGISTRY_ADDRESS,
-            abi: ChainlinkFeedRegistryAbi,
-            functionName: "latestRoundData",
-            args: [baseAsset, pricePathAsset],
-          }),
-          readContract(mainnetPublicClient, {
-            address: this.FEED_REGISTRY_ADDRESS,
-            abi: ChainlinkFeedRegistryAbi,
-            functionName: "decimals",
-            args: [baseAsset, pricePathAsset],
-          }),
-          readContract(mainnetPublicClient, {
-            address: this.FEED_REGISTRY_ADDRESS,
-            abi: ChainlinkFeedRegistryAbi,
-            functionName: "latestRoundData",
-            args: [pricePathAsset, DENOMINATIONS.USD],
-          }),
-          readContract(mainnetPublicClient, {
-            address: this.FEED_REGISTRY_ADDRESS,
-            abi: ChainlinkFeedRegistryAbi,
-            functionName: "decimals",
-            args: [pricePathAsset, DENOMINATIONS.USD],
-          }),
-        ]);
+        const multicallResults = await mainnetPublicClient.multicall({
+          contracts: [
+            {
+              address: this.FEED_REGISTRY_ADDRESS,
+              abi: ChainlinkFeedRegistryAbi,
+              functionName: "latestRoundData",
+              args: [baseAsset, pricePathAsset],
+            },
+            {
+              address: this.FEED_REGISTRY_ADDRESS,
+              abi: ChainlinkFeedRegistryAbi,
+              functionName: "decimals",
+              args: [baseAsset, pricePathAsset],
+            },
+            {
+              address: this.FEED_REGISTRY_ADDRESS,
+              abi: ChainlinkFeedRegistryAbi,
+              functionName: "latestRoundData",
+              args: [pricePathAsset, DENOMINATIONS.USD],
+            },
+            {
+              address: this.FEED_REGISTRY_ADDRESS,
+              abi: ChainlinkFeedRegistryAbi,
+              functionName: "decimals",
+              args: [pricePathAsset, DENOMINATIONS.USD],
+            },
+          ],
+          allowFailure: false,
+        });
+
+        const roundDataA = multicallResults[0] as readonly [bigint, bigint, bigint, bigint, bigint];
+        const roundDataB = multicallResults[2] as readonly [bigint, bigint, bigint, bigint, bigint];
+        const decimalsA = multicallResults[1] as number;
+        const decimalsB = multicallResults[3] as number;
 
         // Extract price from round data (answer is the price)
         const rawPriceA = roundDataA[1];
@@ -120,20 +127,26 @@ export class ChainlinkPricer implements Pricer {
         decimals = decimalsB;
       } else {
         // Query price from Feed Registry
-        const [roundData, feedDecimals] = await Promise.all([
-          readContract(mainnetPublicClient, {
-            address: this.FEED_REGISTRY_ADDRESS,
-            abi: ChainlinkFeedRegistryAbi,
-            functionName: "latestRoundData",
-            args: [baseAsset, DENOMINATIONS.USD],
-          }),
-          readContract(mainnetPublicClient, {
-            address: this.FEED_REGISTRY_ADDRESS,
-            abi: ChainlinkFeedRegistryAbi,
-            functionName: "decimals",
-            args: [baseAsset, DENOMINATIONS.USD],
-          }),
-        ]);
+        const multicallResults = await mainnetPublicClient.multicall({
+          contracts: [
+            {
+              address: this.FEED_REGISTRY_ADDRESS,
+              abi: ChainlinkFeedRegistryAbi,
+              functionName: "latestRoundData",
+              args: [baseAsset, DENOMINATIONS.USD],
+            },
+            {
+              address: this.FEED_REGISTRY_ADDRESS,
+              abi: ChainlinkFeedRegistryAbi,
+              functionName: "decimals",
+              args: [baseAsset, DENOMINATIONS.USD],
+            },
+          ],
+          allowFailure: false,
+        });
+
+        const roundData = multicallResults[0] as readonly [bigint, bigint, bigint, bigint, bigint];
+        const feedDecimals = multicallResults[1] as number;
 
         // Extract price from round data (answer is the price)
         rawPrice = roundData[1];
