@@ -136,30 +136,36 @@ export const handleAuctionCreatedEvent = async (
 
     const stakeType = getStakeType(collateralAsset, debtAsset, isOverCollateralized);
 
-    const assetInDecimals = await publicClient.readContract({
-      address: assetIn,
-      abi: erc20Abi,
-      functionName: "decimals",
-    });
-
     // TODO: Instead of for loop maybe put this in big multicall
     for (let i = 0; i < stepCount; i++) {
       const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
 
-      const [requiredAmountIn, [isAuctionValid, newCollateralRatio]] = await Promise.all([
-        publicClient.readContract({
-          address: rebalanceAdapter,
-          abi: RebalanceAdapterAbi,
-          functionName: "getAmountIn",
-          args: [takeAmount],
-        }),
-        publicClient.readContract({
-          address: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER,
-          abi: DutchAuctionRebalancerAbi,
-          functionName: "previewTakeAuction",
-          args: [leverageToken, takeAmount, rebalanceType],
-        }),
-      ]);
+      const multicallResults = await publicClient.multicall({
+        contracts: [
+          {
+            address: assetIn,
+            abi: erc20Abi,
+            functionName: "decimals",
+          },
+          {
+            address: rebalanceAdapter,
+            abi: RebalanceAdapterAbi,
+            functionName: "getAmountIn",
+            args: [takeAmount],
+          },
+          {
+            address: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER,
+            abi: DutchAuctionRebalancerAbi,
+            functionName: "previewTakeAuction",
+            args: [leverageToken, takeAmount, rebalanceType],
+          },
+        ],
+        allowFailure: false,
+      });
+
+      const assetInDecimals = multicallResults[0] as number;
+      const requiredAmountIn = multicallResults[1] as bigint;
+      const [isAuctionValid, newCollateralRatio] = multicallResults[2] as [boolean, bigint];
 
       if (!isAuctionValid) {
         console.log(`Auction is no longer valid for LeverageToken ${leverageToken}. Closing interval...`);
