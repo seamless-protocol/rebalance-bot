@@ -1,4 +1,4 @@
-import { Address, BaseError, ContractFunctionRevertedError, erc20Abi, formatEther, formatUnits, encodeFunctionData, toHex, hexToBigInt } from "viem";
+import { Address, BaseError, ContractFunctionRevertedError, encodeFunctionData, erc20Abi, formatEther, formatUnits, hexToBigInt, isAddressEqual, toHex } from "viem";
 import {
   BASE_RATIO,
   DUTCH_AUCTION_ACTIVE_INTERVALS,
@@ -85,7 +85,7 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
 
 const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollateralized: boolean) => {
   // Determine whether we can use native EtherFi staking for swapping assets
-  if (collateralAsset.toLowerCase() == CONTRACT_ADDRESSES[CHAIN_ID].WEETH.toLowerCase() && debtAsset.toLowerCase() == CONTRACT_ADDRESSES[CHAIN_ID].WETH.toLowerCase() && isOverCollateralized) {
+  if (isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WEETH) && isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].WETH) && isOverCollateralized) {
     return StakeType.ETHERFI_ETH_WEETH;
   }
   return StakeType.NONE;
