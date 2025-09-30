@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 library DeployConstants {
-    address public constant OWNER = 0x3aA518Bd9ee447E3F71c01B69A0d5d49C534E05F;
+    address public constant OWNER = 0x0000000000000000000000000000000000000000;
 
     address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
 
