@@ -14,8 +14,7 @@ contract DeployRebalancer is Script {
     address public immutable MORPHO = DeployConstants.MORPHO;
 
     function run() public {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address deployerAddress = vm.addr(deployerPrivateKey);
+        address deployerAddress = msg.sender;
 
         console.log("Deployer address: ", deployerAddress);
         console.log("Deployer balance: ", deployerAddress.balance);
@@ -28,7 +27,7 @@ contract DeployRebalancer is Script {
 
         console.log("Deploying...");
 
-        vm.startBroadcast(deployerPrivateKey);
+        vm.startBroadcast();
 
         PreLiquidationRebalancer preLiquidationRebalancer =
             new PreLiquidationRebalancer(OWNER, LEVERAGE_MANAGER, MORPHO);
