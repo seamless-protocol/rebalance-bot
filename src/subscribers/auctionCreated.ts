@@ -95,7 +95,8 @@ const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollat
     // Native Lido staking
     case isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WSTETH as Address) &&
          isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].WETH as Address) &&
-         isOverCollateralized:
+         isOverCollateralized &&
+         CHAIN_ID === 1: // The rebalance bot only supports Lido staking on Ethereum mainnet
       return StakeType.LIDO_ETH_WSTETH;
 
     default:
