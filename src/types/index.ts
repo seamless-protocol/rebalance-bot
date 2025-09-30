@@ -40,7 +40,6 @@ export interface ContractAddresses {
   LEVERAGE_MANAGER: Address;
   MULTICALL_EXECUTOR: Address;
   PRE_LIQUIDATION_REBALANCER: Address;
-  STETH?: Address;
   WSTETH?: Address;
   UNISWAP_SWAP_ROUTER_02: Address;
   UNISWAP_V2_ROUTER_02: Address;

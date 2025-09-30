@@ -85,22 +85,21 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
 };
 
 const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollateralized: boolean): StakeType => {
-  switch (true) {
-    // Native EtherFi staking
-    case isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WEETH) &&
-         isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].WETH) &&
-         isOverCollateralized:
-      return StakeType.ETHERFI_ETH_WEETH;
-
-    // Native Lido staking
-    case isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WSTETH as Address) &&
-         isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].WETH as Address) &&
-         isOverCollateralized &&
-         CHAIN_ID === 1: // The rebalance bot only supports Lido staking on Ethereum mainnet
-      return StakeType.LIDO_ETH_WSTETH;
-
-    default:
-      return StakeType.NONE;
+  if (
+    isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WEETH) &&
+    isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].WETH) &&
+    isOverCollateralized
+  ) {
+    return StakeType.ETHERFI_ETH_WEETH;
+  } else if (
+    isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WSTETH as Address) &&
+    isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].WETH as Address) &&
+    isOverCollateralized &&
+    CHAIN_ID === 1
+  ) {
+    return StakeType.LIDO_ETH_WSTETH;
+  } else {
+    return StakeType.NONE;
   }
 };
 
