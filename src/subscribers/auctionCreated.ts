@@ -1,4 +1,4 @@
-import { Address, BaseError, ContractFunctionRevertedError } from "viem";
+import { Address, BaseError, ContractFunctionRevertedError, isAddressEqual } from "viem";
 import {
   BASE_RATIO,
   DUTCH_AUCTION_ACTIVE_INTERVALS,
@@ -83,8 +83,10 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
 
 const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollateralized: boolean) => {
   // Determine whether we can use native EtherFi staking for swapping assets
-  if (collateralAsset == CONTRACT_ADDRESSES[CHAIN_ID].WEETH && debtAsset == CONTRACT_ADDRESSES[CHAIN_ID].WETH && isOverCollateralized) {
+  if (isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WEETH) && isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].WETH) && isOverCollateralized) {
     return StakeType.ETHERFI_ETH_WEETH;
+  } if (isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WSTETH as Address) && isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].WETH as Address) && isOverCollateralized) {
+    return StakeType.LIDO_ETH_WSTETH;
   }
   return StakeType.NONE;
 };

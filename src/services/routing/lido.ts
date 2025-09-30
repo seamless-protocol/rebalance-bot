@@ -1,10 +1,10 @@
 import { Address, encodeFunctionData } from "viem";
-import stETHAbi from "abis/stETH";
+import stETHAbi from "../../../abis/stETH";
+import WETH9Abi from "../../../abis/WETH9";
 import { CHAIN_ID } from "../../constants/chain";
-import { publicClient } from "@/utils/transactionHelpers";
-import { CONTRACT_ADDRESSES } from "@/constants/contracts";
+import { publicClient } from "../../utils/transactionHelpers";
+import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { Call } from "../../types";
-import WETH9Abi from "abis/WETH9";
 
 export const getLidoEthStakeQuote = async (ethAmountIn: bigint) => {
   if (CHAIN_ID !== 1) {
