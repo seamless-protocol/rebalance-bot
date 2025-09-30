@@ -84,7 +84,7 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
   };
 };
 
-const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollateralized: boolean) => {
+const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollateralized: boolean): StakeType => {
   switch (true) {
     // Native EtherFi staking
     case isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WEETH) &&
