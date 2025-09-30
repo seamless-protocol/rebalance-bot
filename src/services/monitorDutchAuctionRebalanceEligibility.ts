@@ -1,4 +1,4 @@
-import { getContract, parseEventLogs } from "viem";
+import { BaseError, ContractFunctionRevertedError, getContract, parseEventLogs } from "viem";
 import { LeverageToken, LogLevel, RebalanceStatus } from "../types";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
 
@@ -10,6 +10,7 @@ import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { startPreLiquidationRebalanceInInterval } from "./preLiquidationRebalance";
 import { startDutchAuctionInterval } from "../subscribers/auctionCreated";
 import { getLeverageTokenLendingAdapter, getLeverageTokenRebalanceAdapter } from "../utils/contractHelpers";
+import { Pricer } from "./pricers/pricer";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
 // This is to prevent duplicate handling of the same LeverageToken.
@@ -43,7 +44,7 @@ const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceSt
   });
 };
 
-const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
+const tryCreateDutchAuction = async (leverageToken: LeverageToken, pricers: Pricer[]) => {
   const { DUTCH_AUCTION_REBALANCER: rebalancerAddress } = CONTRACT_ADDRESSES[CHAIN_ID];
 
   const rebalancerContract = getContract({
@@ -52,24 +53,24 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
     client: walletClient,
   });
 
-  const tx = await rebalancerContract.write.tryCreateAuction([leverageToken.address]);
+  try {
+    console.log(`Attempting CreateAuction for LeverageToken ${leverageToken.address}...`);
 
-  console.log(`TryCreateAuction for LeverageToken ${leverageToken.address}, transaction hash ${tx}`);
+    const tx = await rebalancerContract.write.createAuction([leverageToken.address]);
 
-  const receipt = await publicClient.waitForTransactionReceipt({
-    hash: tx,
-  });
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash: tx,
+    });
 
-  const tryCreateAuctionEvent = parseEventLogs({
-    abi: DutchAuctionRebalancerAbi,
-    eventName: "TryCreateAuction",
-    logs: receipt.logs,
-  })[0];
-  const { status, auctionCreated } = tryCreateAuctionEvent.args;
+    const createAuctionEvent = parseEventLogs({
+      abi: DutchAuctionRebalancerAbi,
+      eventName: "AuctionCreated",
+      logs: receipt.logs,
+    })[0];
+    const { status } = createAuctionEvent.args;
 
-  if (auctionCreated) {
     console.log(
-      `Rebalancer.TryCreateAuction successful for LeverageToken ${leverageToken.address}, auction created. Transaction hash: ${tx}`
+      `Rebalancer.CreateAuction successful for LeverageToken ${leverageToken.address}, auction created. Transaction hash: ${tx}`
     );
 
     const statusMessage =
@@ -79,15 +80,33 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken) => {
       `*Rebalance auction created successfully*\n• LeverageToken: \`${leverageToken.address}\`\n• Transaction Hash: \`${tx}\`\n• Status: \`${statusMessage}\``,
       LogLevel.INFO
     );
-  } else {
-    startDutchAuctionInterval(getLeverageTokenLendingAdapter(leverageToken.address), getLeverageTokenRebalanceAdapter(leverageToken.address));
-    console.log(
-      `Rebalancer.TryCreateAuction successful for LeverageToken ${leverageToken.address}, but auction was not created. Transaction hash: ${tx}`
-    );
+  } catch (error) {
+    if (error instanceof BaseError) {
+      const revertError = error.walk((error) => error instanceof ContractFunctionRevertedError);
+      if (revertError instanceof ContractFunctionRevertedError) {
+        const errorName = revertError.data?.errorName;
+        if (errorName === "AuctionAlreadyExists") {
+          console.log(
+            `Rebalancer.CreateAuction unsuccessful for LeverageToken ${leverageToken.address}, auction already exists. Starting Dutch auction interval...`
+          );
+          startDutchAuctionInterval(getLeverageTokenLendingAdapter(leverageToken.address), getLeverageTokenRebalanceAdapter(leverageToken.address), pricers);
+        } else if (errorName === "IneligibleForRebalance") {
+          console.log(
+            `Rebalancer.CreateAuction unsuccessful for LeverageToken ${leverageToken.address}, leverage token is not eligible for rebalancing.`
+          );
+        } else {
+          console.error(`Error in tryCreateDutchAuction for LeverageToken ${leverageToken.address}: ${error}`);
+          throw error;
+        }
+      }
+    } else {
+      console.error(`Error in tryCreateDutchAuction for LeverageToken ${leverageToken.address}: ${error}`);
+      throw error;
+    }
   }
 };
 
-const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
+const monitorDutchAuctionRebalanceEligibility = (interval: number, pricers: Pricer[]) => {
   setInterval(async () => {
     try {
       console.log("Checking dutch auction rebalance eligibility of LeverageTokens...");
@@ -113,7 +132,7 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number) => {
         if (!handledLeverageTokens.has(leverageToken.address)) {
           handledLeverageTokens.add(leverageToken.address);
           try {
-            await tryCreateDutchAuction(leverageToken);
+            await tryCreateDutchAuction(leverageToken, pricers);
 
             handledLeverageTokens.delete(leverageToken.address);
           } catch (handleError) {

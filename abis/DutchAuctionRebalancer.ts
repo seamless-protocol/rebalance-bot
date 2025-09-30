@@ -225,7 +225,7 @@ export const DutchAuctionRebalancerAbi = [
     },
     {
         "type": "function",
-        "name": "tryCreateAuction",
+        "name": "createAuction",
         "inputs": [
             {
                 "name": "leverageToken",
@@ -257,7 +257,7 @@ export const DutchAuctionRebalancerAbi = [
     },
     {
         "type": "event",
-        "name": "TryCreateAuction",
+        "name": "AuctionCreated",
         "inputs": [
             {
                 "name": "leverageToken",
@@ -270,15 +270,19 @@ export const DutchAuctionRebalancerAbi = [
                 "type": "uint8",
                 "indexed": true,
                 "internalType": "enum RebalanceStatus"
-            },
-            {
-                "name": "auctionCreated",
-                "type": "bool",
-                "indexed": true,
-                "internalType": "bool"
             }
         ],
         "anonymous": false
+    },
+    {
+        "type": "error",
+        "name": "AuctionAlreadyExists",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "IneligibleForRebalance",
+        "inputs": []
     },
     {
         "type": "error",

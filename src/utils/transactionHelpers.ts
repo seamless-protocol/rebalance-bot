@@ -1,8 +1,9 @@
 import { Address, createPublicClient, createWalletClient, fallback, http, webSocket } from "viem";
-import { FALLBACK_RPC_URL, PRIMARY_RPC_URL, PRIMARY_RPC_URL_WS, VIEM_CHAIN } from "../constants/chain";
+import { FALLBACK_RPC_URL, MAINNET_FALLBACK_RPC_URL, MAINNET_RPC_URL, PRIMARY_RPC_URL, PRIMARY_RPC_URL_WS, VIEM_CHAIN } from "../constants/chain";
 
 import { ethers } from "ethers";
 import { privateKeyToAccount } from "viem/accounts";
+import { mainnet } from "viem/chains";
 
 const account = privateKeyToAccount(process.env.PRIVATE_KEY as Address);
 
@@ -24,6 +25,11 @@ export const publicClient = createPublicClient({
     http(PRIMARY_RPC_URL),
     http(FALLBACK_RPC_URL),
   ]),
+});
+
+export const mainnetPublicClient = createPublicClient({
+  chain: mainnet,
+  transport: fallback([http(MAINNET_RPC_URL), http(MAINNET_FALLBACK_RPC_URL)]),
 });
 
 export const primaryEthersProvider = new ethers.providers.JsonRpcProvider(PRIMARY_RPC_URL);
