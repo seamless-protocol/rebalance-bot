@@ -6,11 +6,12 @@ import {Script} from "forge-std/Script.sol";
 
 import {DutchAuctionRebalancer} from "src/DutchAuctionRebalancer.sol";
 import {PreLiquidationRebalancer} from "src/PreLiquidationRebalancer.sol";
+import {DeployConstants} from "./DeployConstants.sol";
 
 contract DeployRebalancer is Script {
-    address public immutable OWNER = vm.envAddress("OWNER");
-    address public immutable LEVERAGE_MANAGER = vm.envAddress("LEVERAGE_MANAGER");
-    address public immutable MORPHO = vm.envAddress("MORPHO");
+    address public immutable OWNER = DeployConstants.OWNER;
+    address public immutable LEVERAGE_MANAGER = DeployConstants.LEVERAGE_MANAGER;
+    address public immutable MORPHO = DeployConstants.MORPHO;
 
     function run() public {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -20,6 +21,10 @@ contract DeployRebalancer is Script {
         console.log("Deployer balance: ", deployerAddress.balance);
         console.log("BlockNumber: ", block.number);
         console.log("ChainId: ", block.chainid);
+
+        console.log("Owner: ", OWNER);
+        console.log("LeverageManager: ", LEVERAGE_MANAGER);
+        console.log("Morpho: ", MORPHO);
 
         console.log("Deploying...");
 
