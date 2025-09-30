@@ -8,7 +8,7 @@ import { Call } from "../../types";
 
 export const getLidoEthStakeQuote = async (ethAmountIn: bigint) => {
   if (CHAIN_ID !== 1) {
-    throw new Error('Lido is only supported on Ethereum mainnet');
+    throw new Error('Native Lido staking is only supported by the rebalance bot on Ethereum mainnet');
   }
 
   // The amount of wstETH minted is equal to the amount of stETH shares received by depositing ETH into the Lido contract
@@ -27,7 +27,7 @@ export const getLidoEthStakeQuote = async (ethAmountIn: bigint) => {
 
 export const prepareLidoEthStakeCalldata = (inputAmount: bigint): Call[] => {
   if (CHAIN_ID !== 1) {
-    throw new Error('Lido is only supported on Ethereum mainnet');
+    throw new Error('Native Lido staking is only supported by the rebalance bot on Ethereum mainnet');
   }
 
   const wethWithdrawCalldata = encodeFunctionData({
