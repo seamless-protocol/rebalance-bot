@@ -14,6 +14,8 @@ contract DeployRebalancer is Script {
     address public immutable MORPHO = DeployConstants.MORPHO;
 
     function run() public {
+        require(OWNER != address(0), "OWNER address is not set");
+
         address deployerAddress = msg.sender;
 
         console.log("Deployer address: ", deployerAddress);
