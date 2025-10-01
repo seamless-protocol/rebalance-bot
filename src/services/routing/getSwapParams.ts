@@ -8,6 +8,7 @@ import {
   GetRebalanceSwapParamsOutput,
   StakeType,
 } from "../../types";
+import { getLidoEthStakeQuote, prepareLidoEthStakeCalldata } from "./lido";
 
 export const getDummySwapParams = (): GetRebalanceSwapParamsOutput => {
   return {
@@ -81,6 +82,16 @@ export const getRebalanceSwapParams = async (
         isProfitable: true,
         amountOut: weethAmountOut,
         swapCalls: prepareEtherFiEthStakeCalldata(takeAmount, requiredAmountIn),
+      };
+    }
+  } else if (stakeType === StakeType.LIDO_ETH_WSTETH) {
+    const wstethAmountOut = await getLidoEthStakeQuote(takeAmount);
+
+    if (wstethAmountOut >= requiredAmountIn) {
+      return {
+        isProfitable: true,
+        amountOut: wstethAmountOut,
+        swapCalls: prepareLidoEthStakeCalldata(takeAmount),
       };
     }
   }

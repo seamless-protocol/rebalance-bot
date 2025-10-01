@@ -84,12 +84,23 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
   };
 };
 
-const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollateralized: boolean) => {
-  // Determine whether we can use native EtherFi staking for swapping assets
-  if (isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WEETH) && isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].WETH) && isOverCollateralized) {
+const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollateralized: boolean): StakeType => {
+  if (
+    isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WEETH) &&
+    isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].WETH) &&
+    isOverCollateralized
+  ) {
     return StakeType.ETHERFI_ETH_WEETH;
+  } else if (
+    isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WSTETH as Address) &&
+    isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].WETH as Address) &&
+    isOverCollateralized &&
+    CHAIN_ID === 1
+  ) {
+    return StakeType.LIDO_ETH_WSTETH;
+  } else {
+    return StakeType.NONE;
   }
-  return StakeType.NONE;
 };
 
 export const handleAuctionCreatedEvent = async (
