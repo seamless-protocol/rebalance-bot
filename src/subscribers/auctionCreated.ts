@@ -119,7 +119,12 @@ export const handleAuctionCreatedEvent = async (
     );
 
     if (!isAuctionValid) {
-      console.log(`Auction is not valid for LeverageToken ${leverageToken}. Skipping rebalance...`);
+      console.log(`Auction is not valid for LeverageToken ${leverageToken}. Closing dutch auction interval...`);
+
+      const interval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
+      DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
+      clearInterval(interval);
+
       return;
     }
 
@@ -180,7 +185,7 @@ export const handleAuctionCreatedEvent = async (
       const [isAuctionValid, newCollateralRatio] = multicallResults[2] as [boolean, bigint];
 
       if (!isAuctionValid) {
-        console.log(`Auction is no longer valid for LeverageToken ${leverageToken}. Closing interval...`);
+        console.log(`Auction is no longer valid for LeverageToken ${leverageToken}. Closing dutch auction interval...`);
 
         const interval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
         DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
