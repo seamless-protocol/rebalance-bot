@@ -1,6 +1,7 @@
-import { Address } from "viem";
+import { Address, zeroAddress } from "viem";
 import { LogLevel } from "./types";
-import { REBALANCE_ELIGIBILITY_POLL_INTERVAL } from "./constants/chain";
+import { CHAIN_ID,REBALANCE_ELIGIBILITY_POLL_INTERVAL } from "./constants/chain";
+import { CONTRACT_ADDRESSES } from "./constants/contracts";
 import monitorDutchAuctionRebalanceEligibility from "./services/monitorDutchAuctionRebalanceEligibility";
 import { sendAlert } from "./utils/alerts";
 import { subscribeToAllAuctionCreatedEvents } from "./subscribers/auctionCreated";
@@ -11,6 +12,14 @@ import { Pricer } from "./services/pricers/pricer";
 const main = async () => {
   try {
     console.log("Starting bot...");
+
+    if (CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER === zeroAddress) {
+      throw new Error("Dutch auction rebalancer address is not set");
+    }
+
+    if (CONTRACT_ADDRESSES[CHAIN_ID].PRE_LIQUIDATION_REBALANCER === zeroAddress) {
+      throw new Error("Pre-liquidation rebalancer address is not set");
+    }
 
     const pricers: Pricer[] = [
       new ChainlinkPricer(),
