@@ -278,11 +278,8 @@ export const handleAuctionCreatedEvent = async (
             const errorName = revertError.data?.errorName;
             if (errorName === "InvalidLeverageTokenStateAfterRebalance") {
               console.log(
-                `Auction taken for LeverageToken ${leverageToken} but failed due to invalid leverage token state post rebalance due to stale state. Closing interval...`
+                `Auction taken for LeverageToken ${leverageToken} but failed due to invalid leverage token state post rebalance due to stale state.`
               );
-              const interval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
-              DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
-              clearInterval(interval);
             } else if (errorName === "AuctionNotValid") {
               console.log(
                 `Auction taken for LeverageToken ${leverageToken} but failed due to auction not being valid. Closing interval...`
@@ -397,22 +394,20 @@ const subscribeToAuctionCreated = (lendingAdapter: Address, rebalanceAdapter: Ad
     eventName: "AuctionCreated",
     onError: error => console.error(error),
     onLogs: () => {
+      console.log(`AuctionCreated event received for LeverageToken ${getLeverageTokenForRebalanceAdapter(rebalanceAdapter)}. Participating in Dutch auction...`);
       startDutchAuctionInterval(lendingAdapter, rebalanceAdapter, pricers);
     },
   });
 };
 
 export const startDutchAuctionInterval = (lendingAdapter: Address, rebalanceAdapter: Address, pricers: Pricer[]) => {
-  console.log("AuctionCreated event received. Participating in Dutch auction...");
-
   // Get current Dutch auction interval for this rebalance adapter
   const currentAuctionInterval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
 
-  // If there is an interval that is already running, clear it because auction has finished and new one started so we should start
-  // new interval from max amounts. Interval should close himself but it can happen that it is not closed right away so we need to
-  // close it to avoid having multiple intervals running at the same time for the same rebalance adapter.
+  // If there is an interval that is already running, we do not need to start a new one.
   if (currentAuctionInterval) {
-    clearInterval(currentAuctionInterval);
+    console.log(`Dutch auction interval already exists for LeverageToken ${getLeverageTokenForRebalanceAdapter(rebalanceAdapter)}. Skipping creation of new interval...`);
+    return;
   }
 
   const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
