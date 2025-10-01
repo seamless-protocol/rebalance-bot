@@ -9,7 +9,7 @@ import { sendAlert } from "../utils/alerts";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { startPreLiquidationRebalanceInInterval } from "./preLiquidationRebalance";
 import { getLeverageTokenLendingAdapter, getLeverageTokenRebalanceAdapter } from "../utils/contractHelpers";
-import { startDutchAuctionInterval } from "../subscribers/auctionCreated";
+import { getDutchAuctionInterval, startNewDutchAuctionInterval } from "../subscribers/auctionCreated";
 import { Pricer } from "./pricers/pricer";
 
 // Store whether or not a LeverageToken is already being handled by the dutch auction handling logic using a map.
@@ -93,9 +93,11 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken, pricers: Pric
             `Rebalancer.CreateAuction unsuccessful for LeverageToken ${leverageToken.address}, auction already exists. Participating in Dutch auction...`
           );
 
-          const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken.address);
-          const lendingAdapter = getLeverageTokenLendingAdapter(leverageToken.address);
-          startDutchAuctionInterval(lendingAdapter, rebalanceAdapter, pricers);
+          const dutchAuctionInterval = getDutchAuctionInterval(getLeverageTokenRebalanceAdapter(leverageToken.address));
+          if (!dutchAuctionInterval) {
+            console.log(`No dutch auction interval found for LeverageToken ${leverageToken.address}, starting new dutch auction interval...`);
+            startNewDutchAuctionInterval(getLeverageTokenLendingAdapter(leverageToken.address), getLeverageTokenRebalanceAdapter(leverageToken.address), pricers);
+          }
         } else if (errorName === "IneligibleForRebalance") {
           console.log(
             `Rebalancer.CreateAuction unsuccessful for LeverageToken ${leverageToken.address}, leverage token is not eligible for rebalancing.`

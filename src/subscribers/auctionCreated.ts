@@ -120,11 +120,7 @@ export const handleAuctionCreatedEvent = async (
 
     if (!isAuctionValid) {
       console.log(`Auction is not valid for LeverageToken ${leverageToken}. Closing dutch auction interval...`);
-
-      const interval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
-      DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
-      clearInterval(interval);
-
+      clearDutchAuctionInterval(rebalanceAdapter);
       return;
     }
 
@@ -187,9 +183,7 @@ export const handleAuctionCreatedEvent = async (
       if (!isAuctionValid) {
         console.log(`Auction is no longer valid for LeverageToken ${leverageToken}. Closing dutch auction interval...`);
 
-        const interval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
-        DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
-        clearInterval(interval);
+        clearDutchAuctionInterval(rebalanceAdapter);
 
         return;
       }
@@ -253,6 +247,17 @@ export const handleAuctionCreatedEvent = async (
       );
 
       try {
+
+        // Will throw an error if reverts
+        await dutchAuctionRebalancerContract.simulate.takeAuction([
+          rebalanceAdapter,
+          assetIn,
+          assetOut,
+          takeAmount,
+          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
+          swapParams.swapCalls
+        ]);
+
         const tx = await dutchAuctionRebalancerContract.write.takeAuction([
           rebalanceAdapter,
           assetIn,
@@ -289,9 +294,7 @@ export const handleAuctionCreatedEvent = async (
               console.log(
                 `Auction taken for LeverageToken ${leverageToken} but failed due to auction not being valid. Closing interval...`
               );
-              const interval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
-              DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
-              clearInterval(interval);
+              clearDutchAuctionInterval(rebalanceAdapter);
             }
           } else {
             console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
@@ -399,21 +402,28 @@ const subscribeToAuctionCreated = (lendingAdapter: Address, rebalanceAdapter: Ad
     eventName: "AuctionCreated",
     onError: error => console.error(error),
     onLogs: () => {
-      console.log(`AuctionCreated event received for LeverageToken ${getLeverageTokenForRebalanceAdapter(rebalanceAdapter)}. Participating in Dutch auction...`);
-      startDutchAuctionInterval(lendingAdapter, rebalanceAdapter, pricers);
+      // A new dutch auction interval is created when AuctionCreated events are received
+      console.log(`AuctionCreated event received for LeverageToken ${getLeverageTokenForRebalanceAdapter(rebalanceAdapter)}. Starting new dutch auction interval...`);
+      startNewDutchAuctionInterval(lendingAdapter, rebalanceAdapter, pricers);
     },
   });
 };
 
-export const startDutchAuctionInterval = (lendingAdapter: Address, rebalanceAdapter: Address, pricers: Pricer[]) => {
-  // Get current Dutch auction interval for this rebalance adapter
-  const currentAuctionInterval = DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
+export const getDutchAuctionInterval = (rebalanceAdapter: Address) => {
+  return DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
+};
 
-  // If there is an interval that is already running, we do not need to start a new one.
-  if (currentAuctionInterval) {
-    console.log(`Dutch auction interval already exists for LeverageToken ${getLeverageTokenForRebalanceAdapter(rebalanceAdapter)}. Skipping creation of new interval...`);
-    return;
+const clearDutchAuctionInterval = (rebalanceAdapter: Address) => {
+  const currentInterval = getDutchAuctionInterval(rebalanceAdapter);
+  if (currentInterval) {
+    DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
+    clearInterval(currentInterval);
   }
+};
+
+export const startNewDutchAuctionInterval = (lendingAdapter: Address, rebalanceAdapter: Address, pricers: Pricer[]) => {
+  // If there is an interval that is already running, clear it
+  clearDutchAuctionInterval(rebalanceAdapter);
 
   const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
   const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
