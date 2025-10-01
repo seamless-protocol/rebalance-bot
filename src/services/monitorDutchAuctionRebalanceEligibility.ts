@@ -93,10 +93,11 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken, pricers: Pric
             `Rebalancer.CreateAuction unsuccessful for LeverageToken ${leverageToken.address}, auction already exists. Participating in Dutch auction...`
           );
 
-          const dutchAuctionInterval = getDutchAuctionInterval(getLeverageTokenRebalanceAdapter(leverageToken.address));
+          const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken.address);
+          const dutchAuctionInterval = getDutchAuctionInterval(rebalanceAdapter);
           if (!dutchAuctionInterval) {
             console.log(`No dutch auction interval found for LeverageToken ${leverageToken.address}, starting new dutch auction interval...`);
-            startNewDutchAuctionInterval(getLeverageTokenLendingAdapter(leverageToken.address), getLeverageTokenRebalanceAdapter(leverageToken.address), pricers);
+            startNewDutchAuctionInterval(getLeverageTokenLendingAdapter(leverageToken.address), rebalanceAdapter, pricers);
           }
         } else if (errorName === "IneligibleForRebalance") {
           console.log(
