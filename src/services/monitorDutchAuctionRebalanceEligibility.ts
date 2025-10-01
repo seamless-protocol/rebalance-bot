@@ -56,6 +56,9 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken, pricers: Pric
   try {
     console.log(`Attempting CreateAuction for LeverageToken ${leverageToken.address}...`);
 
+    // Will throw an error if reverts
+    await rebalancerContract.simulate.createAuction([leverageToken.address]);
+
     const tx = await rebalancerContract.write.createAuction([leverageToken.address]);
 
     const receipt = await publicClient.waitForTransactionReceipt({
