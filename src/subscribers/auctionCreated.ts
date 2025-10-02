@@ -275,11 +275,16 @@ export const handleAuctionCreatedEvent = async (
         ]);
         PENDING_TAKE_AUCTION_TRANSACTIONS.set(rebalanceAdapter, tx);
 
-        await publicClient.waitForTransactionReceipt({
+        const receipt = await publicClient.waitForTransactionReceipt({
           hash: tx,
         });
-
         PENDING_TAKE_AUCTION_TRANSACTIONS.delete(rebalanceAdapter);
+
+        if (receipt.status === "reverted") {
+          const errorString = `Transaction to take auction for LeverageToken ${leverageToken} reverted. Transaction hash: ${tx}`;
+          await sendAlert(`*Error submitting takeAuction transaction*\n${errorString}`, LogLevel.ERROR);
+          throw new Error(errorString);
+        }
 
         const { collateralRatio: collateralRatioAfterRebalance } =
           await leverageManagerContract.read.getLeverageTokenState([leverageToken]);
