@@ -140,7 +140,16 @@ export const handleAuctionCreatedEvent = async (
     // If strategy is under-collateralized we are repaying debt and removing collateral
     const assetIn = isOverCollateralized ? collateralAsset : debtAsset;
     const assetOut = isOverCollateralized ? debtAsset : collateralAsset;
-    const maxAmountToTake = isOverCollateralized ? targetDebt - debt : collateral - targetCollateral;
+
+    let maxAmountToTake = isOverCollateralized ? targetDebt - debt : collateral - targetCollateral;
+
+
+    // Decrease maxAmountToTake by 1% to accommodate for collateral ratio continuously decreasing due to borrow interest,
+    // causing the max take amount to continuously decrease as well.
+    // We do this to avoid takeAuction transaction reverts due to take amounts being too high, which can occur if the
+    // latency between the takeAuction simulation and the transaction execution is enough time to cause max take amounts to decrease
+    // for the reason mentioned above
+    maxAmountToTake = maxAmountToTake * 99n / 100n;
 
     const rebalanceType = isOverCollateralized ? RebalanceType.REBALANCE_DOWN : RebalanceType.REBALANCE_UP;
 
@@ -281,7 +290,7 @@ export const handleAuctionCreatedEvent = async (
         PENDING_TAKE_AUCTION_TRANSACTIONS.delete(rebalanceAdapter);
 
         if (receipt.status === "reverted") {
-          const errorString = `Transaction to take auction for LeverageToken ${leverageToken} reverted. Transaction hash: ${tx}`;
+          const errorString = `Transaction to take auction for LeverageToken ${leverageToken} reverted. takeAmount: ${takeAmount}. Transaction hash: ${tx}`;
           await sendAlert(`*Error submitting takeAuction transaction*\n${errorString}`, LogLevel.ERROR);
           throw new Error(errorString);
         }
