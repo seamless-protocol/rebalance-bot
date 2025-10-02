@@ -6,6 +6,7 @@ import {
   DUTCH_AUCTION_POLLING_INTERVAL,
   DUTCH_AUCTION_STEP_COUNT,
   IS_USING_FORK,
+  PENDING_TAKE_AUCTION_TRANSACTIONS,
 } from "../constants/values";
 import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
@@ -248,6 +249,12 @@ export const handleAuctionCreatedEvent = async (
 
       try {
 
+        if (PENDING_TAKE_AUCTION_TRANSACTIONS.has(rebalanceAdapter)) {
+          const pendingTx = PENDING_TAKE_AUCTION_TRANSACTIONS.get(rebalanceAdapter);
+          console.log(`Transaction to take auction for LeverageToken ${leverageToken} is already pending ${pendingTx}. Skipping...`);
+          continue;
+        }
+
         // Will throw an error if reverts
         await dutchAuctionRebalancerContract.simulate.takeAuction([
           rebalanceAdapter,
@@ -266,10 +273,13 @@ export const handleAuctionCreatedEvent = async (
           CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
           swapParams.swapCalls
         ]);
+        PENDING_TAKE_AUCTION_TRANSACTIONS.set(rebalanceAdapter, tx);
 
         await publicClient.waitForTransactionReceipt({
           hash: tx,
         });
+
+        PENDING_TAKE_AUCTION_TRANSACTIONS.delete(rebalanceAdapter);
 
         const { collateralRatio: collateralRatioAfterRebalance } =
           await leverageManagerContract.read.getLeverageTokenState([leverageToken]);
@@ -282,6 +292,8 @@ export const handleAuctionCreatedEvent = async (
           LogLevel.REBALANCED
         );
       } catch (error) {
+        PENDING_TAKE_AUCTION_TRANSACTIONS.delete(rebalanceAdapter);
+
         if (error instanceof BaseError) {
           const revertError = error.walk((error) => error instanceof ContractFunctionRevertedError);
           if (revertError instanceof ContractFunctionRevertedError) {

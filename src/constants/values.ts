@@ -8,6 +8,8 @@ dotenv.config();
 export const DUTCH_AUCTION_ACTIVE_INTERVALS = new Map<Address, any>();
 export const PRE_LIQUIDATION_ACTIVE_INTERVALS = new Map<Address, any>();
 
+export const PENDING_TAKE_AUCTION_TRANSACTIONS = new Map<Address, string | undefined>();
+
 export const BASE_RATIO = parseEther("1");
 export const DUTCH_AUCTION_STEP_COUNT = Number(process.env.DUTCH_AUCTION_STEP_COUNT) || 10;
 export const DUTCH_AUCTION_POLLING_INTERVAL = Number(process.env.DUTCH_AUCTION_POLLING_INTERVAL) || 10000;
