@@ -135,6 +135,17 @@ const executePreLiquidationRebalance = async (
       );
 
       try {
+
+        // Will throw an error if reverts
+        await preLiquidationRebalancer.simulate.preLiquidationRebalance([
+          leverageToken,
+          requiredAmountIn,
+          takeAmount,
+          rebalanceType,
+          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
+          swapParams.swapCalls,
+        ]);
+
         const tx = await preLiquidationRebalancer.write.preLiquidationRebalance([
           leverageToken,
           requiredAmountIn,
