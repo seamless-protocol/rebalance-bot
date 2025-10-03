@@ -147,7 +147,10 @@ export const handleAuctionCreatedEvent = async (
     // causing the max take amount to continuously decrease as well.
     // We do this to avoid takeAuction transaction reverts due to take amounts being too high, which can occur if the
     // latency between the takeAuction simulation and the transaction execution is enough time to cause max take amounts to decrease
-    // for the reason mentioned above
+    // for the reason mentioned above.
+    // The max take amount can also decrease due to redemptions. If a redemption is confirmed between the time of the takeAuction
+    // simulation / gas estimation and the transaction execution, the takeAuction transaction will still be submitted but will revert
+    // if the amount to take is higher than the new max take amount post redemption.
     maxAmountToTake = maxAmountToTake * 99n / 100n;
 
     const rebalanceType = isOverCollateralized ? RebalanceType.REBALANCE_DOWN : RebalanceType.REBALANCE_UP;
