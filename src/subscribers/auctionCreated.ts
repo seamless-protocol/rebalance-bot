@@ -143,7 +143,6 @@ export const handleAuctionCreatedEvent = async (
 
     let maxAmountToTake = isOverCollateralized ? targetDebt - debt : collateral - targetCollateral;
 
-
     // Decrease maxAmountToTake by 1% to accommodate for collateral ratio continuously decreasing due to borrow interest,
     // causing the max take amount to continuously decrease as well.
     // We do this to avoid takeAuction transaction reverts due to take amounts being too high, which can occur if the
@@ -282,7 +281,9 @@ export const handleAuctionCreatedEvent = async (
           CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
           swapParams.swapCalls
         ]);
+
         PENDING_TAKE_AUCTION_TRANSACTIONS.set(rebalanceAdapter, tx);
+        console.log(`takeAuction transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
 
         const receipt = await publicClient.waitForTransactionReceipt({
           hash: tx,
