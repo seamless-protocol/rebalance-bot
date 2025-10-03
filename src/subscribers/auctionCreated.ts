@@ -296,7 +296,11 @@ export const handleAuctionCreatedEvent = async (
         if (receipt.status === "reverted") {
           const errorString = `Transaction to take auction for LeverageToken ${leverageToken} reverted. takeAmount: ${takeAmount}. Transaction hash: ${tx}`;
           await sendAlert(`*Error submitting takeAuction transaction*\n${errorString}`, LogLevel.ERROR);
-          throw new Error(errorString);
+
+          // We continue trying to take the auction with the next step, since it's likely that the transaction reverted
+          // due to the max take amount decreasing during on-chain execution because of borrow interest or redemptions
+          // between the simulation / gas estimation and the takeAuction transaction execution.
+          continue;
         }
 
         const { collateralRatio: collateralRatioAfterRebalance } =
