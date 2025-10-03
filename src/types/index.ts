@@ -55,6 +55,11 @@ export interface LeverageToken {
   lendingAdapter: Address;
 }
 
+export interface PendingTakeAuctionTransaction {
+  hash: string;
+  timestamp: number;
+}
+
 export interface UniswapV2GetAmountsOutArgs {
   inputTokenAddress: Address;
   outputTokenAddress: Address;

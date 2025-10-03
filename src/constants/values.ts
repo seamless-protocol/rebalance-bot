@@ -1,4 +1,5 @@
 import { Address, parseEther } from "viem";
+import { PendingTakeAuctionTransaction } from "../types";
 
 import dotenv from "dotenv";
 
@@ -8,7 +9,8 @@ dotenv.config();
 export const DUTCH_AUCTION_ACTIVE_INTERVALS = new Map<Address, any>();
 export const PRE_LIQUIDATION_ACTIVE_INTERVALS = new Map<Address, any>();
 
-export const PENDING_TAKE_AUCTION_TRANSACTIONS = new Map<Address, string | undefined>();
+export const PENDING_TAKE_AUCTION_TRANSACTIONS = new Map<Address, PendingTakeAuctionTransaction>();
+export const RESUBMIT_TAKE_AUCTION_TIME = Number(process.env.RESUBMIT_TAKE_AUCTION_TIME) || 60000; // 1 minute by default
 
 export const BASE_RATIO = parseEther("1");
 export const DUTCH_AUCTION_STEP_COUNT = Number(process.env.DUTCH_AUCTION_STEP_COUNT) || 10;

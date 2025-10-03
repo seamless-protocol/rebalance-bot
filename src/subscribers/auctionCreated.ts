@@ -7,6 +7,7 @@ import {
   DUTCH_AUCTION_STEP_COUNT,
   IS_USING_FORK,
   PENDING_TAKE_AUCTION_TRANSACTIONS,
+  RESUBMIT_TAKE_AUCTION_TIME,
 } from "../constants/values";
 import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
@@ -25,7 +26,7 @@ import {
   leverageManagerContract,
 } from "../utils/contractHelpers";
 import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
-import { GetRebalanceSwapParamsOutput, LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
+import { GetRebalanceSwapParamsOutput, LeverageToken, LogLevel, PendingTakeAuctionTransaction, RebalanceType, StakeType } from "../types";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { tenderlySimulateTransaction } from "../utils/tenderly";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
@@ -261,9 +262,18 @@ export const handleAuctionCreatedEvent = async (
       try {
 
         if (PENDING_TAKE_AUCTION_TRANSACTIONS.has(rebalanceAdapter)) {
-          const pendingTx = PENDING_TAKE_AUCTION_TRANSACTIONS.get(rebalanceAdapter);
-          console.log(`Transaction to take auction for LeverageToken ${leverageToken} is already pending ${pendingTx}. Skipping...`);
-          continue;
+          const pendingTx = PENDING_TAKE_AUCTION_TRANSACTIONS.get(rebalanceAdapter) as PendingTakeAuctionTransaction;
+          const currentTimestamp = Date.now();
+
+          if (currentTimestamp - pendingTx.timestamp < RESUBMIT_TAKE_AUCTION_TIME) {
+            console.log(`Transaction to take auction for LeverageToken ${leverageToken} is already pending ${pendingTx.hash}. Skipping...`);
+            continue;
+          } else {
+            console.log(`Pending transaction ${pendingTx.hash} to take auction for LeverageToken ${leverageToken} is taking too long to confirm. Attempting new transaction...`);
+
+            // Immediately update the pending transaction to avoid other intervals trying to take the auction as well
+            PENDING_TAKE_AUCTION_TRANSACTIONS.set(rebalanceAdapter, { hash: "ATTEMPTING_NEW_TRANSACTION", timestamp: currentTimestamp });
+          }
         }
 
         // Will throw an error if reverts
@@ -285,7 +295,7 @@ export const handleAuctionCreatedEvent = async (
           swapParams.swapCalls
         ]);
 
-        PENDING_TAKE_AUCTION_TRANSACTIONS.set(rebalanceAdapter, tx);
+        PENDING_TAKE_AUCTION_TRANSACTIONS.set(rebalanceAdapter, { hash: tx, timestamp: Date.now() });
         console.log(`takeAuction transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
 
         const receipt = await publicClient.waitForTransactionReceipt({
