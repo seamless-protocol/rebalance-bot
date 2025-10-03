@@ -1,5 +1,5 @@
 import { Address, parseEther } from "viem";
-import { TakeAuctionLock } from "../types";
+import { LeaseMutex } from "../utils/leaseMutex";
 
 import dotenv from "dotenv";
 
@@ -9,7 +9,7 @@ dotenv.config();
 export const DUTCH_AUCTION_ACTIVE_INTERVALS = new Map<Address, any>();
 export const PRE_LIQUIDATION_ACTIVE_INTERVALS = new Map<Address, any>();
 
-export const TAKE_AUCTION_LOCKS = new Map<Address, TakeAuctionLock>();
+export const TAKE_AUCTION_LOCKS = new Map<Address, LeaseMutex>();
 export const TAKE_AUCTION_LOCK_TIMEOUT = Number(process.env.TAKE_AUCTION_LOCK_TIMEOUT) || 60000; // 1 minute by default
 
 export const BASE_RATIO = parseEther("1");

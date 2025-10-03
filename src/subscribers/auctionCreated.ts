@@ -6,8 +6,7 @@ import {
   DUTCH_AUCTION_POLLING_INTERVAL,
   DUTCH_AUCTION_STEP_COUNT,
   IS_USING_FORK,
-  TAKE_AUCTION_LOCK_TIMEOUT,
-  TAKE_AUCTION_LOCKS,
+  TAKE_AUCTION_LOCK_TIMEOUT
 } from "../constants/values";
 import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
@@ -28,6 +27,7 @@ import {
 import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
 import { GetRebalanceSwapParamsOutput, LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
+import { getLockForRebalanceAdapter } from "../utils/locks";
 import { tenderlySimulateTransaction } from "../utils/tenderly";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
 import { Pricer } from "../services/pricers/pricer";
@@ -260,73 +260,71 @@ export const handleAuctionCreatedEvent = async (
       );
 
       try {
-        // Check if there is a lock for taking the auction and if it's still valid
-        const currentTimestamp = Date.now();
-        const existingLock = TAKE_AUCTION_LOCKS.get(rebalanceAdapter);
-        if (existingLock?.isLocked) {
-          if (currentTimestamp - existingLock.timestamp < TAKE_AUCTION_LOCK_TIMEOUT) {
-            console.log(`Take auction is locked for LeverageToken ${leverageToken}. Skipping...`);
-            continue;
-          } else {
-            console.log(`Take auction lock expired for LeverageToken ${leverageToken}. Proceeding with new attempt...`);
-          }
-        }
+        const lock = getLockForRebalanceAdapter(rebalanceAdapter);
+        let leaseOwner: symbol;
 
-        // Acquire the lock for taking the auction
-        TAKE_AUCTION_LOCKS.set(rebalanceAdapter, {
-          timestamp: currentTimestamp,
-          isLocked: true
-        });
-
-        // Will throw an error if reverts
-        await dutchAuctionRebalancerContract.simulate.takeAuction([
-          rebalanceAdapter,
-          assetIn,
-          assetOut,
-          takeAmount,
-          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
-          swapParams.swapCalls
-        ]);
-
-        const tx = await dutchAuctionRebalancerContract.write.takeAuction([
-          rebalanceAdapter,
-          assetIn,
-          assetOut,
-          takeAmount,
-          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
-          swapParams.swapCalls
-        ]);
-
-        console.log(`takeAuction transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
-
-        const receipt = await publicClient.waitForTransactionReceipt({
-          hash: tx,
-        });
-        TAKE_AUCTION_LOCKS.delete(rebalanceAdapter);
-
-        if (receipt.status === "reverted") {
-          const errorString = `Transaction to take auction for LeverageToken ${leverageToken} reverted. takeAmount: ${takeAmount}. Transaction hash: ${tx}`;
-          await sendAlert(`*Error submitting takeAuction transaction*\n${errorString}`, LogLevel.ERROR);
-
-          // We continue trying to take the auction with the next step, since it's likely that the transaction reverted
-          // due to the max take amount decreasing during on-chain execution because of borrow interest or redemptions
-          // between the simulation / gas estimation and the takeAuction transaction execution.
+        try {
+          // Try to acquire take auction lock
+          leaseOwner = await lock.acquire(TAKE_AUCTION_LOCK_TIMEOUT);
+        } catch (error) {
+          console.log(`Take auction is locked for LeverageToken ${leverageToken}. Skipping...`);
           continue;
         }
 
-        const { collateralRatio: collateralRatioAfterRebalance } =
-          await leverageManagerContract.read.getLeverageTokenState([leverageToken]);
+        try {
+          // Will throw an error if reverts
+          await dutchAuctionRebalancerContract.simulate.takeAuction([
+            rebalanceAdapter,
+            assetIn,
+            assetOut,
+            takeAmount,
+            CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
+            swapParams.swapCalls
+          ]);
 
-        console.log(
-          `Rebalance auction taken successfully. LeverageToken: ${leverageToken}, New collateral ratio: ${collateralRatioAfterRebalance}, Transaction hash: ${tx}`
-        );
-        await sendAlert(
-          `*Rebalance auction taken successfully*\n• LeverageToken: \`${leverageToken}\`\n• New Collateral Ratio: \`${collateralRatioAfterRebalance}\`\n• Transaction Hash: \`${tx}\``,
-          LogLevel.REBALANCED
-        );
+          const tx = await dutchAuctionRebalancerContract.write.takeAuction([
+            rebalanceAdapter,
+            assetIn,
+            assetOut,
+            takeAmount,
+            CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
+            swapParams.swapCalls
+          ]);
+
+          console.log(`takeAuction transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
+
+          const receipt = await publicClient.waitForTransactionReceipt({
+            hash: tx,
+          });
+
+          // Release the lock immediately after the transaction is confirmed to free up the lock for other intervals
+          lock.release(leaseOwner);
+
+          if (receipt.status === "reverted") {
+            const errorString = `Transaction to take auction for LeverageToken ${leverageToken} reverted. takeAmount: ${takeAmount}. Transaction hash: ${tx}`;
+            await sendAlert(`*Error submitting takeAuction transaction*\n${errorString}`, LogLevel.ERROR);
+
+            // We continue trying to take the auction with the next step, since it's likely that the transaction reverted
+            // due to the max take amount decreasing during on-chain execution because of borrow interest or redemptions
+            // between the simulation / gas estimation and the takeAuction transaction execution.
+            continue;
+          }
+
+          const { collateralRatio: collateralRatioAfterRebalance } =
+            await leverageManagerContract.read.getLeverageTokenState([leverageToken]);
+
+          console.log(
+            `Rebalance auction taken successfully. LeverageToken: ${leverageToken}, New collateral ratio: ${collateralRatioAfterRebalance}, Transaction hash: ${tx}`
+          );
+          await sendAlert(
+            `*Rebalance auction taken successfully*\n• LeverageToken: \`${leverageToken}\`\n• New Collateral Ratio: \`${collateralRatioAfterRebalance}\`\n• Transaction Hash: \`${tx}\``,
+            LogLevel.REBALANCED
+          );
+        } finally {
+          // Ensure the lock is released regardless of revert or success
+          lock.release(leaseOwner);
+        }
       } catch (error) {
-        TAKE_AUCTION_LOCKS.delete(rebalanceAdapter);
-
         if (error instanceof BaseError) {
           const revertError = error.walk((error) => error instanceof ContractFunctionRevertedError);
           if (revertError instanceof ContractFunctionRevertedError) {
