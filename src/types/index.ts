@@ -55,11 +55,6 @@ export interface LeverageToken {
   lendingAdapter: Address;
 }
 
-export interface TakeAuctionLock {
-  timestamp: number;
-  isLocked: boolean;
-}
-
 export interface UniswapV2GetAmountsOutArgs {
   inputTokenAddress: Address;
   outputTokenAddress: Address;
