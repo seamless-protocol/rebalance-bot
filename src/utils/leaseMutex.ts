@@ -24,6 +24,7 @@ export class LeaseMutex {
           console.log("Releasing LeaseMutex lock due to expiry")
         }, ttlMs),
       };
+      console.log("LeaseMutex lock acquired by owner");
       return requester;
     }
 

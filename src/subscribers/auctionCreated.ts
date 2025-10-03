@@ -267,7 +267,7 @@ export const handleAuctionCreatedEvent = async (
           // Try to acquire take auction lock
           leaseOwner = lock.acquire(TAKE_AUCTION_LOCK_TIMEOUT);
         } catch (error) {
-          console.log(`Take auction is locked for LeverageToken ${leverageToken}. Skipping...`);
+          console.log(`Take auction mutex is locked for LeverageToken ${leverageToken}. Skipping...`);
           continue;
         }
 
