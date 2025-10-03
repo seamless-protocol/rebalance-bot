@@ -7,12 +7,11 @@ type Lease = {
 export class LeaseMutex {
   private lease: Lease | null = null;
 
-  // Acquire a lease; resolves when you own it or rejects if the lock is occupied
-  async acquire(ttlMs: number): Promise<symbol> {
+  // Acquire a lease, or throw an error if the lock is occupied
+  acquire(ttlMs: number): symbol {
     const requester = Symbol("lease-owner");
     const now = Date.now();
 
-    // Stale or free: take ownership
     if (!this.lease || this.lease.expiresAt <= now) {
       this.clearTimer();
       this.lease = {
@@ -22,6 +21,7 @@ export class LeaseMutex {
           // Auto-expire: just null the lease (stale), allowing override
           this.clearTimer();
           this.lease = null;
+          console.log("Releasing LeaseMutex lock due to expiry")
         }, ttlMs),
       };
       return requester;
@@ -30,11 +30,11 @@ export class LeaseMutex {
     throw new Error("Lock is still occupied");
   }
 
-  // Release if you’re the owner
   release(owner: symbol) {
     if (!this.lease || this.lease.owner !== owner) return;
     this.clearTimer();
     this.lease = null;
+    console.log("LeaseMutex lock released by owner");
   }
 
   private clearTimer() {
