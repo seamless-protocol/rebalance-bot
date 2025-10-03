@@ -55,9 +55,9 @@ export interface LeverageToken {
   lendingAdapter: Address;
 }
 
-export interface PendingTakeAuctionTransaction {
-  hash: string;
+export interface TakeAuctionLock {
   timestamp: number;
+  isLocked: boolean;
 }
 
 export interface UniswapV2GetAmountsOutArgs {

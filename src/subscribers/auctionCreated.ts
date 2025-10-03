@@ -6,8 +6,8 @@ import {
   DUTCH_AUCTION_POLLING_INTERVAL,
   DUTCH_AUCTION_STEP_COUNT,
   IS_USING_FORK,
-  PENDING_TAKE_AUCTION_TRANSACTIONS,
-  RESUBMIT_TAKE_AUCTION_TIME,
+  TAKE_AUCTION_LOCK_TIMEOUT,
+  TAKE_AUCTION_LOCKS,
 } from "../constants/values";
 import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
@@ -26,7 +26,7 @@ import {
   leverageManagerContract,
 } from "../utils/contractHelpers";
 import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
-import { GetRebalanceSwapParamsOutput, LeverageToken, LogLevel, PendingTakeAuctionTransaction, RebalanceType, StakeType } from "../types";
+import { GetRebalanceSwapParamsOutput, LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { tenderlySimulateTransaction } from "../utils/tenderly";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
@@ -260,21 +260,23 @@ export const handleAuctionCreatedEvent = async (
       );
 
       try {
-
-        if (PENDING_TAKE_AUCTION_TRANSACTIONS.has(rebalanceAdapter)) {
-          const pendingTx = PENDING_TAKE_AUCTION_TRANSACTIONS.get(rebalanceAdapter) as PendingTakeAuctionTransaction;
-          const currentTimestamp = Date.now();
-
-          if (currentTimestamp - pendingTx.timestamp < RESUBMIT_TAKE_AUCTION_TIME) {
-            console.log(`Transaction to take auction for LeverageToken ${leverageToken} is already pending ${pendingTx.hash}. Skipping...`);
+        // Check if there is a lock for taking the auction and if it's still valid
+        const currentTimestamp = Date.now();
+        const existingLock = TAKE_AUCTION_LOCKS.get(rebalanceAdapter);
+        if (existingLock?.isLocked) {
+          if (currentTimestamp - existingLock.timestamp < TAKE_AUCTION_LOCK_TIMEOUT) {
+            console.log(`Take auction is locked for LeverageToken ${leverageToken}. Skipping...`);
             continue;
           } else {
-            console.log(`Pending transaction ${pendingTx.hash} to take auction for LeverageToken ${leverageToken} is taking too long to confirm. Attempting new transaction...`);
-
-            // Immediately update the pending transaction to avoid other intervals trying to take the auction as well
-            PENDING_TAKE_AUCTION_TRANSACTIONS.set(rebalanceAdapter, { hash: "ATTEMPTING_NEW_TRANSACTION", timestamp: currentTimestamp });
+            console.log(`Take auction lock expired for LeverageToken ${leverageToken}. Proceeding with new attempt...`);
           }
         }
+
+        // Acquire the lock for taking the auction
+        TAKE_AUCTION_LOCKS.set(rebalanceAdapter, {
+          timestamp: currentTimestamp,
+          isLocked: true
+        });
 
         // Will throw an error if reverts
         await dutchAuctionRebalancerContract.simulate.takeAuction([
@@ -295,13 +297,12 @@ export const handleAuctionCreatedEvent = async (
           swapParams.swapCalls
         ]);
 
-        PENDING_TAKE_AUCTION_TRANSACTIONS.set(rebalanceAdapter, { hash: tx, timestamp: Date.now() });
         console.log(`takeAuction transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
 
         const receipt = await publicClient.waitForTransactionReceipt({
           hash: tx,
         });
-        PENDING_TAKE_AUCTION_TRANSACTIONS.delete(rebalanceAdapter);
+        TAKE_AUCTION_LOCKS.delete(rebalanceAdapter);
 
         if (receipt.status === "reverted") {
           const errorString = `Transaction to take auction for LeverageToken ${leverageToken} reverted. takeAmount: ${takeAmount}. Transaction hash: ${tx}`;
@@ -324,7 +325,7 @@ export const handleAuctionCreatedEvent = async (
           LogLevel.REBALANCED
         );
       } catch (error) {
-        PENDING_TAKE_AUCTION_TRANSACTIONS.delete(rebalanceAdapter);
+        TAKE_AUCTION_LOCKS.delete(rebalanceAdapter);
 
         if (error instanceof BaseError) {
           const revertError = error.walk((error) => error instanceof ContractFunctionRevertedError);
