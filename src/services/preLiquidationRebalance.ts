@@ -1,6 +1,8 @@
 import { Address, BaseError, ContractFunctionRevertedError } from "viem";
 import {
   BASE_RATIO,
+  MAX_TAKE_AMOUNT_SCALING,
+  MAX_TAKE_AMOUNT_SCALING_BASE,
   PRE_LIQUIDATION_ACTIVE_INTERVALS,
   PRE_LIQUIDATION_LOCK_TIMEOUT,
   PRE_LIQUIDATION_POLLING_INTERVAL,
@@ -100,7 +102,7 @@ const executePreLiquidationRebalance = async (
     // The max take amount can also decrease due to redemptions. If a redemption is confirmed between the time of the preLiquidationRebalance
     // simulation / gas estimation and the transaction execution, the preLiquidationRebalance transaction will still be submitted but will revert
     // if the amount to take is higher than the new max take amount post redemption.
-    maxAmountToTake = maxAmountToTake * 99n / 100n;
+    maxAmountToTake = maxAmountToTake * MAX_TAKE_AMOUNT_SCALING / MAX_TAKE_AMOUNT_SCALING_BASE;
 
     const rebalanceType = RebalanceType.REBALANCE_UP;
 

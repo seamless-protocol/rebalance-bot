@@ -5,6 +5,8 @@ import {
   DUTCH_AUCTION_ACTIVE_INTERVALS,
   DUTCH_AUCTION_POLLING_INTERVAL,
   DUTCH_AUCTION_STEP_COUNT,
+  MAX_TAKE_AMOUNT_SCALING,
+  MAX_TAKE_AMOUNT_SCALING_BASE,
   IS_USING_FORK,
   TAKE_AUCTION_LOCK_TIMEOUT
 } from "../constants/values";
@@ -152,7 +154,7 @@ export const handleAuctionCreatedEvent = async (
     // The max take amount can also decrease due to redemptions. If a redemption is confirmed between the time of the takeAuction
     // simulation / gas estimation and the transaction execution, the takeAuction transaction will still be submitted but will revert
     // if the amount to take is higher than the new max take amount post redemption.
-    maxAmountToTake = maxAmountToTake * 99n / 100n;
+    maxAmountToTake = maxAmountToTake * MAX_TAKE_AMOUNT_SCALING / MAX_TAKE_AMOUNT_SCALING_BASE;
 
     const rebalanceType = isOverCollateralized ? RebalanceType.REBALANCE_DOWN : RebalanceType.REBALANCE_UP;
 
