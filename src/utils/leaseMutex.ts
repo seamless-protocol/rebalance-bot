@@ -7,7 +7,7 @@ type Lease = {
 export class LeaseMutex {
   private lease: Lease | null = null;
 
-  // Acquire a lease, or throw an error if the lock is occupied
+  // Acquire the lock, or throw an error if the lock is occupied
   acquire(ttlMs: number): symbol {
     const requester = Symbol("lease-owner");
     const now = Date.now();
@@ -18,7 +18,7 @@ export class LeaseMutex {
         owner: requester,
         expiresAt: now + ttlMs,
         timer: setTimeout(() => {
-          // Auto-expire: just null the lease (stale), allowing override
+          // Auto-expire the lock
           this.clearTimer();
           this.lease = null;
           console.log("Releasing LeaseMutex lock due to expiry")

@@ -2,6 +2,7 @@ import { Address, BaseError, ContractFunctionRevertedError } from "viem";
 import {
   BASE_RATIO,
   PRE_LIQUIDATION_ACTIVE_INTERVALS,
+  PRE_LIQUIDATION_LOCK_TIMEOUT,
   PRE_LIQUIDATION_POLLING_INTERVAL,
   PRE_LIQUIDATION_STEP_COUNT,
 } from "../constants/values";
@@ -22,6 +23,7 @@ import { sendAlert } from "../utils/alerts";
 import { publicClient } from "../utils/transactionHelpers";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 import { CHAIN_ID } from "../constants/chain";
+import { getPreLiquidationLock } from "../utils/locks";
 
 const getLeverageTokenRebalanceData = async (
   leverageToken: Address,
@@ -87,7 +89,18 @@ const executePreLiquidationRebalance = async (
     const assetIn = debtAsset;
     const assetOut = collateralAsset;
     const maxAmountToTakeInDebtAsset = collateralInDebtAsset - targetCollateralInDebtAsset;
-    const maxAmountToTake = (collateral * maxAmountToTakeInDebtAsset) / collateralInDebtAsset;
+
+    let maxAmountToTake = (collateral * maxAmountToTakeInDebtAsset) / collateralInDebtAsset;
+
+    // Decrease maxAmountToTake by 1% to accommodate for collateral ratio continuously decreasing due to borrow interest,
+    // causing the max take amount to continuously decrease as well.
+    // We do this to avoid preLiquidationRebalance transaction reverts due to take amounts being too high, which can occur if the
+    // latency between the preLiquidationRebalance simulation and the transaction execution is enough time to cause max take amounts to decrease
+    // for the reason mentioned above.
+    // The max take amount can also decrease due to redemptions. If a redemption is confirmed between the time of the preLiquidationRebalance
+    // simulation / gas estimation and the transaction execution, the preLiquidationRebalance transaction will still be submitted but will revert
+    // if the amount to take is higher than the new max take amount post redemption.
+    maxAmountToTake = maxAmountToTake * 99n / 100n;
 
     const rebalanceType = RebalanceType.REBALANCE_UP;
 
@@ -135,40 +148,70 @@ const executePreLiquidationRebalance = async (
       );
 
       try {
+        const lock = getPreLiquidationLock(leverageToken);
+        let leaseOwner: symbol;
 
-        // Will throw an error if reverts
-        await preLiquidationRebalancer.simulate.preLiquidationRebalance([
-          leverageToken,
-          requiredAmountIn,
-          takeAmount,
-          rebalanceType,
-          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
-          swapParams.swapCalls,
-        ]);
+        try {
+          // Try to acquire preLiquidationRebalance lock
+          leaseOwner = lock.acquire(PRE_LIQUIDATION_LOCK_TIMEOUT);
+        } catch (error) {
+          console.log(`PreLiquidationRebalance mutex is locked for LeverageToken ${leverageToken}. Skipping...`);
+          continue;
+        }
 
-        const tx = await preLiquidationRebalancer.write.preLiquidationRebalance([
-          leverageToken,
-          requiredAmountIn,
-          takeAmount,
-          rebalanceType,
-          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
-          swapParams.swapCalls,
-        ]);
+        try {
+          // Will throw an error if reverts
+          await preLiquidationRebalancer.simulate.preLiquidationRebalance([
+            leverageToken,
+            requiredAmountIn,
+            takeAmount,
+            rebalanceType,
+            CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
+            swapParams.swapCalls,
+          ]);
 
-        await publicClient.waitForTransactionReceipt({
-          hash: tx,
-        });
+          const tx = await preLiquidationRebalancer.write.preLiquidationRebalance([
+            leverageToken,
+            requiredAmountIn,
+            takeAmount,
+            rebalanceType,
+            CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
+            swapParams.swapCalls,
+          ]);
 
-        const { collateralRatio: collateralRatioAfterRebalance } =
-          await leverageManagerContract.read.getLeverageTokenState([leverageToken]);
+          console.log(`preLiquidationRebalance transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
 
-        console.log(
-          `PreLiquidationRebalance executed successfully. LeverageToken: ${leverageToken}, New collateral ratio: ${collateralRatioAfterRebalance}, Transaction hash: ${tx}`
-        );
-        await sendAlert(
-          `*PreLiquidationRebalance executed successfully*\n• LeverageToken: \`${leverageToken}\`\n• New Collateral Ratio: \`${collateralRatioAfterRebalance}\`\n• Transaction Hash: \`${tx}\``,
-          LogLevel.REBALANCED
-        );
+          const receipt = await publicClient.waitForTransactionReceipt({
+            hash: tx,
+          });
+
+          // Release the lock immediately after the transaction is confirmed to free up the lock for other intervals
+          lock.release(leaseOwner);
+
+          if (receipt.status === "reverted") {
+            const errorString = `Transaction for preLiquidationRebalance of LeverageToken ${leverageToken} reverted. takeAmount: ${takeAmount}. Transaction hash: ${tx}`;
+            await sendAlert(`*Error submitting preLiquidationRebalance transaction*\n${errorString}`, LogLevel.ERROR);
+
+            // We continue trying to preLiquidationRebalance with the next step, since it's likely that the transaction reverted
+            // due to the max take amount decreasing during on-chain execution because of borrow interest or redemptions
+            // between the simulation / gas estimation and the preLiquidationRebalance transaction execution.
+            continue;
+          }
+
+          const { collateralRatio: collateralRatioAfterRebalance } =
+            await leverageManagerContract.read.getLeverageTokenState([leverageToken]);
+
+          console.log(
+            `PreLiquidationRebalance executed successfully. LeverageToken: ${leverageToken}, New collateral ratio: ${collateralRatioAfterRebalance}, Transaction hash: ${tx}`
+          );
+          await sendAlert(
+            `*PreLiquidationRebalance executed successfully*\n• LeverageToken: \`${leverageToken}\`\n• New Collateral Ratio: \`${collateralRatioAfterRebalance}\`\n• Transaction Hash: \`${tx}\``,
+            LogLevel.REBALANCED
+          );
+        } finally {
+          // Ensure the lock is released regardless of revert or success
+          lock.release(leaseOwner);
+        }
       } catch (error) {
         if (error instanceof BaseError) {
           const revertError = error.walk((error) => error instanceof ContractFunctionRevertedError);

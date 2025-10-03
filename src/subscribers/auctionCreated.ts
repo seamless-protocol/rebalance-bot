@@ -27,7 +27,7 @@ import {
 import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
 import { GetRebalanceSwapParamsOutput, LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
-import { getLockForRebalanceAdapter } from "../utils/locks";
+import { getDutchAuctionLock } from "../utils/locks";
 import { tenderlySimulateTransaction } from "../utils/tenderly";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
 import { Pricer } from "../services/pricers/pricer";
@@ -260,7 +260,7 @@ export const handleAuctionCreatedEvent = async (
       );
 
       try {
-        const lock = getLockForRebalanceAdapter(rebalanceAdapter);
+        const lock = getDutchAuctionLock(leverageToken);
         let leaseOwner: symbol;
 
         try {

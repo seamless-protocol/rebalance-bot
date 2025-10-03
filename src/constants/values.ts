@@ -12,6 +12,9 @@ export const PRE_LIQUIDATION_ACTIVE_INTERVALS = new Map<Address, any>();
 export const TAKE_AUCTION_LOCKS = new Map<Address, LeaseMutex>();
 export const TAKE_AUCTION_LOCK_TIMEOUT = Number(process.env.TAKE_AUCTION_LOCK_TIMEOUT) || 60000; // 1 minute by default
 
+export const PRE_LIQUIDATION_LOCKS = new Map<Address, LeaseMutex>();
+export const PRE_LIQUIDATION_LOCK_TIMEOUT = Number(process.env.PRE_LIQUIDATION_LOCK_TIMEOUT) || 60000; // 1 minute by default
+
 export const BASE_RATIO = parseEther("1");
 export const DUTCH_AUCTION_STEP_COUNT = Number(process.env.DUTCH_AUCTION_STEP_COUNT) || 10;
 export const DUTCH_AUCTION_POLLING_INTERVAL = Number(process.env.DUTCH_AUCTION_POLLING_INTERVAL) || 10000;
