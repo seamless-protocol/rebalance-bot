@@ -1,14 +1,15 @@
-import { Address, BaseError, ContractFunctionRevertedError, encodeFunctionData, erc20Abi, formatEther, formatUnits, hexToBigInt, isAddressEqual, toHex } from "viem";
+import { Address, BaseError, ContractFunctionRevertedError, encodeFunctionData, erc20Abi, formatEther, formatUnits, hexToBigInt, isAddressEqual, toHex, WaitForTransactionReceiptReturnType, WaitForTransactionReceiptTimeoutError } from "viem";
 import {
   BASE_RATIO,
   CHECK_PROFITABILITY_WITH_GAS_FEE,
+  IS_DUTCH_AUCTION_INTERVAL_RUNNING,
   DUTCH_AUCTION_ACTIVE_INTERVALS,
   DUTCH_AUCTION_POLLING_INTERVAL,
   DUTCH_AUCTION_STEP_COUNT,
   MAX_TAKE_AMOUNT_SCALING,
   MAX_TAKE_AMOUNT_SCALING_BASE,
   IS_USING_FORK,
-  TAKE_AUCTION_LOCK_TIMEOUT
+  TAKE_AUCTION_TIMEOUT
 } from "../constants/values";
 import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
@@ -29,13 +30,12 @@ import {
 import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
 import { GetRebalanceSwapParamsOutput, LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
-import { getDutchAuctionLock } from "../utils/locks";
 import { tenderlySimulateTransaction } from "../utils/tenderly";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
 import { Pricer } from "../services/pricers/pricer";
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdapter: Address, rebalanceAdapter: Address) => {
-  const [leverageTokenStateResponse, collateralResponse, equityInCollateralAssetResponse, targetRatioResponse, isAuctionValidResponse] = await publicClient.multicall({
+  const [leverageTokenStateResponse, collateralResponse, equityInCollateralAssetResponse, targetRatioResponse, isAuctionValidResponse, currentAuctionMultiplierResponse] = await publicClient.multicall({
     contracts: [
       {
         address: CONTRACT_ADDRESSES[CHAIN_ID].LEVERAGE_MANAGER,
@@ -63,6 +63,11 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
         abi: RebalanceAdapterAbi,
         functionName: "isAuctionValid",
       },
+      {
+        address: rebalanceAdapter,
+        abi: RebalanceAdapterAbi,
+        functionName: "getCurrentAuctionMultiplier"
+      }
     ],
   });
 
@@ -71,7 +76,8 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
     collateralResponse?.result == undefined ||
     equityInCollateralAssetResponse?.result == undefined ||
     targetRatioResponse?.result == undefined ||
-    isAuctionValidResponse?.result == undefined
+    isAuctionValidResponse?.result == undefined ||
+    currentAuctionMultiplierResponse?.result == undefined
   ) {
     console.error("Failed to get leverage token rebalance data");
     throw new Error("Failed to get leverage token rebalance data");
@@ -85,6 +91,7 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
     currentRatio: leverageTokenStateResponse.result.collateralRatio,
     targetRatio: targetRatioResponse.result,
     isAuctionValid: isAuctionValidResponse.result,
+    currentAuctionMultiplier: currentAuctionMultiplierResponse.result,
   };
 };
 
@@ -116,7 +123,7 @@ export const handleAuctionCreatedEvent = async (
   pricers: Pricer[]
 ) => {
   try {
-    const { collateral, debt, equityInDebtAsset, equityInCollateralAsset, currentRatio, targetRatio, isAuctionValid } = await getLeverageTokenRebalanceData(
+    const { collateral, debt, equityInDebtAsset, equityInCollateralAsset, currentRatio, targetRatio, isAuctionValid, currentAuctionMultiplier } = await getLeverageTokenRebalanceData(
       leverageToken,
       lendingAdapter,
       rebalanceAdapter
@@ -124,14 +131,14 @@ export const handleAuctionCreatedEvent = async (
 
     if (!isAuctionValid) {
       console.log(`Auction is not valid for LeverageToken ${leverageToken}. Closing dutch auction interval...`);
-      clearDutchAuctionInterval(rebalanceAdapter);
+      clearDutchAuctionInterval(leverageToken);
       return;
     }
 
     const isOverCollateralized = currentRatio > targetRatio;
 
     console.log(
-      `Attempting to take for ${isOverCollateralized ? "over" : "under"}-collateralized LeverageToken ${leverageToken}...`
+      `Attempting to take for ${isOverCollateralized ? "over" : "under"}-collateralized LeverageToken ${leverageToken}. Current auction multiplier: ${currentAuctionMultiplier}.`
     );
 
     const baseRatio = BASE_RATIO;
@@ -198,7 +205,7 @@ export const handleAuctionCreatedEvent = async (
       if (!isAuctionValid) {
         console.log(`Auction is no longer valid for LeverageToken ${leverageToken}. Closing dutch auction interval...`);
 
-        clearDutchAuctionInterval(rebalanceAdapter);
+        clearDutchAuctionInterval(leverageToken);
 
         return;
       }
@@ -262,70 +269,67 @@ export const handleAuctionCreatedEvent = async (
       );
 
       try {
-        const lock = getDutchAuctionLock(leverageToken);
-        let leaseOwner: symbol;
+        // Will throw an error if reverts
+        await dutchAuctionRebalancerContract.simulate.takeAuction([
+          rebalanceAdapter,
+          assetIn,
+          assetOut,
+          takeAmount,
+          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
+          swapParams.swapCalls
+        ]);
 
+        const tx = await dutchAuctionRebalancerContract.write.takeAuction([
+          rebalanceAdapter,
+          assetIn,
+          assetOut,
+          takeAmount,
+          CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
+          swapParams.swapCalls
+        ]);
+
+        console.log(`takeAuction transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
+
+        let receipt: WaitForTransactionReceiptReturnType;
         try {
-          // Try to acquire take auction lock
-          leaseOwner = lock.acquire(TAKE_AUCTION_LOCK_TIMEOUT);
-        } catch (error) {
-          console.log(`Take auction mutex is locked for LeverageToken ${leverageToken}. Skipping...`);
-          continue;
-        }
-
-        try {
-          // Will throw an error if reverts
-          await dutchAuctionRebalancerContract.simulate.takeAuction([
-            rebalanceAdapter,
-            assetIn,
-            assetOut,
-            takeAmount,
-            CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
-            swapParams.swapCalls
-          ]);
-
-          const tx = await dutchAuctionRebalancerContract.write.takeAuction([
-            rebalanceAdapter,
-            assetIn,
-            assetOut,
-            takeAmount,
-            CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
-            swapParams.swapCalls
-          ]);
-
-          console.log(`takeAuction transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
-
-          const receipt = await publicClient.waitForTransactionReceipt({
+          receipt = await publicClient.waitForTransactionReceipt({
             hash: tx,
+            timeout: TAKE_AUCTION_TIMEOUT
           });
+        } catch (error) {
+          if (error instanceof WaitForTransactionReceiptTimeoutError) {
+            await sendAlert(`*Timeout while waiting for takeAuction transaction receipt for LeverageToken ${leverageToken}*\n• Transaction Hash: \`${tx}\``, LogLevel.ERROR);
+            console.error(`Timeout while waiting for takeAuction transaction receipt for LeverageToken ${leverageToken}. Transaction hash: ${tx}`);
 
-          // Release the lock immediately after the transaction is confirmed to free up the lock for other intervals
-          lock.release(leaseOwner);
-
-          if (receipt.status === "reverted") {
-            const errorString = `Transaction to take auction for LeverageToken ${leverageToken} reverted. takeAmount: ${takeAmount}. Transaction hash: ${tx}`;
-            await sendAlert(`*Error submitting takeAuction transaction*\n${errorString}`, LogLevel.ERROR);
-
-            // We continue trying to take the auction with the next step, since it's likely that the transaction reverted
-            // due to the max take amount decreasing during on-chain execution because of borrow interest or redemptions
-            // between the simulation / gas estimation and the takeAuction transaction execution.
+            // We continue trying to take the auction if waiting for the transaction receipt timed out
             continue;
           }
 
-          const { collateralRatio: collateralRatioAfterRebalance } =
-            await leverageManagerContract.read.getLeverageTokenState([leverageToken]);
-
-          console.log(
-            `Rebalance auction taken successfully. LeverageToken: ${leverageToken}, New collateral ratio: ${collateralRatioAfterRebalance}, Transaction hash: ${tx}`
-          );
-          await sendAlert(
-            `*Rebalance auction taken successfully*\n• LeverageToken: \`${leverageToken}\`\n• New Collateral Ratio: \`${collateralRatioAfterRebalance}\`\n• Transaction Hash: \`${tx}\``,
-            LogLevel.REBALANCED
-          );
-        } finally {
-          // Ensure the lock is released regardless of revert or success
-          lock.release(leaseOwner);
+          console.error(`Error waiting for takeAuction transaction receipt for LeverageToken ${leverageToken}. Error: ${error}`);
+          throw error;
         }
+
+        if (receipt.status === "reverted") {
+          const errorString = `Transaction to take auction for LeverageToken ${leverageToken} reverted. takeAmount: ${takeAmount}. Transaction hash: ${tx}`;
+          await sendAlert(`*Error submitting takeAuction transaction*\n${errorString}`, LogLevel.ERROR);
+          console.error(errorString);
+
+          // We continue trying to take the auction with the next step, since it's likely that the transaction reverted
+          // due to the max take amount decreasing during on-chain execution because of borrow interest or redemptions
+          // between the simulation / gas estimation and the takeAuction transaction execution.
+          continue;
+        }
+
+        const { collateralRatio: collateralRatioAfterRebalance } =
+          await leverageManagerContract.read.getLeverageTokenState([leverageToken]);
+
+        console.log(
+          `Rebalance auction taken successfully. LeverageToken: ${leverageToken}, New collateral ratio: ${collateralRatioAfterRebalance}, Transaction hash: ${tx}`
+        );
+        await sendAlert(
+          `*Rebalance auction taken successfully*\n• LeverageToken: \`${leverageToken}\`\n• New Collateral Ratio: \`${collateralRatioAfterRebalance}\`\n• Transaction Hash: \`${tx}\``,
+          LogLevel.REBALANCED
+        );
       } catch (error) {
         if (error instanceof BaseError) {
           const revertError = error.walk((error) => error instanceof ContractFunctionRevertedError);
@@ -339,7 +343,10 @@ export const handleAuctionCreatedEvent = async (
               console.log(
                 `Auction taken for LeverageToken ${leverageToken} but failed due to auction not being valid. Closing interval...`
               );
-              clearDutchAuctionInterval(rebalanceAdapter);
+              clearDutchAuctionInterval(leverageToken);
+            } else {
+              console.error(`ContractFunctionRevertedError taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
+              throw error;
             }
           } else {
             console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
@@ -353,6 +360,7 @@ export const handleAuctionCreatedEvent = async (
     }
   } catch (error) {
     console.error(`Error handling auction event for LeverageToken ${leverageToken}. Error: ${error}`);
+    sendAlert(`*Unhandled error in handleAuctionCreatedEvent for LeverageToken ${leverageToken}*\n• Error: \`${error}\``, LogLevel.ERROR);
     throw error;
   }
 };
@@ -454,31 +462,43 @@ const subscribeToAuctionCreated = (lendingAdapter: Address, rebalanceAdapter: Ad
   });
 };
 
-export const getDutchAuctionInterval = (rebalanceAdapter: Address) => {
-  return DUTCH_AUCTION_ACTIVE_INTERVALS.get(rebalanceAdapter);
+export const getDutchAuctionInterval = (leverageToken: Address) => {
+  return DUTCH_AUCTION_ACTIVE_INTERVALS.get(leverageToken);
 };
 
-const clearDutchAuctionInterval = (rebalanceAdapter: Address) => {
-  const currentInterval = getDutchAuctionInterval(rebalanceAdapter);
+const clearDutchAuctionInterval = (leverageToken: Address) => {
+  const currentInterval = getDutchAuctionInterval(leverageToken);
+
   if (currentInterval) {
-    DUTCH_AUCTION_ACTIVE_INTERVALS.delete(rebalanceAdapter);
+    IS_DUTCH_AUCTION_INTERVAL_RUNNING.delete(currentInterval);
+    DUTCH_AUCTION_ACTIVE_INTERVALS.delete(leverageToken);
     clearInterval(currentInterval);
   }
 };
 
 export const startNewDutchAuctionInterval = (lendingAdapter: Address, rebalanceAdapter: Address, pricers: Pricer[]) => {
-  // If there is an interval that is already running, clear it
-  clearDutchAuctionInterval(rebalanceAdapter);
-
   const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
   const collateralAsset = getLeverageTokenCollateralAsset(leverageToken);
   const debtAsset = getLeverageTokenDebtAsset(leverageToken);
 
+  // If there is an interval that is already running, clear it
+  clearDutchAuctionInterval(leverageToken);
+
   const interval = setInterval(async () => {
-    await handleAuctionCreatedEvent(leverageToken, lendingAdapter, rebalanceAdapter, collateralAsset, debtAsset, pricers);
+    if (IS_DUTCH_AUCTION_INTERVAL_RUNNING.get(interval)) {
+      console.log(`Previous iteration of Dutch auction interval for LeverageToken ${leverageToken} is already running. Skipping...`);
+      return;
+    }
+
+    try {
+      IS_DUTCH_AUCTION_INTERVAL_RUNNING.set(interval, true);
+      await handleAuctionCreatedEvent(leverageToken, lendingAdapter, rebalanceAdapter, collateralAsset, debtAsset, pricers);
+    } finally {
+      IS_DUTCH_AUCTION_INTERVAL_RUNNING.delete(interval);
+    }
   }, DUTCH_AUCTION_POLLING_INTERVAL);
 
-  DUTCH_AUCTION_ACTIVE_INTERVALS.set(rebalanceAdapter, interval);
+  DUTCH_AUCTION_ACTIVE_INTERVALS.set(leverageToken, interval);
 }
 
 export const subscribeToAllAuctionCreatedEvents = (pricers: Pricer[]) => {
