@@ -149,7 +149,7 @@ const executePreLiquidationRebalance = async (
 
       try {
         // Will throw an error if reverts
-        await preLiquidationRebalancer.simulate.preLiquidationRebalance([
+        const { request: simulationRequest } = await preLiquidationRebalancer.simulate.preLiquidationRebalance([
           leverageToken,
           requiredAmountIn,
           takeAmount,
@@ -165,7 +165,9 @@ const executePreLiquidationRebalance = async (
           rebalanceType,
           CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
           swapParams.swapCalls,
-        ]);
+        ], {
+          gas: simulationRequest.gas ? simulationRequest.gas * 12n / 10n : undefined, // +20% padding
+        });
 
         console.log(`preLiquidationRebalance transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
 

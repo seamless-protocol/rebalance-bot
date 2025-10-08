@@ -283,7 +283,7 @@ export const handleAuctionCreatedEvent = async (
 
       try {
         // Will throw an error if reverts
-        await dutchAuctionRebalancerContract.simulate.takeAuction([
+        const { request: simulationRequest } = await dutchAuctionRebalancerContract.simulate.takeAuction([
           rebalanceAdapter,
           assetIn,
           assetOut,
@@ -299,7 +299,9 @@ export const handleAuctionCreatedEvent = async (
           takeAmount,
           CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
           swapParams.swapCalls
-        ]);
+        ], {
+          gas: simulationRequest.gas ? simulationRequest.gas * 12n / 10n : undefined, // +20% padding
+        });
 
         console.log(`takeAuction transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
 
