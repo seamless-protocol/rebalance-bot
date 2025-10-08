@@ -1,4 +1,5 @@
 import { Address, parseEther } from "viem";
+import { LeaseMutex } from "../utils/leaseMutex";
 
 import dotenv from "dotenv";
 
@@ -6,13 +7,17 @@ dotenv.config();
 
 // LeverageToken -> Dutch auction interval
 export const DUTCH_AUCTION_ACTIVE_INTERVALS = new Map<Address, NodeJS.Timeout>();
-// Dutch auction interval -> Is running
-export const IS_DUTCH_AUCTION_INTERVAL_RUNNING = new Map<NodeJS.Timeout, boolean>();
+// Dutch auction interval -> Lock
+export const DUTCH_AUCTION_INTERVAL_LOCKS = new Map<NodeJS.Timeout, LeaseMutex>();
+// Dutch auction lock timeout
+export const DUTCH_AUCTION_INTERVAL_LOCK_TIMEOUT = Number(process.env.DUTCH_AUCTION_INTERVAL_LOCK_TIMEOUT) || 60000; // 1 minute by default
 
 // LeverageToken -> Pre liquidation interval
 export const PRE_LIQUIDATION_ACTIVE_INTERVALS = new Map<Address, NodeJS.Timeout>();
-// Pre liquidation interval -> Is running
-export const IS_PRE_LIQUIDATION_INTERVAL_RUNNING = new Map<NodeJS.Timeout, boolean>();
+// Pre liquidation interval -> Lock
+export const PRE_LIQUIDATION_INTERVAL_LOCKS = new Map<NodeJS.Timeout, LeaseMutex>();
+// Pre liquidation lock timeout
+export const PRE_LIQUIDATION_INTERVAL_LOCK_TIMEOUT = Number(process.env.PRE_LIQUIDATION_INTERVAL_LOCK_TIMEOUT) || 60000; // 1 minute by default
 
 export const TAKE_AUCTION_TIMEOUT = Number(process.env.TAKE_AUCTION_TIMEOUT) || 60000; // 1 minute by default
 export const PRE_LIQUIDATION_TIMEOUT = Number(process.env.PRE_LIQUIDATION_TIMEOUT) || 60000; // 1 minute by default

@@ -1,8 +1,20 @@
-import { Address, BaseError, ContractFunctionRevertedError, encodeFunctionData, erc20Abi, formatEther, formatUnits, hexToBigInt, isAddressEqual, toHex, WaitForTransactionReceiptReturnType, WaitForTransactionReceiptTimeoutError } from "viem";
+import {
+  Address,
+  BaseError,
+  ContractFunctionRevertedError,
+  encodeFunctionData,
+  erc20Abi,
+  formatEther,
+  formatUnits,
+  hexToBigInt,
+  isAddressEqual,
+  toHex,
+  WaitForTransactionReceiptReturnType,
+  WaitForTransactionReceiptTimeoutError
+} from "viem";
 import {
   BASE_RATIO,
   CHECK_PROFITABILITY_WITH_GAS_FEE,
-  IS_DUTCH_AUCTION_INTERVAL_RUNNING,
   DUTCH_AUCTION_ACTIVE_INTERVALS,
   DUTCH_AUCTION_POLLING_INTERVAL,
   DUTCH_AUCTION_STEP_COUNT,
@@ -33,6 +45,7 @@ import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { tenderlySimulateTransaction } from "../utils/tenderly";
 import { publicClient, walletClient } from "../utils/transactionHelpers";
 import { Pricer } from "../services/pricers/pricer";
+import { getDutchAuctionLock } from '../utils/locks';
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdapter: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, collateralResponse, equityInCollateralAssetResponse, targetRatioResponse, isAuctionValidResponse, currentAuctionMultiplierResponse] = await publicClient.multicall({
@@ -470,7 +483,6 @@ const clearDutchAuctionInterval = (leverageToken: Address) => {
   const currentInterval = getDutchAuctionInterval(leverageToken);
 
   if (currentInterval) {
-    IS_DUTCH_AUCTION_INTERVAL_RUNNING.delete(currentInterval);
     DUTCH_AUCTION_ACTIVE_INTERVALS.delete(leverageToken);
     clearInterval(currentInterval);
   }
@@ -485,16 +497,20 @@ export const startNewDutchAuctionInterval = (lendingAdapter: Address, rebalanceA
   clearDutchAuctionInterval(leverageToken);
 
   const interval = setInterval(async () => {
-    if (IS_DUTCH_AUCTION_INTERVAL_RUNNING.get(interval)) {
-      console.log(`Previous iteration of Dutch auction interval for LeverageToken ${leverageToken} is already running. Skipping...`);
+    const lock = getDutchAuctionLock(leverageToken, interval);
+
+    let leaseOwner: symbol;
+    try {
+      leaseOwner = lock.acquire();
+    } catch (error) {
+      console.log(`Lock for Dutch auction interval for LeverageToken ${leverageToken} is occupied. Skipping interval execution...`);
       return;
     }
 
     try {
-      IS_DUTCH_AUCTION_INTERVAL_RUNNING.set(interval, true);
       await handleAuctionCreatedEvent(leverageToken, lendingAdapter, rebalanceAdapter, collateralAsset, debtAsset, pricers);
     } finally {
-      IS_DUTCH_AUCTION_INTERVAL_RUNNING.delete(interval);
+      lock.release(leaseOwner);
     }
   }, DUTCH_AUCTION_POLLING_INTERVAL);
 

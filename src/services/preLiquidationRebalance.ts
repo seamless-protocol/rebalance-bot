@@ -1,7 +1,6 @@
 import { Address, BaseError, ContractFunctionRevertedError, WaitForTransactionReceiptTimeoutError, WaitForTransactionReceiptReturnType } from "viem";
 import {
   BASE_RATIO,
-  IS_PRE_LIQUIDATION_INTERVAL_RUNNING,
   MAX_TAKE_AMOUNT_SCALING,
   MAX_TAKE_AMOUNT_SCALING_BASE,
   PRE_LIQUIDATION_ACTIVE_INTERVALS,
@@ -26,6 +25,7 @@ import { sendAlert } from "../utils/alerts";
 import { publicClient } from "../utils/transactionHelpers";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 import { CHAIN_ID } from "../constants/chain";
+import { getPreLiquidationLock } from "../utils/locks";
 
 const getLeverageTokenRebalanceData = async (
   leverageToken: Address,
@@ -243,7 +243,6 @@ const clearPreLiquidationInterval = (leverageToken: Address) => {
   const currentInterval = PRE_LIQUIDATION_ACTIVE_INTERVALS.get(leverageToken);
 
   if (currentInterval) {
-    IS_PRE_LIQUIDATION_INTERVAL_RUNNING.delete(currentInterval);
     PRE_LIQUIDATION_ACTIVE_INTERVALS.delete(leverageToken);
     clearInterval(currentInterval);
   }
@@ -260,16 +259,20 @@ export const startPreLiquidationRebalanceInInterval = async (leverageToken: Addr
   const debtAsset = getLeverageTokenDebtAsset(leverageToken);
 
   const interval = setInterval(async () => {
-    if (IS_PRE_LIQUIDATION_INTERVAL_RUNNING.get(interval)) {
-      console.log(`Previous iteration of PreLiquidationRebalance interval for LeverageToken ${leverageToken} is already running. Skipping...`);
+    const lock = getPreLiquidationLock(leverageToken, interval);
+
+    let leaseOwner: symbol;
+    try {
+      leaseOwner = lock.acquire();
+    } catch (error) {
+      console.log(`Lock for PreLiquidationRebalance interval for LeverageToken ${leverageToken} is occupied. Skipping interval execution...`);
       return;
     }
 
     try {
-      IS_PRE_LIQUIDATION_INTERVAL_RUNNING.set(interval, true);
       await executePreLiquidationRebalance(leverageToken, rebalanceAdapter, collateralAsset, debtAsset);
     } finally {
-      IS_PRE_LIQUIDATION_INTERVAL_RUNNING.delete(interval);
+      lock.release(leaseOwner);
     }
 
   }, PRE_LIQUIDATION_POLLING_INTERVAL);
