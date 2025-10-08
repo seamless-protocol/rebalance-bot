@@ -10,14 +10,14 @@ export const DUTCH_AUCTION_ACTIVE_INTERVALS = new Map<Address, NodeJS.Timeout>()
 // Dutch auction interval -> Lock
 export const DUTCH_AUCTION_INTERVAL_LOCKS = new Map<NodeJS.Timeout, LeaseMutex>();
 // Dutch auction lock timeout
-export const DUTCH_AUCTION_INTERVAL_LOCK_TIMEOUT = Number(process.env.DUTCH_AUCTION_INTERVAL_LOCK_TIMEOUT) || 60000; // 1 minute by default
+export const DUTCH_AUCTION_INTERVAL_LOCK_TIMEOUT = Number(process.env.DUTCH_AUCTION_INTERVAL_LOCK_TIMEOUT) || 120000; // 2 minutes by default
 
 // LeverageToken -> Pre liquidation interval
 export const PRE_LIQUIDATION_ACTIVE_INTERVALS = new Map<Address, NodeJS.Timeout>();
 // Pre liquidation interval -> Lock
 export const PRE_LIQUIDATION_INTERVAL_LOCKS = new Map<NodeJS.Timeout, LeaseMutex>();
 // Pre liquidation lock timeout
-export const PRE_LIQUIDATION_INTERVAL_LOCK_TIMEOUT = Number(process.env.PRE_LIQUIDATION_INTERVAL_LOCK_TIMEOUT) || 60000; // 1 minute by default
+export const PRE_LIQUIDATION_INTERVAL_LOCK_TIMEOUT = Number(process.env.PRE_LIQUIDATION_INTERVAL_LOCK_TIMEOUT) || 120000; // 2 minutes by default
 
 export const TAKE_AUCTION_TIMEOUT = Number(process.env.TAKE_AUCTION_TIMEOUT) || 60000; // 1 minute by default
 export const PRE_LIQUIDATION_TIMEOUT = Number(process.env.PRE_LIQUIDATION_TIMEOUT) || 60000; // 1 minute by default
