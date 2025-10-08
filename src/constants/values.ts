@@ -1,12 +1,26 @@
 import { Address, parseEther } from "viem";
+import { LeaseMutex } from "../utils/leaseMutex";
 
 import dotenv from "dotenv";
 
 dotenv.config();
 
-// Map of active intervals that are trying to take on dutch auction for specific rebalance adapter
-export const DUTCH_AUCTION_ACTIVE_INTERVALS = new Map<Address, any>();
-export const PRE_LIQUIDATION_ACTIVE_INTERVALS = new Map<Address, any>();
+// LeverageToken -> Dutch auction interval
+export const DUTCH_AUCTION_ACTIVE_INTERVALS = new Map<Address, NodeJS.Timeout>();
+// Dutch auction interval -> Lock
+export const DUTCH_AUCTION_INTERVAL_LOCKS = new Map<NodeJS.Timeout, LeaseMutex>();
+// Dutch auction lock timeout
+export const DUTCH_AUCTION_INTERVAL_LOCK_TIMEOUT = Number(process.env.DUTCH_AUCTION_INTERVAL_LOCK_TIMEOUT) || 120000; // 2 minutes by default
+
+// LeverageToken -> Pre liquidation interval
+export const PRE_LIQUIDATION_ACTIVE_INTERVALS = new Map<Address, NodeJS.Timeout>();
+// Pre liquidation interval -> Lock
+export const PRE_LIQUIDATION_INTERVAL_LOCKS = new Map<NodeJS.Timeout, LeaseMutex>();
+// Pre liquidation lock timeout
+export const PRE_LIQUIDATION_INTERVAL_LOCK_TIMEOUT = Number(process.env.PRE_LIQUIDATION_INTERVAL_LOCK_TIMEOUT) || 120000; // 2 minutes by default
+
+export const TAKE_AUCTION_TIMEOUT = Number(process.env.TAKE_AUCTION_TIMEOUT) || 60000; // 1 minute by default
+export const PRE_LIQUIDATION_TIMEOUT = Number(process.env.PRE_LIQUIDATION_TIMEOUT) || 60000; // 1 minute by default
 
 export const BASE_RATIO = parseEther("1");
 export const DUTCH_AUCTION_STEP_COUNT = Number(process.env.DUTCH_AUCTION_STEP_COUNT) || 10;
@@ -14,6 +28,9 @@ export const DUTCH_AUCTION_POLLING_INTERVAL = Number(process.env.DUTCH_AUCTION_P
 
 export const PRE_LIQUIDATION_STEP_COUNT = Number(process.env.PRE_LIQUIDATION_STEP_COUNT) || 10;
 export const PRE_LIQUIDATION_POLLING_INTERVAL = Number(process.env.PRE_LIQUIDATION_POLLING_INTERVAL) || 10000;
+
+export const MAX_TAKE_AMOUNT_SCALING_BASE = 10000n;
+export const MAX_TAKE_AMOUNT_SCALING = BigInt(String(process.env.MAX_TAKE_AMOUNT_SCALING) || MAX_TAKE_AMOUNT_SCALING_BASE); // 100% by default
 
 export const ETHERFI_L2_MODE_SYNC_POOL_ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
 
