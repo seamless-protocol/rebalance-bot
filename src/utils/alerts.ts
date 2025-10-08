@@ -1,3 +1,4 @@
+import { CHAIN_ID } from "../constants/chain";
 import { SLACK_ALERT_CHANNEL_ID, SLACK_AUTH_TOKEN } from "../constants/slack";
 
 import { LogLevel } from "../types";
@@ -19,7 +20,7 @@ const notifySlackChannel = async (message: string, logLevel: LogLevel) => {
 
     await slackClient.chat.postMessage({
       channel: SLACK_ALERT_CHANNEL_ID,
-      text: `${getSymbol(logLevel)} ${message}`,
+      text: `${getSymbol(logLevel)} ${message}\n• Chain ID: \`${CHAIN_ID}\``,
     });
   } catch (error) {
     console.error("Error notifying slack channel:", error);
