@@ -22,7 +22,7 @@ import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import RebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import { CONTRACT_ADDRESSES } from "../constants/contracts";
 import { sendAlert } from "../utils/alerts";
-import { publicClient } from "../utils/transactionHelpers";
+import { getPaddedGas, publicClient } from "../utils/transactionHelpers";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 import { CHAIN_ID } from "../constants/chain";
 import { getPreLiquidationLock } from "../utils/locks";
@@ -166,7 +166,7 @@ const executePreLiquidationRebalance = async (
           CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
           swapParams.swapCalls,
         ], {
-          gas: simulationRequest.gas ? simulationRequest.gas * 12n / 10n : undefined, // +20% padding
+          gas: simulationRequest.gas ? getPaddedGas(simulationRequest.gas) : undefined,
         });
 
         console.log(`preLiquidationRebalance transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);

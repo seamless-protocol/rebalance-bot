@@ -43,7 +43,7 @@ import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
 import { GetRebalanceSwapParamsOutput, LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { tenderlySimulateTransaction } from "../utils/tenderly";
-import { publicClient, walletClient } from "../utils/transactionHelpers";
+import { getPaddedGas, publicClient, walletClient } from "../utils/transactionHelpers";
 import { Pricer } from "../services/pricers/pricer";
 import { getDutchAuctionLock } from '../utils/locks';
 
@@ -300,7 +300,7 @@ export const handleAuctionCreatedEvent = async (
           CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
           swapParams.swapCalls
         ], {
-          gas: simulationRequest.gas ? simulationRequest.gas * 12n / 10n : undefined, // +20% padding
+          gas: simulationRequest.gas ? getPaddedGas(simulationRequest.gas) : undefined,
         });
 
         console.log(`takeAuction transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
@@ -427,7 +427,7 @@ const simulateAndCalculateProfitability = async (
   }
 
   const gasEstimate = gas ?? 0n;
-  const paddedGas = (gasEstimate * 11n) / 10n; // +10% padding
+  const paddedGas = getPaddedGas(gasEstimate);
 
   // Price per unit (prioritize EIP-1559, then legacy)
   const perGasCap =

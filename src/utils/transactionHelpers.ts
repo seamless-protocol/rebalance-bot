@@ -1,5 +1,6 @@
 import { Address, createPublicClient, createWalletClient, fallback, http, webSocket } from "viem";
 import { FALLBACK_RPC_URL, MAINNET_FALLBACK_RPC_URL, MAINNET_RPC_URL, PRIMARY_RPC_URL, PRIMARY_RPC_URL_WS, VIEM_CHAIN } from "../constants/chain";
+import { GAS_FEE_PADDING, GAS_FEE_PADDING_BASE } from "../constants/values";
 
 import { ethers } from "ethers";
 import { privateKeyToAccount } from "viem/accounts";
@@ -44,3 +45,7 @@ export const ethersProvider = new ethers.providers.FallbackProvider([
     priority: 2,
   },
 ]);
+
+export const getPaddedGas = (gas: bigint) => {
+  return gas * GAS_FEE_PADDING / GAS_FEE_PADDING_BASE;
+};

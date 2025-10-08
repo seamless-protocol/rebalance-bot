@@ -40,4 +40,7 @@ export const LIFI_SLIPPAGE = Number(process.env.LIFI_SLIPPAGE) || 0.01;
 
 export const CHECK_PROFITABILITY_WITH_GAS_FEE = Boolean(process.env.CHECK_PROFITABILITY_WITH_GAS_FEE && process.env.CHECK_PROFITABILITY_WITH_GAS_FEE.toLowerCase() === "true");
 
+export const GAS_FEE_PADDING = 12n; // +20% padding
+export const GAS_FEE_PADDING_BASE = 10n;
+
 export const IS_USING_FORK = process.env.IS_USING_FORK && process.env.IS_USING_FORK.toLowerCase() === "true";

@@ -1,6 +1,6 @@
 import { BaseError, ContractFunctionRevertedError, getContract, parseEventLogs } from "viem";
 import { LeverageToken, LogLevel, RebalanceStatus } from "../types";
-import { publicClient, walletClient } from "../utils/transactionHelpers";
+import { getPaddedGas, publicClient, walletClient } from "../utils/transactionHelpers";
 
 import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import { CHAIN_ID, LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
@@ -60,7 +60,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken, pricers: Pric
     const { request: simulationRequest } = await rebalancerContract.simulate.createAuction([leverageToken.address]);
 
     const tx = await rebalancerContract.write.createAuction([leverageToken.address], {
-      gas: simulationRequest.gas ? simulationRequest.gas * 12n / 10n : undefined, // +20% padding
+      gas: simulationRequest.gas ? getPaddedGas(simulationRequest.gas) : undefined,
     });
 
     const receipt = await publicClient.waitForTransactionReceipt({
