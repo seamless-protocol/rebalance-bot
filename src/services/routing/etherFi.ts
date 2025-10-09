@@ -128,7 +128,7 @@ export const prepareL2EtherFiEthStakeCalldata = (inputAmount: bigint, outputAmou
       value: 0n,
     },
     {
-      target: ETHERFI_L2_MODE_SYNC_POOL_ETH_ADDRESS,
+      target: CONTRACT_ADDRESSES[CHAIN_ID].ETHERFI_L2_MODE_SYNC_POOL as Address,
       data: depositEthCalldata,
       value: inputAmount,
     },
