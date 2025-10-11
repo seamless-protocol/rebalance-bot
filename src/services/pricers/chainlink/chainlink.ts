@@ -50,11 +50,11 @@ export const PRICE_PATH_TO_USD: Record<Address, Address> = {
 // Maps from base asset -> quote asset -> feed address
 // This mapping is used to define feed addresses for pricing between assets that don't have a feed registered on the Chainlink Feed Registry.
 export const ALTERNATIVE_FEEDS: Record<Address, Record<Address, Address>> = {
-  // wstETH -> stETH for https://app.morpho.org/ethereum/market/0xb8fc70e82bc5bb53e773626fcc6a23f7eefa036918d7ef216ecfb1950a94a85e/wsteth-weth
+  // wstETH -> stETH used by https://app.morpho.org/ethereum/market/0xb8fc70e82bc5bb53e773626fcc6a23f7eefa036918d7ef216ecfb1950a94a85e/wsteth-weth
   "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": {
     "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84": "0x905b7dAbCD3Ce6B792D874e303D336424Cdb1421"
   },
-  // RLP -> USDC for https://app.morpho.org/ethereum/market/0xe1b65304edd8ceaea9b629df4c3c926a37d1216e27900505c04f14b2ed279f33/rlp-usdc
+  // RLP -> USDC used by https://app.morpho.org/ethereum/market/0xe1b65304edd8ceaea9b629df4c3c926a37d1216e27900505c04f14b2ed279f33/rlp-usdc
   "0x4956b52aE2fF65D74CA2d61207523288e4528f96": {
     "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": "0xAdb2c15Fde49D1A4294740aCb650de94184E66b2"
   }
