@@ -4,6 +4,7 @@ import {
   type Address,
 } from "viem";
 import { base, mainnet } from "viem/chains";
+import AggregatorV3InterfaceAbi from "../../../../abis/AggregatorV3Interface";
 import ChainlinkFeedRegistryAbi from "../../../../abis/ChainlinkFeedRegistry";
 import { CHAIN_ID } from "../../../constants/chain";
 import type { Pricer } from "../pricer";
@@ -42,6 +43,21 @@ const MAPPINGS: Record<number, Record<Address, Address>> = {
 // For example, to get the price of weETH, we first fetch weETH/ETH and then ETH/USD.
 export const PRICE_PATH_TO_USD: Record<Address, Address> = {
   "0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee": DENOMINATIONS.ETH, // weETH -> ETH -> USD
+  "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84", // wstETH -> stETH -> USD
+  "0x4956b52aE2fF65D74CA2d61207523288e4528f96": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" // RLP -> USDC -> USD
+}
+
+// Maps from base asset -> quote asset -> feed address
+// This mapping is used to define feed addresses for pricing between assets that don't have a feed registered on the Chainlink Feed Registry.
+export const ALTERNATIVE_FEEDS: Record<Address, Record<Address, Address>> = {
+  // wstETH -> stETH for https://app.morpho.org/ethereum/market/0xb8fc70e82bc5bb53e773626fcc6a23f7eefa036918d7ef216ecfb1950a94a85e/wsteth-weth
+  "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0": {
+    "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84": "0x905b7dAbCD3Ce6B792D874e303D336424Cdb1421"
+  },
+  // RLP -> USDC for https://app.morpho.org/ethereum/market/0xe1b65304edd8ceaea9b629df4c3c926a37d1216e27900505c04f14b2ed279f33/rlp-usdc
+  "0x4956b52aE2fF65D74CA2d61207523288e4528f96": {
+    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": "0xAdb2c15Fde49D1A4294740aCb650de94184E66b2"
+  }
 }
 
 interface CachedPrice {
@@ -78,13 +94,29 @@ export class ChainlinkPricer implements Pricer {
       let rawPrice: bigint;
       let decimals: number;
 
-      // Some assets don't have a direct feed to USD, so we need to fetch the price for the asset in another asset and then fetch the price for the other asset in USD.
+      // Some assets don't have a direct feed to USD registered on the Chainlink Feed Registry, so we need to fetch the price for
+      // the asset in another asset and then fetch the price for the other asset in USD.
       if (baseAsset in PRICE_PATH_TO_USD) {
         const pricePathAsset = PRICE_PATH_TO_USD[baseAsset];
 
-        // Query price from Feed Registry
-        const multicallResults = await mainnetPublicClient.multicall({
-          contracts: [
+        let baseAssetToPricePathAssetContractCalls;
+        // Some paths use alternative defined feeds instead of the Chainlink Feed Registry
+        if (baseAsset in ALTERNATIVE_FEEDS && pricePathAsset in ALTERNATIVE_FEEDS[baseAsset]) {
+          const alternativeFeedAddress = ALTERNATIVE_FEEDS[baseAsset][pricePathAsset];
+          baseAssetToPricePathAssetContractCalls = [
+            {
+              address: alternativeFeedAddress,
+              abi: AggregatorV3InterfaceAbi,
+              functionName: "latestRoundData"
+            },
+            {
+              address: alternativeFeedAddress,
+              abi: AggregatorV3InterfaceAbi,
+              functionName: "decimals"
+            },
+          ];
+        } else {
+          baseAssetToPricePathAssetContractCalls = [
             {
               address: this.FEED_REGISTRY_ADDRESS,
               abi: ChainlinkFeedRegistryAbi,
@@ -97,6 +129,13 @@ export class ChainlinkPricer implements Pricer {
               functionName: "decimals",
               args: [baseAsset, pricePathAsset],
             },
+          ];
+        }
+
+        // Query price from Feed Registry
+        const multicallResults = await mainnetPublicClient.multicall({
+          contracts: [
+            ...(baseAssetToPricePathAssetContractCalls as any),
             {
               address: this.FEED_REGISTRY_ADDRESS,
               abi: ChainlinkFeedRegistryAbi,
