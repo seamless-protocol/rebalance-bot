@@ -10,7 +10,6 @@ export const sendAlert = async (message: string, logLevel: LogLevel) => {
   await notifySlackChannel(message, logLevel);
 };
 
-
 const notifySlackChannel = async (message: string, logLevel: LogLevel) => {
   if (!SLACK_ALERT_CHANNEL_ID || !SLACK_AUTH_TOKEN) {
     return;
