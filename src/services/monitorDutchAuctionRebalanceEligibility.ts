@@ -145,11 +145,29 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number, pricers: Pric
             await tryCreateDutchAuction(leverageToken, pricers);
 
             handledLeverageTokens.delete(leverageToken.address);
-          } catch (handleError) {
+          } catch (error) {
             handledLeverageTokens.delete(leverageToken.address);
-            console.error(`Error creating DutchAuctionRebalance for ${leverageToken.address}: ${handleError}`);
+
+            if (error instanceof BaseError) {
+              const revertError = error.walk((error) => error instanceof ContractFunctionRevertedError);
+              if (revertError instanceof ContractFunctionRevertedError) {
+                const errorName = revertError.data?.errorName;
+                if (errorName === "AuctionAlreadyExists") {
+                  console.error(
+                    `AuctionAlreadyExists error for LeverageToken ${leverageToken.address}.`
+                  );
+                  await sendAlert(
+                    `*Error creating DutchAuctionRebalance*\n• LeverageToken: \`${leverageToken.address}\`\n• \`AuctionAlreadyExists\``,
+                    LogLevel.ERROR
+                  );
+                  return;
+                }
+              }
+            }
+
+            console.error(`Error creating DutchAuctionRebalance for ${leverageToken.address}: ${error}`);
             await sendAlert(
-              `*Error creating DutchAuctionRebalance*\n• LeverageToken: \`${leverageToken.address}\`\n• Error Message: \`${(handleError as Error).message}\``,
+              `*Error creating DutchAuctionRebalance*\n• LeverageToken: \`${leverageToken.address}\`\n• Error Message: \`${(error as Error).message}\``,
               LogLevel.ERROR
             );
           }
