@@ -1,6 +1,13 @@
 import { Address } from "viem";
 import { LeaseMutex } from "./leaseMutex";
-import { PRE_LIQUIDATION_INTERVAL_LOCKS, PRE_LIQUIDATION_INTERVAL_LOCK_TIMEOUT, DUTCH_AUCTION_INTERVAL_LOCKS, DUTCH_AUCTION_INTERVAL_LOCK_TIMEOUT } from "../constants/values";
+import {
+  PRE_LIQUIDATION_INTERVAL_LOCKS,
+  PRE_LIQUIDATION_INTERVAL_LOCK_TIMEOUT,
+  DUTCH_AUCTION_INTERVAL_LOCKS,
+  DUTCH_AUCTION_INTERVAL_LOCK_TIMEOUT,
+  CREATE_AUCTION_LOCKS,
+  CREATE_AUCTION_LOCK_TIMEOUT
+} from "../constants/values";
 
 
 export const getPreLiquidationLock = (leverageToken: Address, interval: NodeJS.Timeout): LeaseMutex => {
@@ -17,6 +24,15 @@ export const getDutchAuctionLock = (leverageToken: Address, interval: NodeJS.Tim
   if (!lock) {
     lock = new LeaseMutex(DUTCH_AUCTION_INTERVAL_LOCK_TIMEOUT, `LeverageToken ${leverageToken}`);
     DUTCH_AUCTION_INTERVAL_LOCKS.set(interval, lock);
+  }
+  return lock;
+};
+
+export const getCreateAuctionLock = (leverageToken: Address): LeaseMutex => {
+  let lock = CREATE_AUCTION_LOCKS.get(leverageToken);
+  if (!lock) {
+    lock = new LeaseMutex(CREATE_AUCTION_LOCK_TIMEOUT, `LeverageToken ${leverageToken}`);
+    CREATE_AUCTION_LOCKS.set(leverageToken, lock);
   }
   return lock;
 };

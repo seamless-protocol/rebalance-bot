@@ -113,7 +113,11 @@ export const getRebalanceSwapParams = async (
 
   // Not profitable, return dummy values because smart contract is not going to be called anyway
   if (requiredAmountIn > amountOutLifi) {
-    return getDummySwapParams();
+    return {
+      isProfitable: false,
+      amountOut: amountOutLifi,
+      swapCalls: [],
+    };
   }
 
   // Encode approve calldata for lifiQuote.to to spend the asset received from the rebalance (executed by the Multicall Executor contract)

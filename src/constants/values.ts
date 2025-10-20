@@ -19,6 +19,12 @@ export const PRE_LIQUIDATION_INTERVAL_LOCKS = new Map<NodeJS.Timeout, LeaseMutex
 // Pre liquidation lock timeout
 export const PRE_LIQUIDATION_INTERVAL_LOCK_TIMEOUT = Number(process.env.PRE_LIQUIDATION_INTERVAL_LOCK_TIMEOUT) || 120000; // 2 minutes by default
 
+// LeverageToken -> Create auction lock
+export const CREATE_AUCTION_LOCKS = new Map<Address, LeaseMutex>();
+// Create auction lock timeout
+export const CREATE_AUCTION_LOCK_TIMEOUT = Number(process.env.CREATE_AUCTION_LOCK_TIMEOUT) || 60000; // 1 minute by default
+
+export const CREATE_AUCTION_TIMEOUT = Number(process.env.CREATE_AUCTION_TIMEOUT) || 60000; // 1 minute by default
 export const TAKE_AUCTION_TIMEOUT = Number(process.env.TAKE_AUCTION_TIMEOUT) || 60000; // 1 minute by default
 export const PRE_LIQUIDATION_TIMEOUT = Number(process.env.PRE_LIQUIDATION_TIMEOUT) || 60000; // 1 minute by default
 
