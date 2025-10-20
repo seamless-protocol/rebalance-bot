@@ -26,7 +26,7 @@ export const getFallbackSwapParams = async (
   const { assetIn, assetOut, takeAmount } = input;
 
   // Fetch routes and quotes from DEXes directly
-  const [amountOutUniV2, uniswapV3Route, amountOutFluidDex] = await Promise.all([
+  const [amountOutUniV2, uniswapV3Route, fluidDexRoute] = await Promise.all([
     getAmountsOutUniswapV2({
       inputTokenAddress: assetOut,
       outputTokenAddress: assetIn,
@@ -46,7 +46,7 @@ export const getFallbackSwapParams = async (
   const routes = [
     { amountOut: amountOutUniV2, prepareCalldata: () => prepareUniswapV2SwapCalldata(assetOut, assetIn, takeAmount, requiredAmountIn) },
     { amountOut: amountOutUniV3, prepareCalldata: () => prepareUniswapV3SwapCalldata(assetOut, uniswapV3Route!, takeAmount, requiredAmountIn) },
-    { amountOut: amountOutFluidDex, prepareCalldata: () => FLUID_DEX.prepareSwapCalldata(assetOut, assetIn, takeAmount) }
+    { amountOut: fluidDexRoute.amountOut, prepareCalldata: () => FLUID_DEX.prepareSwapCalldata(fluidDexRoute.pool, assetOut, takeAmount) }
   ];
 
   // Sort by amountOut in descending order and pick the best one

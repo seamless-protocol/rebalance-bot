@@ -1,9 +1,13 @@
-import { Address, encodeFunctionData, erc20Abi } from "viem";
+import { Address, encodeFunctionData, erc20Abi, getAddress } from "viem";
 import { Call, UniswapV2GetAmountsOutArgs } from "../../types";
 import { getUniswapV2Router02Contract } from "../../utils/contractHelpers";
 import UniswapV2Router02Abi from "../../../abis/UniswapV2Router02";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { CHAIN_ID } from "../../constants/chain";
+
+const UNISWAP_V2_IGNORE_TOKENS = [
+  getAddress("0x4956b52aE2fF65D74CA2d61207523288e4528f96") // RLP, very low liquidity
+]
 
 export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) => {
   try {
@@ -11,7 +15,7 @@ export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) =
 
     const { inputTokenAddress, outputTokenAddress, amountInRaw } = args;
 
-    if (amountInRaw === "0") {
+    if (amountInRaw === "0" || UNISWAP_V2_IGNORE_TOKENS.includes(getAddress(inputTokenAddress)) || UNISWAP_V2_IGNORE_TOKENS.includes(getAddress(outputTokenAddress))) {
       return 0n;
     }
 

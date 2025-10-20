@@ -73,12 +73,6 @@ export const getRouteUniswapV3ExactInput = async (
       return null;
     }
 
-    console.log(`Uniswap V3 Exact Input Quote:
-    From: ${tokenInAddress}
-    To: ${tokenOutAddress}
-    Amount Out: ${v3Route.quote.toExact()}
-  `);
-
     return v3Route;
   } catch (error) {
     console.error("Error getting Uniswap V3 route:", error);
