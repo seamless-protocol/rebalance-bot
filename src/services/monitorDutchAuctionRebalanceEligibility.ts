@@ -73,9 +73,9 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken, pricers: Pric
     })[0];
 
     if (receipt.status === "reverted") {
-      console.error(`Rebalancer.CreateAuction reverted for LeverageToken ${leverageToken.address}, transaction hash: ${tx}. This likely ocurred because the auction was already created earlier in the same block by another rebalancer.`);
+      console.error(`Rebalancer.CreateAuction reverted for LeverageToken ${leverageToken.address}, transaction hash: ${tx}. This likely ocurred because the auction was already created by another rebalancer.`);
       await sendAlert(
-        `*Error creating DutchAuctionRebalance*\n• LeverageToken: \`${leverageToken.address}\`\n• Transaction Hash: \`${tx}\`\n• This likely ocurred because the auction was already created earlier in the same block by another rebalancer.`,
+        `*Error creating DutchAuctionRebalance*\n• LeverageToken: \`${leverageToken.address}\`\n• Transaction Hash: \`${tx}\`\n• This likely ocurred because the auction was already created by another rebalancer.`,
         LogLevel.INFO
       );
 
