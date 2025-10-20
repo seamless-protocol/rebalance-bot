@@ -157,14 +157,14 @@ const monitorDutchAuctionRebalanceEligibility = (interval: number, pricers: Pric
         try {
           leaseOwner = lock.acquire();
         } catch (error) {
-          console.log(`Lock for Dutch auction interval for LeverageToken ${leverageToken.address} is occupied. Skipping interval execution...`);
+          console.log(`Lock for creating Dutch auction for LeverageToken ${leverageToken.address} is occupied. Skipping interval execution...`);
           return;
         }
 
         try {
           await tryCreateDutchAuction(leverageToken, pricers);
         } catch (handleError) {
-          console.error(`Error creating DutchAuctionRebalance for ${leverageToken.address}: ${handleError}`);
+          console.error(`Error creating DutchAuctionRebalance for LeverageToken ${leverageToken.address}: ${handleError}`);
           await sendAlert(
             `*Error creating DutchAuctionRebalance*\n• LeverageToken: \`${leverageToken.address}\`\n• Error Message: \`${(handleError as Error).message}\``,
             LogLevel.ERROR
