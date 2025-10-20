@@ -9,6 +9,7 @@ import {
   StakeType,
 } from "../../types";
 import { getLidoEthStakeQuote, prepareLidoEthStakeCalldata } from "./lido";
+import { FLUID_DEX } from "./fluid";
 
 export const getDummySwapParams = (): GetRebalanceSwapParamsOutput => {
   return {
@@ -24,8 +25,8 @@ export const getFallbackSwapParams = async (
 ): Promise<GetRebalanceSwapParamsOutput> => {
   const { assetIn, assetOut, takeAmount } = input;
 
-  // Fetch the routes and quotes from Uniswap V2 and V3
-  const [amountOutUniswapV2, uniswapV3Route] = await Promise.all([
+  // Fetch routes and quotes from DEXes directly
+  const [amountOutUniV2, uniswapV3Route, amountOutFluidDex] = await Promise.all([
     getAmountsOutUniswapV2({
       inputTokenAddress: assetOut,
       outputTokenAddress: assetIn,
@@ -36,35 +37,35 @@ export const getFallbackSwapParams = async (
       tokenOutAddress: assetIn,
       amountInRaw: takeAmount.toString(),
     }),
+    FLUID_DEX.getEstimateSwapIn(assetOut, assetIn, takeAmount),
   ]);
 
-  // Format them to bigints
-  const amountOutUniV2 = BigInt(amountOutUniswapV2 || "0");
   const amountOutUniV3 = BigInt((uniswapV3Route?.rawQuote || "0").toString());
 
-  // This is the case where the required input amount on auction is bigger than swap amount from both routes
-  // In this case swap will result in insufficient amount out and we will not be able to repay flash loan
-  // In this case we return dummy values and isProfitable will be false
-  if (requiredAmountIn > amountOutUniV2 && requiredAmountIn > amountOutUniV3) {
-    return getDummySwapParams();
-  }
+  // Find the best route by comparing all three options
+  const routes = [
+    { amountOut: amountOutUniV2, prepareCalldata: () => prepareUniswapV2SwapCalldata(assetOut, assetIn, takeAmount, requiredAmountIn) },
+    { amountOut: amountOutUniV3, prepareCalldata: () => prepareUniswapV3SwapCalldata(assetOut, uniswapV3Route!, takeAmount, requiredAmountIn) },
+    { amountOut: amountOutFluidDex, prepareCalldata: () => FLUID_DEX.prepareSwapCalldata(assetOut, assetIn, takeAmount) }
+  ];
 
-  // If the amount out from Uniswap V2 is greater than the amount out from Uniswap V3, we use the Uniswap V2 route
-  // because it provides better price.
-  if (amountOutUniV2 > amountOutUniV3) {
+  // Sort by amountOut in descending order and pick the best one
+  const bestRoute = routes.reduce((best, current) =>
+    current.amountOut >= best.amountOut ? current : best
+  );
+
+  if (bestRoute.amountOut < requiredAmountIn) {
     return {
-      isProfitable: true,
-      amountOut: amountOutUniV2,
-      swapCalls: prepareUniswapV2SwapCalldata(assetOut, assetIn, takeAmount, requiredAmountIn),
-    };
+      isProfitable: false,
+      amountOut: bestRoute.amountOut,
+      swapCalls: [],
+    }
   }
 
-  // If the amount out from Uniswap V3 is greater than or equal to the amount out from Uniswap V2, we use the Uniswap V3 route
-  // because it provides better price.
   return {
     isProfitable: true,
-    amountOut: amountOutUniV3,
-    swapCalls: prepareUniswapV3SwapCalldata(assetOut, uniswapV3Route!, takeAmount, requiredAmountIn),
+    amountOut: bestRoute.amountOut,
+    swapCalls: bestRoute.prepareCalldata(),
   };
 };
 

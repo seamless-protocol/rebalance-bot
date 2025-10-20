@@ -12,7 +12,7 @@ export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) =
     const { inputTokenAddress, outputTokenAddress, amountInRaw } = args;
 
     if (amountInRaw === "0") {
-      return "0";
+      return 0n;
     }
 
     // Convert the input string to BigInt (this is the raw base-units value)
@@ -27,10 +27,10 @@ export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) =
 
     // For a 2-token path, amountsOut = [amountIn, amountOut]
     const outputAmountRaw = amountsOut[1];
-    return outputAmountRaw.toString();
+    return outputAmountRaw;
   } catch (error) {
     console.error("Error calling Uniswap V2 Router02 getAmountsOut:", error);
-    return null;
+    return 0n;
   }
 };
 
