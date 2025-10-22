@@ -10,9 +10,9 @@ import { ChainlinkPricer } from "./services/pricers/chainlink/chainlink";
 import { Pricer } from "./services/pricers/pricer";
 import { createComponentLogger } from "./utils/logger";
 
-const main = async () => {
-  const mainLogger = createComponentLogger('main');
+const mainLogger = createComponentLogger('main');
 
+const main = async () => {
   try {
     mainLogger.info("Starting bot...");
 
@@ -42,16 +42,53 @@ const main = async () => {
     mainLogger.info("Starting auction event subscriptions and monitoring");
     subscribeToAllAuctionCreatedEvents(pricers);
     monitorDutchAuctionRebalanceEligibility(REBALANCE_ELIGIBILITY_POLL_INTERVAL, pricers);
-
-    mainLogger.info("Bot initialization completed successfully");
   } catch (error) {
-    mainLogger.error({ error }, "Error caught in entrypoint, bot has crashed");
-    await sendAlert(
-      `*Error caught in entrypoint, bot has crashed*\n• Error Message: \`${(error as Error).message}\``,
-      LogLevel.ERROR
-    );
+    mainLogger.error({ error }, "Error caught in entrypoint");
     throw error;
   }
 };
+
+const handleCrash = async (error: Error, source: string) => {
+  mainLogger.error({ error, source }, `Bot crashed due to ${source}`);
+
+  try {
+    await sendAlert(
+      `*🚨 REBALANCE BOT CRASHED*\n• Source: \`${source}\`\n• Error: \`${error.message}\`\n• Stack: \`\`\`${error.stack?.substring(0, 500) || 'No stack trace available'}\`\`\``,
+      LogLevel.ERROR
+    );
+  } catch (alertError) {
+    mainLogger.error({ alertError }, "Failed to send crash alert to Slack");
+  }
+
+  // Give some time for the alert to be sent before exiting
+  setTimeout(() => {
+    process.exit(1);
+  }, 3000);
+};
+
+// Handle uncaught exceptions
+process.on('uncaughtException', async (error) => {
+  await handleCrash(error, 'uncaught exception');
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', async (reason) => {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  await handleCrash(error, 'unhandled promise rejection');
+});
+
+// Handle SIGTERM for graceful shutdown
+process.on('SIGTERM', async () => {
+  mainLogger.info("Received SIGTERM, shutting down gracefully");
+  await sendAlert("*Rebalance Bot Shutdown*\n• Reason: SIGTERM received\n• Status: Graceful shutdown", LogLevel.INFO);
+  process.exit(0);
+});
+
+// Handle SIGINT for graceful shutdown
+process.on('SIGINT', async () => {
+  mainLogger.info("Received SIGINT, shutting down gracefully");
+  await sendAlert("*Rebalance Bot Shutdown*\n• Reason: SIGINT received (Ctrl+C)\n• Status: Graceful shutdown", LogLevel.INFO);
+  process.exit(0);
+});
 
 main();
