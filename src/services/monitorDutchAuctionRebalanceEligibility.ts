@@ -15,7 +15,6 @@ import { getDutchAuctionInterval, startNewDutchAuctionInterval } from "../subscr
 import { Pricer } from "./pricers/pricer";
 import { createComponentLogger } from "../utils/logger";
 
-// Create one logger for this entire module
 const logger = createComponentLogger('monitorDutchAuctionRebalanceEligibility');
 
 const getLeverageTokensByRebalanceStatus = async (rebalanceStatuses: RebalanceStatus[]): Promise<LeverageToken[]> => {
@@ -96,7 +95,7 @@ const tryCreateDutchAuction = async (leverageToken: LeverageToken, pricers: Pric
       logger.info({
         leverageToken: leverageToken.address,
         transactionHash: tx,
-        status: createAuctionEvent.args.status
+        status
       }, "Rebalancer.CreateAuction successful, auction created");
 
       const statusMessage =
