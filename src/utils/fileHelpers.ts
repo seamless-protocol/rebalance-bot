@@ -1,5 +1,8 @@
 import fs from "fs";
 import path from "path";
+import { createComponentLogger } from "./logger";
+
+const fileHelpersLogger = createComponentLogger('fileHelpers');
 
 /**
  * Ensures that the directory for a given file path exists.
@@ -47,8 +50,8 @@ export const appendObjectToJsonFile = (filePath: string, newData: any): void => 
     const currentArray = readJsonArrayFromFile(filePath);
     currentArray.push(newData);
     writeJsonArrayToFile(filePath, currentArray);
-    console.log(`Data appended to file: ${filePath}`);
+    fileHelpersLogger.info({ filePath }, "Data appended to file");
   } catch (error) {
-    console.error(`Error appending object to file: ${filePath}`, error);
+    fileHelpersLogger.error({ filePath, error }, "Error appending object to file");
   }
 };

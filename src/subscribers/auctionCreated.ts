@@ -46,6 +46,11 @@ import { tenderlySimulateTransaction } from "../utils/tenderly";
 import { getPaddedGas, publicClient, walletClient } from "../utils/transactionHelpers";
 import { Pricer } from "../services/pricers/pricer";
 import { getDutchAuctionLock } from '../utils/locks';
+import { createComponentLogger } from "../utils/logger";
+
+const dutchAuctionIntervalLogger = createComponentLogger('dutchAuctionInterval');
+const handleAuctionLogger = createComponentLogger('handleAuction');
+const auctionCreatedSubscriberLogger = createComponentLogger('auctionCreatedSubscriber');
 
 const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdapter: Address, rebalanceAdapter: Address) => {
   const [leverageTokenStateResponse, collateralResponse, equityInCollateralAssetResponse, targetRatioResponse, isAuctionValidResponse, currentAuctionMultiplierResponse] = await publicClient.multicall({
@@ -92,7 +97,7 @@ const getLeverageTokenRebalanceData = async (leverageToken: Address, lendingAdap
     isAuctionValidResponse?.result == undefined ||
     currentAuctionMultiplierResponse?.result == undefined
   ) {
-    console.error("Failed to get leverage token rebalance data");
+    handleAuctionLogger.error({ leverageToken }, "Failed to get leverage token rebalance data");
     throw new Error("Failed to get leverage token rebalance data");
   }
 
@@ -143,16 +148,18 @@ export const handleAuctionCreatedEvent = async (
     );
 
     if (!isAuctionValid) {
-      console.log(`Auction is not valid for LeverageToken ${leverageToken}. Closing dutch auction interval...`);
+      handleAuctionLogger.info({ leverageToken }, "Auction is not valid, closing dutch auction interval");
       clearDutchAuctionInterval(leverageToken);
       return;
     }
 
     const isOverCollateralized = currentRatio > targetRatio;
 
-    console.log(
-      `Attempting to take for ${isOverCollateralized ? "over" : "under"}-collateralized LeverageToken ${leverageToken}. Current auction multiplier: ${currentAuctionMultiplier}.`
-    );
+    handleAuctionLogger.info({
+      leverageToken,
+      isOverCollateralized,
+      currentAuctionMultiplier: currentAuctionMultiplier.toString()
+    }, `Attempting to take auction for ${isOverCollateralized ? "over" : "under"}-collateralized LeverageToken`);
 
     const baseRatio = BASE_RATIO;
     const targetCollateral = (equityInCollateralAsset * targetRatio) / (targetRatio - baseRatio);
@@ -216,7 +223,7 @@ export const handleAuctionCreatedEvent = async (
       const [isAuctionValid, newCollateralRatio] = multicallResults[2] as [boolean, bigint];
 
       if (!isAuctionValid) {
-        console.log(`Auction is no longer valid for LeverageToken ${leverageToken}. Closing dutch auction interval...`);
+        handleAuctionLogger.info({ leverageToken }, "Auction is no longer valid, closing dutch auction interval");
 
         clearDutchAuctionInterval(leverageToken);
 
@@ -227,12 +234,13 @@ export const handleAuctionCreatedEvent = async (
       // This can occur on early steps for over-collateralized LeverageTokens due to borrow interest continuously accruing
       // or oracle price fluctuations, which cause the maximum take amount to decrease
       if ((isOverCollateralized && newCollateralRatio < targetRatio) || (!isOverCollateralized && newCollateralRatio > targetRatio)) {
-        console.log(
-          `New collateral ratio ${newCollateralRatio} is not valid for ` +
-          `${isOverCollateralized ? "over" : "under"}-collateralized LeverageToken ` +
-          `${leverageToken} with target ratio ${targetRatio}. ` +
-          `Skipping step ${i}...`
-        );
+        handleAuctionLogger.debug({
+          leverageToken,
+          newCollateralRatio: newCollateralRatio.toString(),
+          targetRatio: targetRatio.toString(),
+          isOverCollateralized,
+          step: i
+        }, "New collateral ratio is not valid for leverage token type, skipping step");
         continue;
       }
 
@@ -245,9 +253,16 @@ export const handleAuctionCreatedEvent = async (
       });
 
       if (!swapParams.isProfitable) {
-        console.log(
-          `Rebalance swap is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} assetOut: ${assetOut}. amountIn: ${requiredAmountIn} assetIn: ${assetIn} swapAmountOut: ${swapParams.amountOut} deficit: ${requiredAmountIn - swapParams.amountOut}. Skipping step ${i}...`
-        );
+        handleAuctionLogger.debug({
+          leverageToken,
+          takeAmount: takeAmount.toString(),
+          assetOut,
+          requiredAmountIn: requiredAmountIn.toString(),
+          assetIn,
+          swapAmountOut: swapParams.amountOut.toString(),
+          deficit: (requiredAmountIn - swapParams.amountOut).toString(),
+          step: i
+        }, "Rebalance swap is not profitable, skipping step");
         continue;
       }
 
@@ -266,20 +281,31 @@ export const handleAuctionCreatedEvent = async (
 
           // If we failed to fetch prices for determining profitability, we should still try to take the auction
           if (!isProfitableWithGasFee && !errorFetchingPrices) {
-            console.log(
-              `Rebalance with gas fee is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} assetOut: ${assetOut}. amountIn: ${requiredAmountIn} assetIn: ${assetIn} assetInProfitUsd: ${assetInProfitUsd} gasFeeUsd: ${gasFeeUsd}. Skipping step ${i}...`
-            );
+            handleAuctionLogger.debug({
+              leverageToken,
+              takeAmount: takeAmount.toString(),
+              assetOut,
+              requiredAmountIn: requiredAmountIn.toString(),
+              assetIn,
+              assetInProfitUsd,
+              gasFeeUsd,
+              step: i
+            }, "Rebalance with gas fee is not profitable, skipping step");
             continue;
           }
         } catch (error) {
-          console.error(`Error simulating gas fee and calculating profitability for ${leverageToken}. Error: ${error}`);
+          handleAuctionLogger.error({ leverageToken, error }, "Error simulating gas fee and calculating profitability");
           throw error;
         }
       }
 
-      console.log(
-        `Rebalance is profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} assetOut: ${assetOut}. amountIn: ${requiredAmountIn} assetIn: ${assetIn}. Participating in Dutch auction...`
-      );
+      handleAuctionLogger.info({
+        leverageToken,
+        takeAmount: takeAmount.toString(),
+        assetOut,
+        requiredAmountIn: requiredAmountIn.toString(),
+        assetIn
+      }, "Rebalance is profitable, participating in Dutch auction");
 
       try {
         // Will throw an error if reverts
@@ -303,7 +329,7 @@ export const handleAuctionCreatedEvent = async (
           gas: simulationRequest.gas ? getPaddedGas(simulationRequest.gas) : undefined,
         });
 
-        console.log(`takeAuction transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
+        handleAuctionLogger.info({ leverageToken, transactionHash: tx }, "takeAuction transaction submitted");
 
         let receipt: WaitForTransactionReceiptReturnType;
         try {
@@ -338,9 +364,11 @@ export const handleAuctionCreatedEvent = async (
         const { collateralRatio: collateralRatioAfterRebalance } =
           await leverageManagerContract.read.getLeverageTokenState([leverageToken]);
 
-        console.log(
-          `Rebalance auction taken successfully. LeverageToken: ${leverageToken}, New collateral ratio: ${collateralRatioAfterRebalance}, Transaction hash: ${tx}`
-        );
+          handleAuctionLogger.info({
+          leverageToken,
+          newCollateralRatio: collateralRatioAfterRebalance.toString(),
+          transactionHash: tx
+        }, "Rebalance auction taken successfully");
         await sendAlert(
           `*Rebalance auction taken successfully*\n• LeverageToken: \`${leverageToken}\`\n• New Collateral Ratio: \`${collateralRatioAfterRebalance}\`\n• Transaction Hash: \`${tx}\``,
           LogLevel.REBALANCED
@@ -351,30 +379,26 @@ export const handleAuctionCreatedEvent = async (
           if (revertError instanceof ContractFunctionRevertedError) {
             const errorName = revertError.data?.errorName;
             if (errorName === "InvalidLeverageTokenStateAfterRebalance") {
-              console.log(
-                `Auction taken for LeverageToken ${leverageToken} but failed due to invalid leverage token state post rebalance due to stale state.`
-              );
+              handleAuctionLogger.warn({ leverageToken }, "Auction taken but failed due to invalid leverage token state post rebalance due to stale state");
             } else if (errorName === "AuctionNotValid") {
-              console.log(
-                `Auction taken for LeverageToken ${leverageToken} but failed due to auction not being valid. Closing interval...`
-              );
+              handleAuctionLogger.info({ leverageToken }, "Auction taken but failed due to auction not being valid, closing interval");
               clearDutchAuctionInterval(leverageToken);
             } else {
-              console.error(`ContractFunctionRevertedError taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
+              handleAuctionLogger.error({ leverageToken, error, errorName }, "ContractFunctionRevertedError taking auction");
               throw error;
             }
           } else {
-            console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
+            handleAuctionLogger.error({ leverageToken, error }, "Error taking auction");
             throw error;
           }
         } else {
-          console.error(`Error taking auction for LeverageToken ${leverageToken}. Error: ${error}`);
+          handleAuctionLogger.error({ leverageToken, error }, "Error taking auction");
           throw error;
         }
       }
     }
   } catch (error) {
-    console.error(`Error handling auction event for LeverageToken ${leverageToken}. Error: ${error}`);
+    handleAuctionLogger.error({ leverageToken, error }, "Unhandled error in handleAuctionCreatedEvent");
     sendAlert(`*Unhandled error in handleAuctionCreatedEvent for LeverageToken ${leverageToken}*\n• Error: \`${error}\``, LogLevel.ERROR);
     throw error;
   }
@@ -462,7 +486,7 @@ const simulateAndCalculateProfitability = async (
 };
 
 const subscribeToAuctionCreated = (lendingAdapter: Address, rebalanceAdapter: Address, pricers: Pricer[]) => {
-  console.log(`Listening for AuctionCreated events on RebalanceAdapter ${rebalanceAdapter}...`);
+  auctionCreatedSubscriberLogger.info({ rebalanceAdapter }, "Listening for AuctionCreated events on RebalanceAdapter");
 
   publicClient.watchContractEvent({
     address: rebalanceAdapter,
@@ -471,7 +495,8 @@ const subscribeToAuctionCreated = (lendingAdapter: Address, rebalanceAdapter: Ad
     onError: error => console.error(error),
     onLogs: () => {
       // A new dutch auction interval is created when AuctionCreated events are received
-      console.log(`AuctionCreated event received for LeverageToken ${getLeverageTokenForRebalanceAdapter(rebalanceAdapter)}. Starting new dutch auction interval...`);
+      const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
+      auctionCreatedSubscriberLogger.info({ leverageToken, rebalanceAdapter }, "AuctionCreated event received, starting new dutch auction interval");
       startNewDutchAuctionInterval(lendingAdapter, rebalanceAdapter, pricers);
     },
   });
@@ -505,7 +530,7 @@ export const startNewDutchAuctionInterval = (lendingAdapter: Address, rebalanceA
     try {
       leaseOwner = lock.acquire();
     } catch (error) {
-      console.log(`Lock for Dutch auction interval for LeverageToken ${leverageToken} is occupied. Skipping interval execution...`);
+      dutchAuctionIntervalLogger.debug({ leverageToken }, "Lock for Dutch auction interval is occupied, skipping interval execution");
       return;
     }
 
@@ -521,8 +546,10 @@ export const startNewDutchAuctionInterval = (lendingAdapter: Address, rebalanceA
 
 export const subscribeToAllAuctionCreatedEvents = (pricers: Pricer[]) => {
   const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH) as LeverageToken[];
-  console.log(`Leverage tokens: ${leverageTokens.length}`);
-  console.log(`LEVERAGE_TOKENS_FILE_PATH: ${LEVERAGE_TOKENS_FILE_PATH}`);
+  auctionCreatedSubscriberLogger.info({
+    leverageTokenCount: leverageTokens.length,
+    filePath: LEVERAGE_TOKENS_FILE_PATH
+  }, "Loading leverage tokens for auction event subscriptions");
   leverageTokens.forEach((leverageToken) => {
     const rebalanceAdapter = getLeverageTokenRebalanceAdapter(leverageToken.address);
     const lendingAdapter = getLeverageTokenLendingAdapter(leverageToken.address);

@@ -26,6 +26,10 @@ import { getPaddedGas, publicClient } from "../utils/transactionHelpers";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 import { CHAIN_ID } from "../constants/chain";
 import { getPreLiquidationLock } from "../utils/locks";
+import { createComponentLogger } from "../utils/logger";
+
+// Create one logger for this entire module
+const logger = createComponentLogger('preLiquidationRebalance');
 
 const getLeverageTokenRebalanceData = async (
   leverageToken: Address,
@@ -60,7 +64,7 @@ const getLeverageTokenRebalanceData = async (
     collateralResponse?.result == undefined
   ) {
     const errorMsg = `Failed to get rebalance data for LeverageToken ${leverageToken}`;
-    console.error(errorMsg);
+    logger.error({ leverageToken, errorMsg }, "Failed to get rebalance data");
     throw new Error(errorMsg);
   }
 
@@ -116,9 +120,7 @@ const executePreLiquidationRebalance = async (
       ]);
 
       if (!isPreLiquidationEligible) {
-        console.log(
-          `LeverageToken ${leverageToken} is not eligible for pre liquidation rebalance. Closing interval...`
-        );
+        logger.info({ leverageToken }, "LeverageToken is not eligible for pre liquidation rebalance, closing interval");
 
         clearPreLiquidationInterval(leverageToken);
 
@@ -137,15 +139,19 @@ const executePreLiquidationRebalance = async (
       });
 
       if (!swapParams.isProfitable) {
-        console.log(
-          `PreLiquidationRebalance is not profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} asset: ${assetIn}. Skipping...`
-        );
+        logger.debug({
+          leverageToken,
+          takeAmount: takeAmount.toString(),
+          assetIn
+        }, "PreLiquidationRebalance is not profitable, skipping");
         continue;
       }
 
-      console.log(
-        `PreLiquidationRebalance is profitable for LeverageToken ${leverageToken}. takeAmount: ${takeAmount} asset: ${assetIn}. Participating in pre liquidation rebalance...`
-      );
+      logger.info({
+        leverageToken,
+        takeAmount: takeAmount.toString(),
+        assetIn
+      }, "PreLiquidationRebalance is profitable, participating in rebalance");
 
       try {
         // Will throw an error if reverts
@@ -169,7 +175,7 @@ const executePreLiquidationRebalance = async (
           gas: simulationRequest.gas ? getPaddedGas(simulationRequest.gas) : undefined,
         });
 
-        console.log(`preLiquidationRebalance transaction submitted for LeverageToken ${leverageToken}. Pending transaction hash: ${tx}`);
+        logger.info({ leverageToken, transactionHash: tx }, "preLiquidationRebalance transaction submitted");
 
         let receipt: WaitForTransactionReceiptReturnType;
         try {
@@ -180,20 +186,24 @@ const executePreLiquidationRebalance = async (
         } catch (error) {
           if (error instanceof WaitForTransactionReceiptTimeoutError) {
             await sendAlert(`*Timeout while waiting for takeAuction transaction receipt for LeverageToken ${leverageToken}*\n• Transaction Hash: \`${tx}\``, LogLevel.ERROR);
-            console.error(`Timeout while waiting for takeAuction transaction receipt for LeverageToken ${leverageToken}. Transaction hash: ${tx}`);
+            logger.error({ leverageToken, transactionHash: tx }, "Timeout while waiting for takeAuction transaction receipt");
 
             // We continue trying to preLiquidationRebalance if waiting for the transaction receipt timed out
             continue;
           }
 
-          console.error(`Error waiting for preLiquidationRebalance transaction receipt for LeverageToken ${leverageToken}. Error: ${error}`);
+          logger.error({ leverageToken, error }, "Error waiting for preLiquidationRebalance transaction receipt");
           throw error;
         }
 
         if (receipt.status === "reverted") {
           const errorString = `Transaction for preLiquidationRebalance of LeverageToken ${leverageToken} reverted. takeAmount: ${takeAmount}. Transaction hash: ${tx}`;
           await sendAlert(`*Error submitting preLiquidationRebalance transaction*\n${errorString}`, LogLevel.ERROR);
-          console.error(errorString);
+          logger.error({
+            leverageToken,
+            takeAmount: takeAmount.toString(),
+            transactionHash: tx
+          }, "Transaction for preLiquidationRebalance reverted");
 
           // We continue trying to preLiquidationRebalance with the next step, since it's likely that the transaction reverted
           // due to the max take amount decreasing during on-chain execution because of borrow interest or redemptions
@@ -204,9 +214,11 @@ const executePreLiquidationRebalance = async (
         const { collateralRatio: collateralRatioAfterRebalance } =
           await leverageManagerContract.read.getLeverageTokenState([leverageToken]);
 
-        console.log(
-          `PreLiquidationRebalance executed successfully. LeverageToken: ${leverageToken}, New collateral ratio: ${collateralRatioAfterRebalance}, Transaction hash: ${tx}`
-        );
+        logger.info({
+          leverageToken,
+          newCollateralRatio: collateralRatioAfterRebalance.toString(),
+          transactionHash: tx
+        }, "PreLiquidationRebalance executed successfully");
         await sendAlert(
           `*PreLiquidationRebalance executed successfully*\n• LeverageToken: \`${leverageToken}\`\n• New Collateral Ratio: \`${collateralRatioAfterRebalance}\`\n• Transaction Hash: \`${tx}\``,
           LogLevel.REBALANCED
@@ -217,25 +229,23 @@ const executePreLiquidationRebalance = async (
           if (revertError instanceof ContractFunctionRevertedError) {
             const errorName = revertError.data?.errorName ?? "";
             if (errorName === "InvalidLeverageTokenStateAfterRebalance") {
-              console.log(
-                `PreLiquidationRebalance executed for LeverageToken ${leverageToken} but failed due to invalid leverage token state post rebalance due to stale state.`
-              );
+              logger.warn({ leverageToken }, "PreLiquidationRebalance executed but failed due to invalid leverage token state post rebalance due to stale state");
             } else {
-              console.error(`ContractFunctionRevertedError executing PreLiquidationRebalance for LeverageToken ${leverageToken}. Error: ${error}`);
+              logger.error({ leverageToken, error, errorName }, "ContractFunctionRevertedError executing PreLiquidationRebalance");
               throw error;
             }
           } else {
-            console.error(`Error executing PreLiquidationRebalance for LeverageToken ${leverageToken}. Error: ${error}`);
+            logger.error({ leverageToken, error }, "Error executing PreLiquidationRebalance");
             throw error;
           }
         } else {
-          console.error(`Error executing PreLiquidationRebalance for LeverageToken ${leverageToken}. Error: ${error}`);
+          logger.error({ leverageToken, error }, "Error executing PreLiquidationRebalance");
           throw error;
         }
       }
     }
   } catch (error) {
-    console.error(`Error executing PreLiquidationRebalance for LeverageToken ${leverageToken}. Error: ${error}`);
+    logger.error({ leverageToken, error }, "Error executing PreLiquidationRebalance");
     sendAlert(`*Error executing PreLiquidationRebalance for LeverageToken ${leverageToken}*\n• Error: \`${error}\``, LogLevel.ERROR);
     throw error;
   }
@@ -252,7 +262,7 @@ const clearPreLiquidationInterval = (leverageToken: Address) => {
 
 export const startPreLiquidationRebalanceInInterval = async (leverageToken: Address) => {
   if (PRE_LIQUIDATION_ACTIVE_INTERVALS.has(leverageToken)) {
-    console.log(`PreLiquidationRebalance interval already exists for LeverageToken ${leverageToken}. Skipping...`);
+    logger.debug({ leverageToken }, "PreLiquidationRebalance interval already exists, skipping");
     return;
   }
 
@@ -267,7 +277,7 @@ export const startPreLiquidationRebalanceInInterval = async (leverageToken: Addr
     try {
       leaseOwner = lock.acquire();
     } catch (error) {
-      console.log(`Lock for PreLiquidationRebalance interval for LeverageToken ${leverageToken} is occupied. Skipping interval execution...`);
+      logger.debug({ leverageToken }, "Lock for PreLiquidationRebalance interval is occupied, skipping interval execution");
       return;
     }
 

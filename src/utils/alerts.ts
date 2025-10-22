@@ -3,8 +3,10 @@ import { SLACK_ALERT_CHANNEL_ID, SLACK_AUTH_TOKEN, SLACK_REBALANCE_BOT_NAME } fr
 
 import { LogLevel } from "../types";
 import { WebClient } from "@slack/web-api";
+import { createComponentLogger } from "./logger";
 
 const slackClient = new WebClient(SLACK_AUTH_TOKEN);
+const alertLogger = createComponentLogger('slack-alerts');
 
 export const sendAlert = async (message: string, logLevel: LogLevel) => {
   await notifySlackChannel(message, logLevel);
@@ -12,18 +14,25 @@ export const sendAlert = async (message: string, logLevel: LogLevel) => {
 
 const notifySlackChannel = async (message: string, logLevel: LogLevel) => {
   if (!SLACK_ALERT_CHANNEL_ID || !SLACK_AUTH_TOKEN) {
+    alertLogger.debug("Slack credentials not configured, skipping alert");
     return;
   }
 
   try {
-    console.log("Notifying slack channel:", SLACK_ALERT_CHANNEL_ID, message);
+    alertLogger.info({
+      channel: SLACK_ALERT_CHANNEL_ID,
+      logLevel: LogLevel[logLevel],
+      messagePreview: message.substring(0, 100) + (message.length > 100 ? '...' : '')
+    }, "Sending Slack alert");
 
     await slackClient.chat.postMessage({
       channel: SLACK_ALERT_CHANNEL_ID,
       text: `${getSymbol(logLevel)} ${message}\n• Chain ID: \`${CHAIN_ID}\`\n• Rebalance Bot: \`${SLACK_REBALANCE_BOT_NAME}\``,
     });
+
+    alertLogger.info("Slack alert sent successfully");
   } catch (error) {
-    console.error("Error notifying slack channel:", error);
+    alertLogger.error({ error }, "Error sending Slack alert");
   }
 };
 
