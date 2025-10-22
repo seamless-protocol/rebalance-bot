@@ -53,7 +53,7 @@ const handleCrash = async (error: Error, source: string) => {
 
   try {
     await sendAlert(
-      `*🚨 REBALANCE BOT CRASHED*\n• Source: \`${source}\`\n• Error: \`${error.message}\`\n• Stack: \`\`\`${error.stack?.substring(0, 500) || 'No stack trace available'}\`\`\``,
+      `*REBALANCE BOT CRASHED*\n• Source: \`${source}\`\n• Error: \`${error.message}\`\n• Stack: \`\`\`${error.stack?.substring(0, 500) || 'No stack trace available'}\`\`\``,
       LogLevel.ERROR
     );
   } catch (alertError) {
