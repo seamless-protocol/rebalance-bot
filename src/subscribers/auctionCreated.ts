@@ -341,20 +341,20 @@ export const handleAuctionCreatedEvent = async (
         } catch (error) {
           if (error instanceof WaitForTransactionReceiptTimeoutError) {
             await sendAlert(`*Timeout while waiting for takeAuction transaction receipt for LeverageToken ${leverageToken}*\n• Transaction Hash: \`${tx}\``, LogLevel.ERROR);
-            console.error(`Timeout while waiting for takeAuction transaction receipt for LeverageToken ${leverageToken}. Transaction hash: ${tx}`);
+            handleAuctionLogger.error({ leverageToken, transactionHash: tx }, "Timeout while waiting for takeAuction transaction receipt");
 
             // We continue trying to take the auction if waiting for the transaction receipt timed out
             continue;
           }
 
-          console.error(`Error waiting for takeAuction transaction receipt for LeverageToken ${leverageToken}. Error: ${error}`);
+          handleAuctionLogger.error({ leverageToken, transactionHash: tx, error }, "Error waiting for takeAuction transaction receipt");
           throw error;
         }
 
         if (receipt.status === "reverted") {
           const errorString = `Transaction to take auction for LeverageToken ${leverageToken} reverted. takeAmount: ${takeAmount}. Transaction hash: ${tx}`;
           await sendAlert(`*Error submitting takeAuction transaction*\n${errorString}`, LogLevel.ERROR);
-          console.error(errorString);
+          handleAuctionLogger.error({ leverageToken, transactionHash: tx, takeAmount: takeAmount }, "Error submitting takeAuction transaction");
 
           // We continue trying to take the auction with the next step, since it's likely that the transaction reverted
           // due to the max take amount decreasing during on-chain execution because of borrow interest or redemptions
@@ -465,13 +465,13 @@ const simulateAndCalculateProfitability = async (
   const ethUsdPrice = await pricers[0].price(CONTRACT_ADDRESSES[CHAIN_ID].WETH);
 
   if (assetInUsdPrice === undefined) {
-    console.error(`Failed to get usd price for asset ${assetIn}`);
+    handleAuctionLogger.error(`Failed to get usd price for asset ${assetIn}`);
     await sendAlert(`Failed to get usd price for asset ${assetIn}`, LogLevel.ERROR);
     return { isProfitableWithGasFee: false, errorFetchingPrices: true, assetInProfitUsd: 0, gasFeeUsd: 0 };
   }
 
   if (ethUsdPrice === undefined) {
-    console.error(`Failed to get usd price for ETH`);
+    handleAuctionLogger.error(`Failed to get usd price for ETH`);
     await sendAlert(`Failed to get usd price for ETH`, LogLevel.ERROR);
     return { isProfitableWithGasFee: false, errorFetchingPrices: true, assetInProfitUsd: 0, gasFeeUsd: 0 };
   }
@@ -492,7 +492,7 @@ const subscribeToAuctionCreated = (lendingAdapter: Address, rebalanceAdapter: Ad
     address: rebalanceAdapter,
     abi: RebalanceAdapterAbi,
     eventName: "AuctionCreated",
-    onError: error => console.error(error),
+    onError: error => auctionCreatedSubscriberLogger.error(error),
     onLogs: () => {
       // A new dutch auction interval is created when AuctionCreated events are received
       const leverageToken = getLeverageTokenForRebalanceAdapter(rebalanceAdapter);
