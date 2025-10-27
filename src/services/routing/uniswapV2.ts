@@ -4,8 +4,9 @@ import { getUniswapV2Router02Contract } from "../../utils/contractHelpers";
 import UniswapV2Router02Abi from "../../../abis/UniswapV2Router02";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { CHAIN_ID } from "../../constants/chain";
+import { ComponentLogger } from "../../utils/logger";
 
-export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) => {
+export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs, logger: ComponentLogger) => {
   try {
     const router = getUniswapV2Router02Contract();
 
@@ -29,7 +30,7 @@ export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs) =
     const outputAmountRaw = amountsOut[1];
     return outputAmountRaw;
   } catch (error) {
-    console.error("Error calling Uniswap V2 Router02 getAmountsOut:", error);
+    logger.dexQuoteError({ error }, 'Error calling Uniswap V2 Router02 getAmountsOut');
     return 0n;
   }
 };

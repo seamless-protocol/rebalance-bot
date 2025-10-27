@@ -1,5 +1,4 @@
-import { Logger } from "pino";
-import { createComponentLogger } from "./logger";
+import { createComponentLogger, ComponentLogger } from "./logger";
 
 type Lease = {
     owner: symbol;
@@ -14,7 +13,7 @@ type Lease = {
 
     private resourceName: string;
 
-    private logger: Logger;
+    private logger: ComponentLogger;
 
     constructor(ttlMs: number, resourceName: string) {
       this.ttlMs = ttlMs;
@@ -36,10 +35,10 @@ type Lease = {
             // Auto-expire the lock
             this.clearTimer();
             this.lease = null;
-            this.logger.info("LeaseMutex lock released due to expiry");
+            this.logger.debug("LeaseMutex lock released due to expiry");
           }, this.ttlMs),
         };
-        this.logger.info("LeaseMutex lock acquired");
+        this.logger.debug("LeaseMutex lock acquired");
         return requester;
       }
 
@@ -50,7 +49,7 @@ type Lease = {
       if (!this.lease || this.lease.owner !== owner) return;
       this.clearTimer();
       this.lease = null;
-      this.logger.info("LeaseMutex lock released");
+      this.logger.debug("LeaseMutex lock released");
     }
 
     private clearTimer() {

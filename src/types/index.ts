@@ -83,6 +83,7 @@ export interface StakeContext {
 }
 
 export interface GetRebalanceSwapParamsInput {
+  leverageToken: Address;
   stakeType: StakeType;
   assetIn: Address;
   assetOut: Address;

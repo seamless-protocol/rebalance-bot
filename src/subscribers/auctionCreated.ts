@@ -245,6 +245,7 @@ export const handleAuctionCreatedEvent = async (
       }
 
       const swapParams = await getRebalanceSwapParams({
+        leverageToken,
         stakeType,
         assetIn,
         assetOut,
@@ -400,7 +401,6 @@ export const handleAuctionCreatedEvent = async (
   } catch (error) {
     handleAuctionLogger.error({ leverageToken, error }, "Unhandled error in handleAuctionCreatedEvent");
     sendAlert(`*Unhandled error in handleAuctionCreatedEvent for LeverageToken ${leverageToken}*\n• Error: \`${error}\``, LogLevel.ERROR);
-    throw error;
   }
 };
 

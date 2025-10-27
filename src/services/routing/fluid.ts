@@ -5,6 +5,7 @@ import { CHAIN_ID } from "../../constants/chain";
 import { publicClient } from "../../utils/transactionHelpers";
 import FluidDexT1Abi from "../../../abis/FluidDexT1";
 import { Call } from "../../types";
+import { ComponentLogger } from "../../utils/logger";
 
 export class FluidDex {
   // Maps from token pair `tokenA-tokenB` to an array of pool addresses that serve the pair
@@ -16,43 +17,52 @@ export class FluidDex {
   async getEstimateSwapIn(
     fromToken: Address,
     toToken: Address,
-    fromAmount: bigint
+    fromAmount: bigint,
+    logger: ComponentLogger
   ): Promise<{ amountOut: bigint; pool: Address | null }> {
-    const pools = await this.getPools(fromToken, toToken);
+    try {
+      const pools = await this.getPools(fromToken, toToken);
 
-    if (!pools || pools.length === 0) {
+      if (!pools || pools.length === 0) {
+        return {
+          amountOut: 0n,
+          pool: null,
+        };
+      }
+
+      const estimates = await publicClient.multicall({
+        contracts: pools.map((pool: Address) => ({
+          address: CONTRACT_ADDRESSES[CHAIN_ID].FLUID_DEX_RESERVES_RESOLVER as Address,
+          abi: FluidDexReservesResolverAbi,
+          functionName: "estimateSwapIn",
+          args: [pool, this.poolsToTokenPairCache.get(pool)?.[0] === fromToken, fromAmount, 0n],
+        })),
+      });
+
+      let bestEstimate = 0n;
+      let bestPool: Address | null = null;
+      estimates.forEach((estimate, index) => {
+        if (estimate.status === "success") {
+          const result = estimate.result as bigint;
+
+          if (result > bestEstimate) {
+            bestEstimate = result;
+            bestPool = pools[index];
+          }
+        }
+      });
+
+      return {
+        amountOut: bestEstimate,
+        pool: bestPool,
+      };
+    } catch (error) {
+      logger.dexQuoteError({ error }, 'Error estimating swap in with Fluid DEX');
       return {
         amountOut: 0n,
         pool: null,
       };
     }
-
-    const estimates = await publicClient.multicall({
-      contracts: pools.map((pool: Address) => ({
-        address: CONTRACT_ADDRESSES[CHAIN_ID].FLUID_DEX_RESERVES_RESOLVER as Address,
-        abi: FluidDexReservesResolverAbi,
-        functionName: "estimateSwapIn",
-        args: [pool, this.poolsToTokenPairCache.get(pool)?.[0] === fromToken, fromAmount, 0n],
-      })),
-    });
-
-    let bestEstimate = 0n;
-    let bestPool: Address | null = null;
-    estimates.forEach((estimate, index) => {
-      if (estimate.status === "success") {
-        const result = estimate.result as bigint;
-
-        if (result > bestEstimate) {
-          bestEstimate = result;
-          bestPool = pools[index];
-        }
-      }
-    });
-
-    return {
-      amountOut: bestEstimate,
-      pool: bestPool,
-    };
   }
 
   prepareSwapCalldata(pool: Address | null, fromToken: Address, fromAmount: bigint): Call[] {

@@ -1,6 +1,5 @@
-import { erc20Abi, encodeFunctionData } from "viem";
 import {getEtherFiEthStakeQuote, prepareEtherFiEthStakeCalldata} from "./etherFi";
-import { getLIFIQuote } from "./lifi";
+import { getLIFIQuote, prepareLIFISwapCalldata } from "./lifi";
 import { getAmountsOutUniswapV2, prepareUniswapV2SwapCalldata } from "./uniswapV2";
 import { getRouteUniswapV3ExactInput, prepareUniswapV3SwapCalldata } from "./uniswapV3";
 import {
@@ -10,69 +9,14 @@ import {
 } from "../../types";
 import { getLidoEthStakeQuote, prepareLidoEthStakeCalldata } from "./lido";
 import { FLUID_DEX } from "./fluid";
+import { createComponentLogger } from "../../utils/logger";
 
-export const getDummySwapParams = (): GetRebalanceSwapParamsOutput => {
-  return {
-    isProfitable: false,
-    amountOut: 0n,
-    swapCalls: [],
-  };
-};
-
-export const getFallbackSwapParams = async (
-  input: GetRebalanceSwapParamsInput,
-  requiredAmountIn: bigint
-): Promise<GetRebalanceSwapParamsOutput> => {
-  const { assetIn, assetOut, takeAmount } = input;
-
-  // Fetch routes and quotes from DEXes directly
-  const [amountOutUniV2, uniswapV3Route, fluidDexRoute] = await Promise.all([
-    getAmountsOutUniswapV2({
-      inputTokenAddress: assetOut,
-      outputTokenAddress: assetIn,
-      amountInRaw: takeAmount.toString(),
-    }),
-    getRouteUniswapV3ExactInput({
-      tokenInAddress: assetOut,
-      tokenOutAddress: assetIn,
-      amountInRaw: takeAmount.toString(),
-    }),
-    FLUID_DEX.getEstimateSwapIn(assetOut, assetIn, takeAmount),
-  ]);
-
-  const amountOutUniV3 = BigInt((uniswapV3Route?.rawQuote || "0").toString());
-
-  // Find the best route by comparing all three options
-  const routes = [
-    { amountOut: amountOutUniV2, prepareCalldata: () => prepareUniswapV2SwapCalldata(assetOut, assetIn, takeAmount, requiredAmountIn) },
-    { amountOut: amountOutUniV3, prepareCalldata: () => prepareUniswapV3SwapCalldata(assetOut, uniswapV3Route!, takeAmount, requiredAmountIn) },
-    { amountOut: fluidDexRoute.amountOut, prepareCalldata: () => FLUID_DEX.prepareSwapCalldata(fluidDexRoute.pool, assetOut, takeAmount) }
-  ];
-
-  // Sort by amountOut in descending order and pick the best one
-  const bestRoute = routes.reduce((best, current) =>
-    current.amountOut >= best.amountOut ? current : best
-  );
-
-  if (bestRoute.amountOut < requiredAmountIn) {
-    return {
-      isProfitable: false,
-      amountOut: bestRoute.amountOut,
-      swapCalls: [],
-    }
-  }
-
-  return {
-    isProfitable: true,
-    amountOut: bestRoute.amountOut,
-    swapCalls: bestRoute.prepareCalldata(),
-  };
-};
+const logger = createComponentLogger('getRebalanceSwapParams');
 
 export const getRebalanceSwapParams = async (
   input: GetRebalanceSwapParamsInput
 ): Promise<GetRebalanceSwapParamsOutput> => {
-  const { assetIn, assetOut, takeAmount, requiredAmountIn, stakeType } = input;
+  const { takeAmount, requiredAmountIn, stakeType } = input;
 
   // We first check if staking / custom route can be used to swap, which typically provides the best price
   if (stakeType === StakeType.ETHERFI_ETH_WEETH) {
@@ -97,52 +41,70 @@ export const getRebalanceSwapParams = async (
     }
   }
 
-  const lifiQuote = await getLIFIQuote({
-    fromToken: assetOut,
-    toToken: assetIn,
+  return getDexSwapParams(input, requiredAmountIn);
+};
+
+export const getDexSwapParams = async (
+  input: GetRebalanceSwapParamsInput,
+  requiredAmountIn: bigint
+): Promise<GetRebalanceSwapParamsOutput> => {
+  const { leverageToken, assetIn, assetOut, takeAmount } = input;
+
+  // Fetch routes and quotes from DEXes directly
+  const [lifiQuote, amountOutUniV2, uniswapV3Route, fluidDexRoute] = await Promise.all([
+    getLIFIQuote({
+      fromToken: assetOut,
+      toToken: assetIn,
+      fromAmount: takeAmount,
+    }, logger),
+    getAmountsOutUniswapV2({
+      inputTokenAddress: assetOut,
+      outputTokenAddress: assetIn,
+      amountInRaw: takeAmount.toString(),
+    }, logger),
+    getRouteUniswapV3ExactInput({
+      tokenInAddress: assetOut,
+      tokenOutAddress: assetIn,
+      amountInRaw: takeAmount.toString(),
+    }, logger),
+    FLUID_DEX.getEstimateSwapIn(assetOut, assetIn, takeAmount, logger),
+  ]);
+
+  // Find the best route by comparing all three options
+  const routes = [
+    { amountOut: lifiQuote?.amountOut || 0n, prepareCalldata: () => prepareLIFISwapCalldata(lifiQuote!, assetOut, takeAmount) },
+    { amountOut: amountOutUniV2, prepareCalldata: () => prepareUniswapV2SwapCalldata(assetOut, assetIn, takeAmount, requiredAmountIn) },
+    { amountOut: BigInt((uniswapV3Route?.rawQuote || "0").toString()), prepareCalldata: () => prepareUniswapV3SwapCalldata(assetOut, uniswapV3Route!, takeAmount, requiredAmountIn) },
+    { amountOut: fluidDexRoute.amountOut, prepareCalldata: () => FLUID_DEX.prepareSwapCalldata(fluidDexRoute.pool, assetOut, takeAmount) }
+  ];
+
+  logger.debug({
+    leverageToken,
+    assetIn,
+    assetOut,
     fromAmount: takeAmount,
-  });
+    lifi: routes[0].amountOut,
+    uniswapV2: routes[1].amountOut,
+    uniswapV3: routes[2].amountOut,
+    fluid: routes[3].amountOut,
+   }, 'DEX swap quotes');
 
-  // In this part fetching LIFI quote failed, so we proceed with fallback option
-  // We fetch quotes directly from DEXs directly and return calldata for the option that provides the best price
-  if (!lifiQuote) {
-    return getFallbackSwapParams(input, requiredAmountIn);
-  }
+  // Sort by amountOut in descending order and pick the best one
+  const bestRoute = routes.reduce((best, current) =>
+    current.amountOut >= best.amountOut ? current : best
+  );
 
-  // Fetching LIFI quote was successful, proceed with checking if it's profitable
-  const amountOutLifi = lifiQuote.amountOut || 0n;
-
-  // Not profitable, return dummy values because smart contract is not going to be called anyway
-  if (requiredAmountIn > amountOutLifi) {
+  if (bestRoute.amountOut < requiredAmountIn) {
     return {
       isProfitable: false,
-      amountOut: amountOutLifi,
+      amountOut: bestRoute.amountOut,
       swapCalls: [],
-    };
+    }
   }
 
-  // Encode approve calldata for lifiQuote.to to spend the asset received from the rebalance (executed by the Multicall Executor contract)
-  const approveCalldata = encodeFunctionData({
-    abi: erc20Abi,
-    functionName: 'approve',
-    args: [lifiQuote.to, takeAmount],
-  });
-
-  // Profitable, return LIFI swap calldata
   return {
     isProfitable: true,
-    amountOut: amountOutLifi,
-    swapCalls: [
-      {
-        target: assetOut,
-        data: approveCalldata,
-        value: 0n,
-      },
-      {
-        target: lifiQuote.to,
-        data: lifiQuote.data,
-        value: 0n,
-      }
-    ]
+    amountOut: bestRoute.amountOut,
+    swapCalls: bestRoute.prepareCalldata(),
   };
 };
