@@ -1,3 +1,4 @@
+import { Logger } from "pino";
 import { Address } from "viem";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
@@ -6,13 +7,13 @@ import { leverageManagerContract } from "../utils/contractHelpers";
 import { appendObjectToJsonFile, readJsonArrayFromFile } from "../utils/fileHelpers";
 import { publicClient } from "../utils/transactionHelpers";
 
-export const addLeverageTokenToList = async (leverageToken: Address) => {
-  console.log(`Adding leverage token ${leverageToken} to the list...`);
+export const addLeverageTokenToList = async (leverageToken: Address, logger: Logger) => {
+  logger.info({ leverageToken }, "Adding leverage token to the list");
 
   const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH);
 
   if (leverageTokens.find((token) => token.address === leverageToken)) {
-    console.warn(`Leverage token ${leverageToken} already exists in the list`);
+    logger.warn({ leverageToken }, "Leverage token already exists in the list");
     return;
   }
 
@@ -26,6 +27,8 @@ export const addLeverageTokenToList = async (leverageToken: Address) => {
     rebalanceAdapter,
     lendingAdapter,
   });
+
+  logger.info({ leverageToken }, "Leverage token added to the list");
 };
 
 /**
