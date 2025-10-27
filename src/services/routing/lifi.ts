@@ -32,7 +32,8 @@ export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuot
     });
 
     return {
-      amountOut: BigInt(result.data.estimate.toAmount),
+      // We use toAmountMin to ensure we get the minimum amount out required to repay the flash loan successfully
+      amountOut: BigInt(result.data.estimate.toAmountMin),
       to: result.data.transactionRequest.to,
       data: result.data.transactionRequest.data,
       value: result.data.transactionRequest.value,
