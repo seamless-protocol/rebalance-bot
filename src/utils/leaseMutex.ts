@@ -6,7 +6,9 @@ type Lease = {
 
   export class LeaseMutex {
     private lease: Lease | null = null;
+
     private ttlMs: number = 120000; // 2 minutes by default
+
     private resourceName: string;
 
     constructor(ttlMs: number, resourceName: string) {

@@ -37,6 +37,7 @@ export interface ContractAddresses {
   ETHERFI_DEPOSIT_ADAPTER?: Address;
   ETHERFI_L2_MODE_SYNC_POOL?: Address;
   ETHERFI_LIQUIDITY_POOL?: Address;
+  FLUID_DEX_RESERVES_RESOLVER?: Address;
   LEVERAGE_MANAGER: Address;
   MULTICALL_EXECUTOR: Address;
   PRE_LIQUIDATION_REBALANCER: Address;
