@@ -2,7 +2,10 @@ import pino from 'pino';
 
 const createLogger = () => {
   const baseConfig = {
-    level: process.env.LOG_LEVEL || 'info',
+    level: process.env.LOG_LEVEL || 'debug',
+    customLevels: {
+      dexQuoteError: 19 // 1 less than 'debug' level to avoid noisy logs
+    },
     serializers: {
       error: pino.stdSerializers.err, // Use error serializer to properly handle Error objects
     }
@@ -35,3 +38,5 @@ export const createComponentLogger = (component: string) =>
   logger.child({ component });
 
 export default logger;
+
+export type ComponentLogger = ReturnType<typeof createComponentLogger>;

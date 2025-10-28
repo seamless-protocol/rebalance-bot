@@ -9,6 +9,7 @@ import { IS_USING_FORK } from "../../constants/values";
 import { primaryEthersProvider, publicClient } from "../../utils/transactionHelpers";
 import UniswapSwapRouter02Abi from "../../../abis/UniswapSwapRouter02";
 import { CHAIN_ID } from "../../constants/chain";
+import { ComponentLogger } from "../../utils/logger";
 
 class StaticGasPriceProvider implements IGasPriceProvider {
   constructor(private gasPriceWei: BigNumber) {}
@@ -34,7 +35,8 @@ const getTokensDecimals = async (tokenInAddress: Address, tokenOutAddress: Addre
 };
 
 export const getRouteUniswapV3ExactInput = async (
-  args: UniswapV3QuoteExactInputArgs
+  args: UniswapV3QuoteExactInputArgs,
+  logger: ComponentLogger
 ): Promise<RouteWithValidQuote | null> => {
   try {
     const { tokenInAddress, tokenOutAddress, amountInRaw } = args;
@@ -67,15 +69,17 @@ export const getRouteUniswapV3ExactInput = async (
     const v3Route = route?.route.find((route) => route.protocol === "V3");
 
     if (!v3Route || !v3Route.quote || !v3Route.route) {
-      console.log(
-        `Uniswap V3: No route found for swap ${tokenInAddress} -> ${tokenOutAddress} with amount in ${amountInRaw}`
-      );
+      logger.dexQuoteError({
+        tokenInAddress,
+        tokenOutAddress,
+        amountInRaw,
+      }, 'No route found for Uniswap V3 swap');
       return null;
     }
 
     return v3Route;
   } catch (error) {
-    console.error("Error getting Uniswap V3 route:", error);
+    logger.dexQuoteError({ error }, 'Error getting Uniswap V3 route');
     return null;
   }
 };

@@ -1,13 +1,14 @@
-import { Logger } from "pino";
+
 import { Address } from "viem";
 import { LendingAdapterAbi } from "../../abis/LendingAdapterAbi";
 import { LeverageManagerAbi } from "../../abis/LeverageManager";
 import { LEVERAGE_TOKENS_FILE_PATH } from "../constants/chain";
 import { leverageManagerContract } from "../utils/contractHelpers";
 import { appendObjectToJsonFile, readJsonArrayFromFile } from "../utils/fileHelpers";
+import { ComponentLogger } from "../utils/logger";
 import { publicClient } from "../utils/transactionHelpers";
 
-export const addLeverageTokenToList = async (leverageToken: Address, logger: Logger) => {
+export const addLeverageTokenToList = async (leverageToken: Address, logger: ComponentLogger) => {
   logger.info({ leverageToken }, "Adding leverage token to the list");
 
   const leverageTokens = readJsonArrayFromFile(LEVERAGE_TOKENS_FILE_PATH);

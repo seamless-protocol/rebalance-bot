@@ -1,11 +1,12 @@
 import axios from "axios";
-import { getAddress } from "viem";
+import { Address, encodeFunctionData, erc20Abi, getAddress } from "viem";
 import { LIFI_API_KEY, LIFI_API_URL, LIFI_SLIPPAGE } from "../../constants/values";
 import { CHAIN_ID } from "../../constants/chain";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
-import { GetLIFIQuoteInput, GetLIFIQuoteOutput } from "../../types";
+import { Call, GetLIFIQuoteInput, GetLIFIQuoteOutput } from "../../types";
+import { ComponentLogger } from "../../utils/logger";
 
-export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuoteOutput | null> => {
+export const getLIFIQuote = async (args: GetLIFIQuoteInput, logger: ComponentLogger): Promise<GetLIFIQuoteOutput | null> => {
   if (!LIFI_API_KEY) {
     return null;
   }
@@ -38,7 +39,28 @@ export const getLIFIQuote = async (args: GetLIFIQuoteInput): Promise<GetLIFIQuot
       value: result.data.transactionRequest.value,
     };
   } catch (error) {
-    console.error(error);
+    logger.dexQuoteError({ error }, 'Error getting LIFI quote');
     return null;
   }
+};
+
+export const prepareLIFISwapCalldata = (lifiQuote: GetLIFIQuoteOutput, assetIn: Address, inputAmount: bigint): Call[] => {
+  const approveCalldata = encodeFunctionData({
+    abi: erc20Abi,
+    functionName: 'approve',
+    args: [lifiQuote.to, inputAmount],
+  });
+
+  return [
+    {
+      target: assetIn,
+      data: approveCalldata,
+      value: 0n,
+    },
+    {
+      target: lifiQuote.to,
+      data: lifiQuote.data,
+      value: 0n,
+    }
+  ];
 };

@@ -131,6 +131,7 @@ const executePreLiquidationRebalance = async (
       const requiredAmountIn = await preLiquidationRebalancer.read.getAmountIn([leverageToken, takeAmount]);
 
       const swapParams = await getRebalanceSwapParams({
+        leverageToken,
         stakeType: StakeType.NONE,
         assetIn,
         assetOut,
