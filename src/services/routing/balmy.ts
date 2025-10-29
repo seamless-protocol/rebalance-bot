@@ -52,7 +52,11 @@ const sdk = buildSDK({
 export const getBalmyQuote = async (args: QuoteRequest, logger: ComponentLogger): Promise<QuoteResponse | null> => {
     try {
         const quote = await sdk.quoteService.getBestQuote({
-            request: { ...args, sourceConfig: { global: { disableValidation: true } } },
+            request: {
+                ...args,
+                filters: { excludeSources: ['swing'] },
+                sourceConfig: { global: { disableValidation: true } },
+            },
             config: { choose: { by: "most-swapped", using: "max sell/min buy amounts" } }
         });
 
@@ -71,6 +75,7 @@ export const prepareBalmySwapCalldata = async (quote: QuoteResponse, logger: Com
             quotes: {
                 [quote.source.id]: quote
             },
+            sourceConfig: { global: { disableValidation: true } }
         });
 
         const tx = await txs[quote.source.id];
