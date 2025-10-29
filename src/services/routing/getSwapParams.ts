@@ -1,5 +1,4 @@
 import {getEtherFiEthStakeQuote, prepareEtherFiEthStakeCalldata} from "./etherFi";
-import { getLIFIQuote, prepareLIFISwapCalldata } from "./lifi";
 import { getAmountsOutUniswapV2, prepareUniswapV2SwapCalldata } from "./uniswapV2";
 import { getRouteUniswapV3ExactInput, prepareUniswapV3SwapCalldata } from "./uniswapV3";
 import {
@@ -10,6 +9,10 @@ import {
 import { getLidoEthStakeQuote, prepareLidoEthStakeCalldata } from "./lido";
 import { FLUID_DEX } from "./fluid";
 import { createComponentLogger } from "../../utils/logger";
+import { getBalmyQuote, prepareBalmySwapCalldata } from "./balmy";
+import { CHAIN_ID } from "../../constants/chain";
+import { getAddress } from "viem";
+import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 
 const logger = createComponentLogger('getRebalanceSwapParams');
 
@@ -51,11 +54,18 @@ export const getDexSwapParams = async (
   const { leverageToken, assetIn, assetOut, takeAmount } = input;
 
   // Fetch routes and quotes from DEXes directly
-  const [lifiQuote, amountOutUniV2, uniswapV3Route, fluidDexRoute] = await Promise.all([
-    getLIFIQuote({
-      fromToken: assetOut,
-      toToken: assetIn,
-      fromAmount: takeAmount,
+  const [balmyQuote, amountOutUniV2, uniswapV3Route, fluidDexRoute] = await Promise.all([
+    getBalmyQuote({
+      chainId: CHAIN_ID,
+      sellToken: assetOut as `0x${string}`,
+      buyToken: assetIn as `0x${string}`,
+      order: {
+        type: "sell",
+        sellAmount: takeAmount,
+      },
+      slippagePercentage: 0.01,
+      takerAddress: getAddress(CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR),
+      recipient: getAddress(CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER),
     }, logger),
     getAmountsOutUniswapV2({
       inputTokenAddress: assetOut,
@@ -70,12 +80,16 @@ export const getDexSwapParams = async (
     FLUID_DEX.getEstimateSwapIn(assetOut, assetIn, takeAmount, logger),
   ]);
 
+  if (!balmyQuote && !amountOutUniV2 && !uniswapV3Route && !fluidDexRoute) {
+    throw new Error('No quotes found');
+  }
+
   // Find the best route by comparing all three options
   const routes = [
-    { amountOut: lifiQuote?.amountOut || 0n, prepareCalldata: () => prepareLIFISwapCalldata(lifiQuote!, assetOut, takeAmount) },
-    { amountOut: amountOutUniV2, prepareCalldata: () => prepareUniswapV2SwapCalldata(assetOut, assetIn, takeAmount, requiredAmountIn) },
-    { amountOut: BigInt((uniswapV3Route?.rawQuote || "0").toString()), prepareCalldata: () => prepareUniswapV3SwapCalldata(assetOut, uniswapV3Route!, takeAmount, requiredAmountIn) },
-    { amountOut: fluidDexRoute.amountOut, prepareCalldata: () => FLUID_DEX.prepareSwapCalldata(fluidDexRoute.pool, assetOut, takeAmount) }
+    { amountOut: balmyQuote?.buyAmount.amount || 0n, prepareCalldata: async () => await prepareBalmySwapCalldata(balmyQuote!, logger) },
+    { amountOut: amountOutUniV2, prepareCalldata: async () => prepareUniswapV2SwapCalldata(assetOut, assetIn, takeAmount, requiredAmountIn) },
+    { amountOut: BigInt((uniswapV3Route?.rawQuote || "0").toString()), prepareCalldata: async () => prepareUniswapV3SwapCalldata(assetOut, uniswapV3Route!, takeAmount, requiredAmountIn) },
+    { amountOut: fluidDexRoute.amountOut, prepareCalldata: async () => FLUID_DEX.prepareSwapCalldata(fluidDexRoute.pool, assetOut, takeAmount) }
   ];
 
   logger.debug({
@@ -83,7 +97,7 @@ export const getDexSwapParams = async (
     assetIn,
     assetOut,
     fromAmount: takeAmount,
-    lifi: routes[0].amountOut,
+    balmy: routes[0].amountOut,
     uniswapV2: routes[1].amountOut,
     uniswapV3: routes[2].amountOut,
     fluid: routes[3].amountOut,
@@ -105,6 +119,6 @@ export const getDexSwapParams = async (
   return {
     isProfitable: true,
     amountOut: bestRoute.amountOut,
-    swapCalls: bestRoute.prepareCalldata(),
+    swapCalls: await bestRoute.prepareCalldata() || [],
   };
 };
