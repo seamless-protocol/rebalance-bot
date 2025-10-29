@@ -247,10 +247,13 @@ export const handleAuctionCreatedEvent = async (
       const swapParams = await getRebalanceSwapParams({
         leverageToken,
         stakeType,
+        receiver: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER,
         assetIn,
         assetOut,
         takeAmount,
-        requiredAmountIn
+        requiredAmountIn,
+        collateralAsset,
+        debtAsset,
       });
 
       if (!swapParams.isProfitable) {
@@ -354,7 +357,7 @@ export const handleAuctionCreatedEvent = async (
         if (receipt.status === "reverted") {
           const errorString = `Transaction to take auction for LeverageToken ${leverageToken} reverted. takeAmount: ${takeAmount}. Transaction hash: ${tx}`;
           await sendAlert(`*Error submitting takeAuction transaction*\n${errorString}`, LogLevel.ERROR);
-          handleAuctionLogger.error({ leverageToken, transactionHash: tx, takeAmount: takeAmount }, "Error submitting takeAuction transaction");
+          handleAuctionLogger.error({ leverageToken, transactionHash: tx, takeAmount }, "Error submitting takeAuction transaction");
 
           // We continue trying to take the auction with the next step, since it's likely that the transaction reverted
           // due to the max take amount decreasing during on-chain execution because of borrow interest or redemptions

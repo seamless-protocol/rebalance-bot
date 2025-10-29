@@ -40,6 +40,8 @@ export interface ContractAddresses {
   FLUID_DEX_RESERVES_RESOLVER?: Address;
   LEVERAGE_MANAGER: Address;
   MULTICALL_EXECUTOR: Address;
+  PENDLE_ROUTER?: Address;
+  PENDLE_ROUTER_STATIC?: Address;
   PRE_LIQUIDATION_REBALANCER: Address;
   WSTETH?: Address;
   UNISWAP_SWAP_ROUTER_02: Address;
@@ -63,6 +65,7 @@ export interface UniswapV2GetAmountsOutArgs {
 }
 
 export interface UniswapV3QuoteExactInputArgs {
+  receiver: Address;
   tokenInAddress: Address;
   tokenOutAddress: Address;
   amountInRaw: string;
@@ -85,10 +88,13 @@ export interface StakeContext {
 export interface GetRebalanceSwapParamsInput {
   leverageToken: Address;
   stakeType: StakeType;
+  receiver: Address;
   assetIn: Address;
   assetOut: Address;
   takeAmount: bigint;
   requiredAmountIn: bigint;
+  collateralAsset: Address;
+  debtAsset: Address;
 }
 
 export interface Call {
@@ -104,6 +110,7 @@ export interface GetRebalanceSwapParamsOutput {
 }
 
 export interface GetLIFIQuoteInput {
+  receiver: Address;
   fromToken: Address;
   toToken: Address;
   fromAmount: bigint;
@@ -121,4 +128,29 @@ export interface LeverageTokenRebalanceData {
   collateralInDebtAsset: bigint;
   equity: bigint;
   targetRatio: bigint;
+}
+
+export interface GetPendleSwapQuoteInput {
+  leverageToken: Address;
+  receiver: Address;
+  collateralAsset: Address;
+  debtAsset: Address;
+  fromAsset: Address;
+  toAsset: Address;
+  fromAmount: bigint;
+}
+
+export interface GetPendleSwapQuoteOutput {
+  amountOut: bigint;
+  pendleSwapData: {
+    amountIn: bigint;
+    assetIn: Address;
+    data: `0x${string}`;
+    to: Address;
+    value: bigint;
+  };
+  underlyingSwapData: GetRebalanceSwapParamsOutput | null;
+  to: Address;
+  value: bigint;
+  prepareCalldata: (quote: GetPendleSwapQuoteOutput) => Call[];
 }

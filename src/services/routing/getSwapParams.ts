@@ -10,6 +10,7 @@ import {
 import { getLidoEthStakeQuote, prepareLidoEthStakeCalldata } from "./lido";
 import { FLUID_DEX } from "./fluid";
 import { createComponentLogger } from "../../utils/logger";
+import { getPendleSwapQuote } from "./pendle";
 
 const logger = createComponentLogger('getRebalanceSwapParams');
 
@@ -48,11 +49,11 @@ export const getDexSwapParams = async (
   input: GetRebalanceSwapParamsInput,
   requiredAmountIn: bigint
 ): Promise<GetRebalanceSwapParamsOutput> => {
-  const { leverageToken, assetIn, assetOut, takeAmount } = input;
+  const { leverageToken, receiver, assetIn, assetOut, takeAmount, collateralAsset, debtAsset } = input;
 
-  // Fetch routes and quotes from DEXes directly
-  const [lifiQuote, amountOutUniV2, uniswapV3Route, fluidDexRoute] = await Promise.all([
+  const [lifiQuote, amountOutUniV2, uniswapV3Route, fluidDexRoute, pendleQuote] = await Promise.all([
     getLIFIQuote({
+      receiver,
       fromToken: assetOut,
       toToken: assetIn,
       fromAmount: takeAmount,
@@ -63,19 +64,30 @@ export const getDexSwapParams = async (
       amountInRaw: takeAmount.toString(),
     }, logger),
     getRouteUniswapV3ExactInput({
+      receiver,
       tokenInAddress: assetOut,
       tokenOutAddress: assetIn,
       amountInRaw: takeAmount.toString(),
     }, logger),
     FLUID_DEX.getEstimateSwapIn(assetOut, assetIn, takeAmount, logger),
+    getPendleSwapQuote({
+      leverageToken,
+      receiver,
+      collateralAsset,
+      debtAsset,
+      fromAsset: assetOut,
+      toAsset: assetIn,
+      fromAmount: takeAmount,
+    }, logger),
   ]);
 
   // Find the best route by comparing all three options
   const routes = [
     { amountOut: lifiQuote?.amountOut || 0n, prepareCalldata: () => prepareLIFISwapCalldata(lifiQuote!, assetOut, takeAmount) },
-    { amountOut: amountOutUniV2, prepareCalldata: () => prepareUniswapV2SwapCalldata(assetOut, assetIn, takeAmount, requiredAmountIn) },
-    { amountOut: BigInt((uniswapV3Route?.rawQuote || "0").toString()), prepareCalldata: () => prepareUniswapV3SwapCalldata(assetOut, uniswapV3Route!, takeAmount, requiredAmountIn) },
-    { amountOut: fluidDexRoute.amountOut, prepareCalldata: () => FLUID_DEX.prepareSwapCalldata(fluidDexRoute.pool, assetOut, takeAmount) }
+    { amountOut: amountOutUniV2, prepareCalldata: () => prepareUniswapV2SwapCalldata(receiver, assetOut, assetIn, takeAmount, requiredAmountIn) },
+    { amountOut: BigInt((uniswapV3Route?.rawQuote || "0").toString()), prepareCalldata: () => prepareUniswapV3SwapCalldata(receiver, assetOut, uniswapV3Route!, takeAmount, requiredAmountIn) },
+    { amountOut: fluidDexRoute.amountOut, prepareCalldata: () => FLUID_DEX.prepareSwapCalldata(receiver, fluidDexRoute.pool, assetOut, takeAmount) },
+    { amountOut: pendleQuote?.amountOut || 0n, prepareCalldata: () => pendleQuote ? pendleQuote.prepareCalldata(pendleQuote) : [] },
   ];
 
   logger.debug({
@@ -83,10 +95,12 @@ export const getDexSwapParams = async (
     assetIn,
     assetOut,
     fromAmount: takeAmount,
+    requiredAmountOut: requiredAmountIn,
     lifi: routes[0].amountOut,
     uniswapV2: routes[1].amountOut,
     uniswapV3: routes[2].amountOut,
     fluid: routes[3].amountOut,
+    pendle: routes[4].amountOut,
    }, 'DEX swap quotes');
 
   // Sort by amountOut in descending order and pick the best one

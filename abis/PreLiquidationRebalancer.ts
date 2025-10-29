@@ -1,4 +1,4 @@
-export const PreLiquidationRebalancerAbi = [
+const PreLiquidationRebalancerBaseAbi = [
   {
       "type": "constructor",
       "inputs": [
@@ -284,3 +284,24 @@ export const PreLiquidationRebalancerAbi = [
       "inputs": []
   }
 ] as const;
+
+export const PreLiquidationRebalancerAbi = [
+    ...PreLiquidationRebalancerBaseAbi,
+    {
+        "type": "error",
+        "name": "AuctionNotValid",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "InvalidLeverageTokenStateAfterRebalance",
+        "inputs": [
+            {
+                "name": "leverageToken",
+                "type": "address",
+                "internalType": "address"
+            },
+        ]
+    }
+] as const;
+

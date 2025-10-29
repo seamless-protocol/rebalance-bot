@@ -11,7 +11,7 @@ export const getLIFIQuote = async (args: GetLIFIQuoteInput, logger: ComponentLog
     return null;
   }
 
-  const { fromToken, toToken, fromAmount } = args;
+  const { receiver, fromToken, toToken, fromAmount } = args;
 
   try {
     // Addresses must be checksummed addresses
@@ -23,7 +23,7 @@ export const getLIFIQuote = async (args: GetLIFIQuoteInput, logger: ComponentLog
         toToken: getAddress(toToken),
         fromAmount,
         fromAddress: getAddress(CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR),
-        toAddress: getAddress(CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER),
+        toAddress: getAddress(receiver),
         allowBridges: "none",
         slippage: LIFI_SLIPPAGE
       },

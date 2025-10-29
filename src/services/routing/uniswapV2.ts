@@ -35,8 +35,7 @@ export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs, l
   }
 };
 
-
-export const prepareUniswapV2SwapCalldata = (assetIn: Address, assetOut: Address, inputAmount: bigint, outputAmountMin: bigint): Call[] => {
+export const prepareUniswapV2SwapCalldata = (receiver: Address, assetIn: Address, assetOut: Address, inputAmount: bigint, outputAmountMin: bigint): Call[] => {
   const uniswapV2RouterAbi = UniswapV2Router02Abi;
 
   // Approve the router to spend the input amount
@@ -53,7 +52,7 @@ export const prepareUniswapV2SwapCalldata = (assetIn: Address, assetOut: Address
       inputAmount,
       outputAmountMin,
       [assetIn, assetOut],
-      CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER, // Recipient of the swap is the rebalancer contract
+      receiver,
       BigInt(Math.floor(Date.now() / 1000) + 60) // Deadline is set to 60 seconds from now
     ],
   });
