@@ -7,6 +7,7 @@ import {
   StakeType,
 } from "../../types";
 import { getLidoEthStakeQuote, prepareLidoEthStakeCalldata } from "./lido";
+import { BALMY_SLIPPAGE_PERCENTAGE } from "../../constants/values";
 import { FLUID_DEX } from "./fluid";
 import { createComponentLogger } from "../../utils/logger";
 import { getBalmyQuote, prepareBalmySwapCalldata } from "./balmy";
@@ -63,7 +64,7 @@ export const getDexSwapParams = async (
         type: "sell",
         sellAmount: takeAmount,
       },
-      slippagePercentage: 0.01,
+      slippagePercentage: BALMY_SLIPPAGE_PERCENTAGE,
       takerAddress: getAddress(CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR),
       recipient: getAddress(CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER),
     }, logger),

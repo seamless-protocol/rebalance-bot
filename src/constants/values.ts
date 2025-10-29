@@ -40,9 +40,8 @@ export const MAX_TAKE_AMOUNT_SCALING = BigInt(String(process.env.MAX_TAKE_AMOUNT
 
 export const ETHERFI_L2_MODE_SYNC_POOL_ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" as Address;
 
-export const LIFI_API_URL = "https://li.quest/v1/quote";
 export const LIFI_API_KEY = process.env.LIFI_API_KEY || null;
-export const LIFI_SLIPPAGE = Number(process.env.LIFI_SLIPPAGE) || 0.01;
+export const BALMY_SLIPPAGE_PERCENTAGE = Number(process.env.BALMY_SLIPPAGE_PERCENTAGE) || 0.01;
 
 export const CHECK_PROFITABILITY_WITH_GAS_FEE = Boolean(process.env.CHECK_PROFITABILITY_WITH_GAS_FEE && process.env.CHECK_PROFITABILITY_WITH_GAS_FEE.toLowerCase() === "true");
 
