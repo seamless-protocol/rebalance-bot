@@ -9,7 +9,7 @@ import PendleRouterAbi from "../../../abis/PendleRouter";
 import PendleMarketV3Abi from "../../../abis/PendleMarketV3";
 import PendleSyAbi from "../../../abis/PendleSy";
 import { getTokenDecimals } from "../../utils/tokens";
-import { publicClient } from "@/utils/transactionHelpers";
+import { publicClient } from "../../utils/transactionHelpers";
 
 const PENDLE_SLIPPAGE = 1000000000000000n; // 0.1%
 
@@ -163,10 +163,24 @@ const getPendleSwapExactTokenForPtQuote = async (
       return null;
     }
 
-    const yieldToken = PENDLE_MARKET_TO_YIELD_TOKEN.get(getAddress(market));
+    let yieldToken = PENDLE_MARKET_TO_YIELD_TOKEN.get(getAddress(market));
     if (!yieldToken) {
-      logger.error({ pt, market }, "No underlying yield token found for Pendle PT");
-      return null;
+      try {
+        const [syToken,,] = await publicClient.readContract({
+          address: market,
+          abi: PendleMarketV3Abi,
+          functionName: "readTokens",
+        });
+        yieldToken = (await publicClient.readContract({
+          address: syToken,
+          abi: PendleSyAbi,
+          functionName: "yieldToken",
+        })) as Address;
+        PENDLE_MARKET_TO_YIELD_TOKEN.set(market, yieldToken);
+      } catch (error) {
+        logger.error({ error, pt, market }, "Error getting Pendle yield token");
+        throw error;
+      }
     }
 
     const isFromTokenYieldToken = isAddressEqual(getAddress(fromAsset), getAddress(yieldToken));
