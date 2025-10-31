@@ -6,7 +6,10 @@ import { Call, GetRebalanceSwapParamsOutput, GetPendleSwapQuoteInput, GetPendleS
 import { getPendleStaticRouterContract } from "../../utils/contractHelpers";
 import { getDexSwapParams } from "./getSwapParams";
 import PendleRouterAbi from "../../../abis/PendleRouter";
+import PendleMarketV3Abi from "../../../abis/PendleMarketV3";
+import PendleSyAbi from "../../../abis/PendleSy";
 import { getTokenDecimals } from "../../utils/tokens";
+import { publicClient } from "@/utils/transactionHelpers";
 
 const PENDLE_SLIPPAGE = 1000000000000000n; // 0.1%
 
@@ -19,9 +22,7 @@ const PT_TO_PENDLE_MARKET = new Map<string, Address>([
   ],
 ]);
 
-const PENDLE_MARKET_TO_YIELD_TOKEN = new Map<Address, Address>([
-  [getAddress("0x9942a74e6E75cEa2DB5D068c1E75C9ac687bcA06"), "0x4956b52ae2ff65d74ca2d61207523288e4528f96"],
-]);
+const PENDLE_MARKET_TO_YIELD_TOKEN = new Map<Address, Address>();
 
 export const getPendleSwapQuote = async (
   args: GetPendleSwapQuoteInput,
@@ -57,13 +58,27 @@ const getPendleSwapExactPtForTokenQuote = async (
       return null;
     }
 
-    const yieldToken = PENDLE_MARKET_TO_YIELD_TOKEN.get(market);
+    let yieldToken = PENDLE_MARKET_TO_YIELD_TOKEN.get(market);
     if (!yieldToken) {
-      logger.error({ pt, market }, "No underlying yield token found for Pendle PT");
-      return null;
+      try {
+        const [syToken,,] = await publicClient.readContract({
+          address: market,
+          abi: PendleMarketV3Abi,
+          functionName: "readTokens",
+        });
+        yieldToken = (await publicClient.readContract({
+          address: syToken,
+          abi: PendleSyAbi,
+          functionName: "yieldToken",
+        })) as Address;
+        PENDLE_MARKET_TO_YIELD_TOKEN.set(market, yieldToken);
+      } catch (error) {
+        logger.error({ error, pt, market }, "Error getting Pendle yield token");
+        throw error;
+      }
     }
 
-    const isYieldTokenToToken = isAddressEqual(toAsset, yieldToken);
+    const isToTokenYieldToken = isAddressEqual(toAsset, yieldToken);
 
     const staticRouter = getPendleStaticRouterContract();
     const result = await staticRouter.read.getYieldTokenAndPtRate([market]);
@@ -80,7 +95,7 @@ const getPendleSwapExactPtForTokenQuote = async (
       abi: PendleRouterAbi,
       functionName: "swapExactPtForToken",
       args: [
-        isYieldTokenToToken ? receiver : CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
+        isToTokenYieldToken ? receiver : CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR,
         market,
         fromAmount,
         tokenOutput,
@@ -90,7 +105,7 @@ const getPendleSwapExactPtForTokenQuote = async (
 
     // Swap calldata for underlying yield token of PT -> toToken
     let underlyingSwapData: GetRebalanceSwapParamsOutput | null = null;
-    if (!isYieldTokenToToken) {
+    if (!isToTokenYieldToken) {
       underlyingSwapData = await getDexSwapParams(
         {
           leverageToken,
