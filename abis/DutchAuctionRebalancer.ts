@@ -1,4 +1,4 @@
-export const DutchAuctionRebalancerAbi = [
+const DutchAuctionRebalancerBaseAbi = [
     {
         "type": "constructor",
         "inputs": [
@@ -321,5 +321,25 @@ export const DutchAuctionRebalancerAbi = [
         "type": "error",
         "name": "Unauthorized",
         "inputs": []
+    },
+] as const;
+
+export const DutchAuctionRebalancerAbi = [
+    ...DutchAuctionRebalancerBaseAbi,
+    {
+        "type": "error",
+        "name": "AuctionNotValid",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "InvalidLeverageTokenStateAfterRebalance",
+        "inputs": [
+            {
+                "name": "leverageToken",
+                "type": "address",
+                "internalType": "address"
+            },
+        ]
     }
 ] as const;

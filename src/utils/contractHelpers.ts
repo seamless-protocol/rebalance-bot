@@ -13,6 +13,8 @@ import { PreLiquidationRebalancerAbi } from "../../abis/PreLiquidationRebalancer
 import rebalanceAdapterAbi from "../../abis/RebalanceAdapter";
 import { DutchAuctionRebalancerAbi } from "../../abis/DutchAuctionRebalancer";
 import uniswapV2Router02Abi from "../../abis/UniswapV2Router02";
+import PendleStaticRouterAbi from "../../abis/PendleStaticRouter";
+import PendleRouterAbi from "../../abis/PendleRouter";
 
 export const getHistoricalLogs = async ({
   contractAddress,
@@ -176,6 +178,22 @@ export const getPreLiquidationRebalancerContract = () => {
   return getContract({
     address: CONTRACT_ADDRESSES[CHAIN_ID].PRE_LIQUIDATION_REBALANCER as Address,
     abi: PreLiquidationRebalancerAbi,
+    client: walletClient,
+  });
+};
+
+export const getPendleStaticRouterContract = () => {
+  return getContract({
+    address: CONTRACT_ADDRESSES[CHAIN_ID].PENDLE_ROUTER_STATIC as Address,
+    abi: PendleStaticRouterAbi,
+    client: walletClient,
+  });
+};
+
+export const getPendleRouterContract = () => {
+  return getContract({
+    address: CONTRACT_ADDRESSES[CHAIN_ID].PENDLE_ROUTER as Address,
+    abi: PendleRouterAbi,
     client: walletClient,
   });
 };
