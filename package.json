@@ -7,15 +7,14 @@
   "scripts": {
     "dev": "npm run type-check && tsx src/index.ts",
     "dev:watch": "tsx watch src/index.ts",
-    "build": "npm run clean:dist && tsc -p tsconfig.build.json && npm run copy:leverage-tokens",
+    "build": "npm run clean:dist && tsc -p tsconfig.build.json",
     "start": "node dist/src/index.js",
     "clean:dist": "rimraf dist",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --check .",
     "format:fix": "prettier --write .",
-    "type-check": "tsc --noEmit",
-    "copy:leverage-tokens": "mkdir -p dist/src/data && [ -f src/data/leverageTokens.json ] && cp src/data/leverageTokens.json dist/src/data/ || true"
+    "type-check": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
@@ -36,6 +35,7 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
+    "@balmy/sdk": "github:seamless-protocol/balmy-sdk#main",
     "@slack/web-api": "^7.9.1",
     "@uniswap/sdk-core": "^7.7.2",
     "@uniswap/smart-order-router": "^4.20.10",
