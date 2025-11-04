@@ -47,7 +47,7 @@ export const getRebalanceSwapParams = async (
     }
   }
 
-  return await getDexSwapParams(input, requiredAmountIn);
+  return getDexSwapParams(input, requiredAmountIn);
 };
 
 export const getDexSwapParams = async (
