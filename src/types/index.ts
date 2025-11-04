@@ -103,6 +103,13 @@ export interface Call {
   value: bigint;
 }
 
+export interface GetDexSwapParamsOutput {
+  isProfitable: boolean;
+  amountOut: bigint;
+  minAmountOut: bigint;
+  swapCalls: Call[];
+}
+
 export interface GetRebalanceSwapParamsOutput {
   isProfitable: boolean;
   amountOut: bigint;
@@ -142,6 +149,7 @@ export interface GetPendleSwapQuoteInput {
 
 export interface GetPendleSwapQuoteOutput {
   amountOut: bigint;
+  minAmountOut: bigint;
   pendleSwapData: {
     amountIn: bigint;
     assetIn: Address;
@@ -149,7 +157,7 @@ export interface GetPendleSwapQuoteOutput {
     to: Address;
     value: bigint;
   };
-  underlyingSwapData: GetRebalanceSwapParamsOutput | null;
+  underlyingSwapData: GetDexSwapParamsOutput | null;
   to: Address;
   value: bigint;
   prepareCalldata: (quote: GetPendleSwapQuoteOutput) => Call[];

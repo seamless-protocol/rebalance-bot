@@ -3,6 +3,7 @@ import {getEtherFiEthStakeQuote, prepareEtherFiEthStakeCalldata} from "./etherFi
 import { getAmountsOutUniswapV2, prepareUniswapV2SwapCalldata } from "./uniswapV2";
 import { getRouteUniswapV3ExactInput, prepareUniswapV3SwapCalldata } from "./uniswapV3";
 import {
+  GetDexSwapParamsOutput,
   GetRebalanceSwapParamsInput,
   GetRebalanceSwapParamsOutput,
   StakeType,
@@ -46,16 +47,16 @@ export const getRebalanceSwapParams = async (
     }
   }
 
-  return getDexSwapParams(input, requiredAmountIn);
+  return await getDexSwapParams(input, requiredAmountIn);
 };
 
 export const getDexSwapParams = async (
   input: GetRebalanceSwapParamsInput,
-  requiredAmountIn: bigint
-): Promise<GetRebalanceSwapParamsOutput> => {
+  requiredAmountIn: bigint,
+): Promise<GetDexSwapParamsOutput> => {
   const { leverageToken, receiver, assetIn, assetOut, takeAmount, collateralAsset, debtAsset } = input;
 
-  const [balmyQuote, amountOutUniV2, uniswapV3Route, fluidDexRoute, pendleQuote] = await Promise.all([
+  const [balmyQuote, uniswapV2Quote, uniswapV3Route, fluidDexRoute, pendleQuote] = await Promise.all([
     getBalmyQuote({
       chainId: CHAIN_ID,
       sellToken: assetOut as `0x${string}`,
@@ -91,17 +92,17 @@ export const getDexSwapParams = async (
     }, logger),
   ]);
 
-  if (!balmyQuote && !amountOutUniV2 && !uniswapV3Route && !fluidDexRoute) {
+  if (!balmyQuote && !uniswapV2Quote && !uniswapV3Route && !fluidDexRoute && !pendleQuote) {
     throw new Error('No quotes found');
   }
 
   // Find the best route by comparing all three options
   const routes = [
-    { amountOut: balmyQuote?.buyAmount.amount || 0n, prepareCalldata: async () => prepareBalmySwapCalldata(balmyQuote!, logger) },
-    { amountOut: amountOutUniV2, prepareCalldata: async () => prepareUniswapV2SwapCalldata(receiver, assetOut, assetIn, takeAmount, requiredAmountIn) },
-    { amountOut: BigInt((uniswapV3Route?.rawQuote || "0").toString()), prepareCalldata: async () => prepareUniswapV3SwapCalldata(receiver, assetOut, uniswapV3Route!, takeAmount, requiredAmountIn) },
-    { amountOut: fluidDexRoute.amountOut, prepareCalldata: async () => FLUID_DEX.prepareSwapCalldata(receiver, fluidDexRoute.pool, assetOut, takeAmount) },
-    { amountOut: pendleQuote?.amountOut || 0n, prepareCalldata: async () => pendleQuote ? pendleQuote.prepareCalldata(pendleQuote) : [] },
+    { amountOut: balmyQuote?.buyAmount.amount || 0n, minAmountOut: balmyQuote?.minBuyAmount.amount || 0n, prepareCalldata: async () => prepareBalmySwapCalldata(balmyQuote!, logger) },
+    { amountOut: uniswapV2Quote?.amountOut || 0n, minAmountOut: uniswapV2Quote?.minAmountOut || 0n, prepareCalldata: async () => prepareUniswapV2SwapCalldata(receiver, assetOut, assetIn, takeAmount, requiredAmountIn) },
+    { amountOut: BigInt((uniswapV3Route?.route.rawQuote || "0").toString()), minAmountOut: uniswapV3Route?.minAmountOut || 0n, prepareCalldata: async () => prepareUniswapV3SwapCalldata(receiver, assetOut, uniswapV3Route!.route, takeAmount, requiredAmountIn) },
+    { amountOut: fluidDexRoute?.amountOut || 0n, minAmountOut: fluidDexRoute?.minAmountOut || 0n, prepareCalldata: async () => FLUID_DEX.prepareSwapCalldata(receiver, fluidDexRoute!.pool, assetOut, takeAmount) },
+    { amountOut: pendleQuote?.amountOut || 0n, minAmountOut: pendleQuote?.minAmountOut || 0n, prepareCalldata: async () => pendleQuote ? pendleQuote.prepareCalldata(pendleQuote) : [] },
   ];
 
   logger.debug({
@@ -126,6 +127,7 @@ export const getDexSwapParams = async (
     return {
       isProfitable: false,
       amountOut: bestRoute.amountOut,
+      minAmountOut: bestRoute.minAmountOut,
       swapCalls: [],
     }
   }
@@ -133,6 +135,7 @@ export const getDexSwapParams = async (
   return {
     isProfitable: true,
     amountOut: bestRoute.amountOut,
+    minAmountOut: bestRoute.minAmountOut,
     swapCalls: await bestRoute.prepareCalldata() || [],
   };
 };

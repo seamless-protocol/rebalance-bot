@@ -5,15 +5,16 @@ import UniswapV2Router02Abi from "../../../abis/UniswapV2Router02";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { CHAIN_ID } from "../../constants/chain";
 import { ComponentLogger } from "../../utils/logger";
+import { getDexSlippageAdjustedAmount } from "../../utils/math";
 
-export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs, logger: ComponentLogger) => {
+export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs, logger: ComponentLogger): Promise<{ amountOut: bigint; minAmountOut: bigint } | null> => {
   try {
     const router = getUniswapV2Router02Contract();
 
     const { inputTokenAddress, outputTokenAddress, amountInRaw } = args;
 
     if (amountInRaw === "0") {
-      return 0n;
+      return null;
     }
 
     // Convert the input string to BigInt (this is the raw base-units value)
@@ -28,10 +29,13 @@ export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs, l
 
     // For a 2-token path, amountsOut = [amountIn, amountOut]
     const outputAmountRaw = amountsOut[1];
-    return outputAmountRaw;
+    return {
+      amountOut: outputAmountRaw,
+      minAmountOut: getDexSlippageAdjustedAmount(outputAmountRaw),
+    }
   } catch (error) {
     logger.dexQuoteError({ error }, 'Error calling Uniswap V2 Router02 getAmountsOut');
-    return 0n;
+    return null;
   }
 };
 

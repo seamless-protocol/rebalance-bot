@@ -2,7 +2,7 @@ import { ComponentLogger } from "../../utils/logger";
 import { CHAIN_ID } from "../../constants/chain";
 import { Address, encodeFunctionData, erc20Abi, isAddressEqual, getAddress, maxUint256, zeroAddress } from "viem";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
-import { Call, GetRebalanceSwapParamsOutput, GetPendleSwapQuoteInput, GetPendleSwapQuoteOutput, StakeType } from "../../types";
+import { Call, GetPendleSwapQuoteInput, GetPendleSwapQuoteOutput, StakeType, GetDexSwapParamsOutput } from "../../types";
 import { getPendleStaticRouterContract } from "../../utils/contractHelpers";
 import { getDexSwapParams } from "./getSwapParams";
 import PendleRouterAbi from "../../../abis/PendleRouter";
@@ -10,8 +10,8 @@ import PendleMarketV3Abi from "../../../abis/PendleMarketV3";
 import PendleSyAbi from "../../../abis/PendleSy";
 import { getTokenDecimals } from "../../utils/tokens";
 import { publicClient } from "../../utils/transactionHelpers";
-
-const PENDLE_SLIPPAGE = 1000000000000000n; // 0.1%
+import { getDexSlippageAdjustedAmount } from "../../utils/math";
+import { DEX_SLIPPAGE_BPS } from "../../constants/values";
 
 // Maps from PT address to the Pendle market address to query for quotes
 const PT_TO_PENDLE_MARKET = new Map<string, Address>([
@@ -73,7 +73,7 @@ const getPendleSwapExactPtForTokenQuote = async (
     const ptDecimals = (await getTokenDecimals([pt]))[pt];
     // We apply a default slippage to the estimate to avoid the risk of on-chain execution reverts due to state change
     // between the simulation and the actual execution.
-    const yieldTokenAmountOutWithSlippage = (yieldTokenRate * fromAmount) / 10n ** BigInt(ptDecimals) * (10n ** 18n - PENDLE_SLIPPAGE) / 10n ** 18n;
+    const yieldTokenAmountOutWithSlippage = getDexSlippageAdjustedAmount((yieldTokenRate * fromAmount) / 10n ** BigInt(ptDecimals));
 
     const tokenOutput = createTokenOutputSimple(yieldToken, yieldTokenAmountOutWithSlippage);
     const emptyLimit = createEmptyLimitOrderData();
@@ -90,7 +90,7 @@ const getPendleSwapExactPtForTokenQuote = async (
     });
 
     // Swap calldata for underlying yield token of PT -> toToken
-    let underlyingSwapData: GetRebalanceSwapParamsOutput | null = null;
+    let underlyingSwapData: GetDexSwapParamsOutput | null = null;
     if (!isToTokenYieldToken) {
       underlyingSwapData = await getDexSwapParams(
         {
@@ -110,6 +110,7 @@ const getPendleSwapExactPtForTokenQuote = async (
 
     return {
       amountOut: underlyingSwapData?.amountOut || 0n,
+      minAmountOut: underlyingSwapData?.minAmountOut || 0n,
       pendleSwapData: {
         amountIn: fromAmount,
         assetIn: pt,
@@ -172,7 +173,7 @@ const getPendleSwapExactTokenForPtQuote = async (
     const isFromTokenYieldToken = isAddressEqual(getAddress(fromAsset), getAddress(yieldToken));
 
     // Swap calldata for from token -> underlying token of PT
-    let underlyingSwapData: GetRebalanceSwapParamsOutput | null = null;
+    let underlyingSwapData: GetDexSwapParamsOutput | null = null;
     let underlyingAmountInForPt = fromAmount;
     if (!isFromTokenYieldToken) {
       underlyingSwapData = await getDexSwapParams(
@@ -188,18 +189,20 @@ const getPendleSwapExactTokenForPtQuote = async (
           collateralAsset,
           debtAsset,
         },
-        0n
+        0n,
       );
 
-      underlyingAmountInForPt = underlyingSwapData.amountOut;
+      // We use the min amount out for the intermediate swap to avoid reverts
+      underlyingAmountInForPt = underlyingSwapData.minAmountOut;
     }
 
     const staticRouter = getPendleStaticRouterContract();
+    const pendleSlippage = DEX_SLIPPAGE_BPS * 100000000000000n;
     const result = await staticRouter.read.swapExactTokenForPtStaticAndGenerateApproxParams([
       market,
       yieldToken,
       underlyingAmountInForPt,
-      PENDLE_SLIPPAGE,
+      pendleSlippage,
     ]);
     const guessPtOut = result[5];
 
@@ -221,6 +224,7 @@ const getPendleSwapExactTokenForPtQuote = async (
 
     return {
       amountOut: guessPtOut.guessOffchain,
+      minAmountOut: guessPtOut.guessMin,
       pendleSwapData: {
         amountIn: underlyingAmountInForPt,
         assetIn: yieldToken,
@@ -241,7 +245,7 @@ const getPendleSwapExactTokenForPtQuote = async (
 
 export const preparePendleSwapExactPtForTokenCalldata = (pendleQuote: {
   pendleSwapData: { amountIn: bigint; assetIn: Address; data: `0x${string}`; to: Address; value: bigint };
-  underlyingSwapData: GetRebalanceSwapParamsOutput | null;
+  underlyingSwapData: GetDexSwapParamsOutput | null;
 }): Call[] => {
   const pendleRouterApproveCalldata = encodeFunctionData({
     abi: erc20Abi,
@@ -266,7 +270,7 @@ export const preparePendleSwapExactPtForTokenCalldata = (pendleQuote: {
 
 export const preparePendleSwapExactTokenForPtCalldata = (pendleQuote: {
   pendleSwapData: { amountIn: bigint; assetIn: Address; data: `0x${string}`; to: Address; value: bigint };
-  underlyingSwapData: GetRebalanceSwapParamsOutput | null;
+  underlyingSwapData: GetDexSwapParamsOutput | null;
 }): Call[] => {
   const pendleRouterApproveCalldata = encodeFunctionData({
     abi: erc20Abi,

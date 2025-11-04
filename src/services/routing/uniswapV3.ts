@@ -5,11 +5,12 @@ import { CurrencyAmount, Percent, Token, TradeType } from "@uniswap/sdk-core";
 import { encodeRouteToPath } from "@uniswap/v3-sdk";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { Call, UniswapV3QuoteExactInputArgs } from "../../types";
-import { IS_USING_FORK } from "../../constants/values";
+import { DEX_SLIPPAGE_BPS, IS_USING_FORK } from "../../constants/values";
 import { primaryEthersProvider, publicClient } from "../../utils/transactionHelpers";
 import UniswapSwapRouter02Abi from "../../../abis/UniswapSwapRouter02";
 import { CHAIN_ID } from "../../constants/chain";
 import { ComponentLogger } from "../../utils/logger";
+import { getDexSlippageAdjustedAmount } from "../../utils/math";
 
 class StaticGasPriceProvider implements IGasPriceProvider {
   constructor(private gasPriceWei: BigNumber) {}
@@ -37,7 +38,7 @@ const getTokensDecimals = async (tokenInAddress: Address, tokenOutAddress: Addre
 export const getRouteUniswapV3ExactInput = async (
   args: UniswapV3QuoteExactInputArgs,
   logger: ComponentLogger
-): Promise<RouteWithValidQuote | null> => {
+): Promise<{ route: RouteWithValidQuote; minAmountOut: bigint } | null> => {
   try {
     const { receiver, tokenInAddress, tokenOutAddress, amountInRaw } = args;
     const { tokenInDecimals, tokenOutDecimals } = await getTokensDecimals(tokenInAddress, tokenOutAddress);
@@ -59,7 +60,7 @@ export const getRouteUniswapV3ExactInput = async (
     const amountIn = CurrencyAmount.fromRawAmount(tokenIn, amountInRaw);
     const options: SwapOptions = {
       recipient: receiver,
-      slippageTolerance: new Percent(100),
+      slippageTolerance: new Percent(Number(DEX_SLIPPAGE_BPS), 10_000),
       deadline: Number.MAX_SAFE_INTEGER,
       type: SwapType.SWAP_ROUTER_02,
     };
@@ -77,7 +78,10 @@ export const getRouteUniswapV3ExactInput = async (
       return null;
     }
 
-    return v3Route;
+    return {
+      route: v3Route,
+      minAmountOut: getDexSlippageAdjustedAmount(BigInt((v3Route?.rawQuote || "0").toString())),
+    };
   } catch (error) {
     logger.dexQuoteError({ error }, 'Error getting Uniswap V3 route');
     return null;
