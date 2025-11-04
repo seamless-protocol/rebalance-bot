@@ -1,6 +1,6 @@
 import { ComponentLogger } from "../../utils/logger";
 import { CHAIN_ID } from "../../constants/chain";
-import { Address, encodeFunctionData, erc20Abi, isAddressEqual, getAddress, zeroAddress } from "viem";
+import { Address, encodeFunctionData, erc20Abi, isAddressEqual, getAddress, maxUint256, zeroAddress } from "viem";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { Call, GetRebalanceSwapParamsOutput, GetPendleSwapQuoteInput, GetPendleSwapQuoteOutput, StakeType } from "../../types";
 import { getPendleStaticRouterContract } from "../../utils/contractHelpers";
@@ -58,31 +58,17 @@ const getPendleSwapExactPtForTokenQuote = async (
       return null;
     }
 
-    let yieldToken = PENDLE_MARKET_TO_YIELD_TOKEN.get(market);
-    if (!yieldToken) {
-      try {
-        const [syToken,,] = await publicClient.readContract({
-          address: market,
-          abi: PendleMarketV3Abi,
-          functionName: "readTokens",
-        });
-        yieldToken = (await publicClient.readContract({
-          address: syToken,
-          abi: PendleSyAbi,
-          functionName: "yieldToken",
-        })) as Address;
-        PENDLE_MARKET_TO_YIELD_TOKEN.set(market, yieldToken);
-      } catch (error) {
-        logger.error({ error, pt, market }, "Error getting Pendle yield token");
-        throw error;
-      }
+    const staticRouter = getPendleStaticRouterContract();
+    const [yieldToken, , yieldTokenRate] = await staticRouter.read.getYieldTokenAndPtRate([market]);
+
+    if (yieldTokenRate === maxUint256) {
+      logger.dexQuoteError({ pt, yieldToken, market, yieldTokenRate }, "Yield token rate is max uint256 for PT -> yield token swap, swap cannot be executed");
+      return null;
     }
 
-    const isToTokenYieldToken = isAddressEqual(toAsset, yieldToken);
+    PENDLE_MARKET_TO_YIELD_TOKEN.set(market, yieldToken);
 
-    const staticRouter = getPendleStaticRouterContract();
-    const result = await staticRouter.read.getYieldTokenAndPtRate([market]);
-    const [, , yieldTokenRate] = result;
+    const isToTokenYieldToken = isAddressEqual(toAsset, yieldToken);
 
     const ptDecimals = (await getTokenDecimals([pt]))[pt];
     // We apply a default slippage to the estimate to avoid the risk of on-chain execution reverts due to state change
