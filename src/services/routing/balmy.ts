@@ -4,7 +4,7 @@ import { buildSDK, QuoteRequest, QuoteResponse } from "@balmy/sdk";
 import { Call } from "../../types";
 import { publicClient } from "../../utils/transactionHelpers";
 import { ALCHEMY_API_KEY } from "../../constants/chain";
-import { LIFI_API_KEY } from "../../constants/values";
+import { LIFI_API_KEY, LIFI_API_URL } from "../../constants/values";
 
 const sdk = buildSDK({
     quotes: {
@@ -18,6 +18,7 @@ const sdk = buildSDK({
             custom: {
                 "li-fi": {
                     apiKey: LIFI_API_KEY || undefined,
+                    url: LIFI_API_URL,
                 }
             }
         },
