@@ -1,4 +1,4 @@
-import { Address, encodeFunctionData, erc20Abi, getAddress } from "viem";
+import { Address, encodeFunctionData, erc20Abi, getAddress, isAddressEqual, zeroAddress } from "viem";
 import FluidDexReservesResolverAbi from "../../../abis/FluidDexReservesResolver";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { CHAIN_ID } from "../../constants/chain";
@@ -6,6 +6,7 @@ import { publicClient } from "../../utils/transactionHelpers";
 import FluidDexT1Abi from "../../../abis/FluidDexT1";
 import { Call } from "../../types";
 import { ComponentLogger } from "../../utils/logger";
+import { getDexSlippageAdjustedAmount } from "../../utils/math";
 
 export class FluidDex {
   // Maps from token pair `tokenA-tokenB` to an array of pool addresses that serve the pair
@@ -19,15 +20,12 @@ export class FluidDex {
     toToken: Address,
     fromAmount: bigint,
     logger: ComponentLogger
-  ): Promise<{ amountOut: bigint; pool: Address | null }> {
+  ): Promise<{ amountOut: bigint; minAmountOut: bigint; pool: Address } | null> {
     try {
       const pools = await this.getPools(fromToken, toToken);
 
       if (!pools || pools.length === 0) {
-        return {
-          amountOut: 0n,
-          pool: null,
-        };
+        return null;
       }
 
       const estimates = await publicClient.multicall({
@@ -35,7 +33,7 @@ export class FluidDex {
           address: CONTRACT_ADDRESSES[CHAIN_ID].FLUID_DEX_RESERVES_RESOLVER as Address,
           abi: FluidDexReservesResolverAbi,
           functionName: "estimateSwapIn",
-          args: [pool, this.poolsToTokenPairCache.get(pool)?.[0] === fromToken, fromAmount, 0n],
+          args: [pool, isAddressEqual(this.poolsToTokenPairCache.get(pool)?.[0] || zeroAddress, fromToken), fromAmount, 0n],
         })),
       });
 
@@ -52,25 +50,25 @@ export class FluidDex {
         }
       });
 
+      const bestEstimateWithSlippage = getDexSlippageAdjustedAmount(bestEstimate);
+
       return {
         amountOut: bestEstimate,
-        pool: bestPool,
+        minAmountOut: bestEstimateWithSlippage,
+        pool: bestPool!,
       };
     } catch (error) {
       logger.dexQuoteError({ error }, 'Error estimating swap in with Fluid DEX');
-      return {
-        amountOut: 0n,
-        pool: null,
-      };
+      return null;
     }
   }
 
-  prepareSwapCalldata(pool: Address | null, fromToken: Address, fromAmount: bigint): Call[] {
+  prepareSwapCalldata(receiver: Address, pool: Address | null, fromToken: Address, fromAmount: bigint): Call[] {
     if (!pool) {
       return [];
     }
 
-    const swap0to1 = this.poolsToTokenPairCache.get(pool)?.[0] === fromToken;
+    const swap0to1 = isAddressEqual(this.poolsToTokenPairCache.get(pool)?.[0] || zeroAddress, fromToken);
 
     const approveCalldata = encodeFunctionData({
       abi: erc20Abi,
@@ -89,7 +87,7 @@ export class FluidDex {
         data: encodeFunctionData({
           abi: FluidDexT1Abi,
           functionName: "swapIn",
-          args: [swap0to1, fromAmount, 0n, CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER], // Recipient of the swap is the rebalancer contract
+          args: [swap0to1, fromAmount, 0n, receiver],
         }),
         value: 0n,
       },

@@ -133,10 +133,13 @@ const executePreLiquidationRebalance = async (
       const swapParams = await getRebalanceSwapParams({
         leverageToken,
         stakeType: StakeType.NONE,
+        receiver: CONTRACT_ADDRESSES[CHAIN_ID].PRE_LIQUIDATION_REBALANCER,
         assetIn,
         assetOut,
         takeAmount,
         requiredAmountIn,
+        collateralAsset,
+        debtAsset,
       });
 
       if (!swapParams.isProfitable) {

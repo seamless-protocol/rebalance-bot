@@ -5,15 +5,16 @@ import UniswapV2Router02Abi from "../../../abis/UniswapV2Router02";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 import { CHAIN_ID } from "../../constants/chain";
 import { ComponentLogger } from "../../utils/logger";
+import { getDexSlippageAdjustedAmount } from "../../utils/math";
 
-export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs, logger: ComponentLogger) => {
+export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs, logger: ComponentLogger): Promise<{ amountOut: bigint; minAmountOut: bigint } | null> => {
   try {
     const router = getUniswapV2Router02Contract();
 
     const { inputTokenAddress, outputTokenAddress, amountInRaw } = args;
 
     if (amountInRaw === "0") {
-      return 0n;
+      return null;
     }
 
     // Convert the input string to BigInt (this is the raw base-units value)
@@ -28,15 +29,17 @@ export const getAmountsOutUniswapV2 = async (args: UniswapV2GetAmountsOutArgs, l
 
     // For a 2-token path, amountsOut = [amountIn, amountOut]
     const outputAmountRaw = amountsOut[1];
-    return outputAmountRaw;
+    return {
+      amountOut: outputAmountRaw,
+      minAmountOut: getDexSlippageAdjustedAmount(outputAmountRaw),
+    }
   } catch (error) {
     logger.dexQuoteError({ error }, 'Error calling Uniswap V2 Router02 getAmountsOut');
-    return 0n;
+    return null;
   }
 };
 
-
-export const prepareUniswapV2SwapCalldata = (assetIn: Address, assetOut: Address, inputAmount: bigint, outputAmountMin: bigint): Call[] => {
+export const prepareUniswapV2SwapCalldata = (receiver: Address, assetIn: Address, assetOut: Address, inputAmount: bigint, outputAmountMin: bigint): Call[] => {
   const uniswapV2RouterAbi = UniswapV2Router02Abi;
 
   // Approve the router to spend the input amount
@@ -53,7 +56,7 @@ export const prepareUniswapV2SwapCalldata = (assetIn: Address, assetOut: Address
       inputAmount,
       outputAmountMin,
       [assetIn, assetOut],
-      CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER, // Recipient of the swap is the rebalancer contract
+      receiver,
       BigInt(Math.floor(Date.now() / 1000) + 60) // Deadline is set to 60 seconds from now
     ],
   });

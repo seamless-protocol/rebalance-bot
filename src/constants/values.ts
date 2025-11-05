@@ -42,6 +42,7 @@ export const ETHERFI_L2_MODE_SYNC_POOL_ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEE
 
 export const LIFI_API_KEY = process.env.LIFI_API_KEY || null;
 export const BALMY_SLIPPAGE_PERCENTAGE = Number(process.env.BALMY_SLIPPAGE_PERCENTAGE) || 1; // 1% by default
+export const DEX_SLIPPAGE_BPS = BigInt(String(process.env.DEX_SLIPPAGE_BPS || "10")); // 0.1% by default
 
 export const CHECK_PROFITABILITY_WITH_GAS_FEE = Boolean(process.env.CHECK_PROFITABILITY_WITH_GAS_FEE && process.env.CHECK_PROFITABILITY_WITH_GAS_FEE.toLowerCase() === "true");
 
