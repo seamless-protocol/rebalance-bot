@@ -17,6 +17,8 @@ import { getBalmyQuote, prepareBalmySwapCalldata } from "./balmy";
 import { CHAIN_ID } from "../../constants/chain";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
 
+export const NoQuotesError = new Error('No quotes found');
+
 const logger = createComponentLogger('getRebalanceSwapParams');
 
 export const getRebalanceSwapParams = async (
@@ -93,7 +95,7 @@ export const getDexSwapParams = async (
   ]);
 
   if (!balmyQuote && !uniswapV2Quote && !uniswapV3Route && !fluidDexRoute && !pendleQuote) {
-    throw new Error('No quotes found');
+    throw NoQuotesError;
   }
 
   // Find the best route by comparing all three options

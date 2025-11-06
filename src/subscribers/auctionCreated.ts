@@ -39,7 +39,7 @@ import {
   getLeverageTokenRebalanceAdapter,
   leverageManagerContract,
 } from "../utils/contractHelpers";
-import { getRebalanceSwapParams } from "../services/routing/getSwapParams";
+import { getRebalanceSwapParams, NoQuotesError } from "../services/routing/getSwapParams";
 import { GetRebalanceSwapParamsOutput, LeverageToken, LogLevel, RebalanceType, StakeType } from "../types";
 import { readJsonArrayFromFile } from "../utils/fileHelpers";
 import { tenderlySimulateTransaction } from "../utils/tenderly";
@@ -244,17 +244,26 @@ export const handleAuctionCreatedEvent = async (
         continue;
       }
 
-      const swapParams = await getRebalanceSwapParams({
-        leverageToken,
-        stakeType,
-        receiver: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER,
-        assetIn,
-        assetOut,
-        takeAmount,
-        requiredAmountIn,
-        collateralAsset,
-        debtAsset,
-      });
+      let swapParams: GetRebalanceSwapParamsOutput;
+      try {
+        swapParams = await getRebalanceSwapParams({
+          leverageToken,
+          stakeType,
+          receiver: CONTRACT_ADDRESSES[CHAIN_ID].DUTCH_AUCTION_REBALANCER,
+          assetIn,
+          assetOut,
+          takeAmount,
+          requiredAmountIn,
+          collateralAsset,
+          debtAsset,
+        });
+      } catch (error) {
+        if (error === NoQuotesError) {
+          handleAuctionLogger.error({ leverageToken }, "No quotes found, skipping step");
+          continue;
+        }
+        throw error;
+      }
 
       if (!swapParams.isProfitable) {
         handleAuctionLogger.debug({
