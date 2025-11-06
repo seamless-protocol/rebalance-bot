@@ -6,10 +6,7 @@ import { Call, GetPendleSwapQuoteInput, GetPendleSwapQuoteOutput, StakeType, Get
 import { getPendleStaticRouterContract } from "../../utils/contractHelpers";
 import { getDexSwapParams } from "./getSwapParams";
 import PendleRouterAbi from "../../../abis/PendleRouter";
-import PendleMarketV3Abi from "../../../abis/PendleMarketV3";
-import PendleSyAbi from "../../../abis/PendleSy";
 import { getTokenDecimals } from "../../utils/tokens";
-import { publicClient } from "../../utils/transactionHelpers";
 import { getDexSlippageAdjustedAmount } from "../../utils/math";
 import { DEX_SLIPPAGE_BPS } from "../../constants/values";
 
@@ -21,8 +18,6 @@ const PT_TO_PENDLE_MARKET = new Map<string, Address>([
     "0x9942a74e6E75cEa2DB5D068c1E75C9ac687bcA06",
   ],
 ]);
-
-const PENDLE_MARKET_TO_YIELD_TOKEN = new Map<Address, Address>();
 
 export const getPendleSwapQuote = async (
   args: GetPendleSwapQuoteInput,
@@ -65,8 +60,6 @@ const getPendleSwapExactPtForTokenQuote = async (
       logger.dexQuoteError({ pt, yieldToken, market, yieldTokenRate }, "Yield token rate is max uint256 for PT -> yield token swap, swap cannot be executed");
       return null;
     }
-
-    PENDLE_MARKET_TO_YIELD_TOKEN.set(market, yieldToken);
 
     const isToTokenYieldToken = isAddressEqual(toAsset, yieldToken);
 
@@ -149,26 +142,8 @@ const getPendleSwapExactTokenForPtQuote = async (
       logger.dexQuoteError({ pt }, "No Pendle market found for PT");
       return null;
     }
-
-    let yieldToken = PENDLE_MARKET_TO_YIELD_TOKEN.get(getAddress(market));
-    if (!yieldToken) {
-      try {
-        const [syToken,,] = await publicClient.readContract({
-          address: market,
-          abi: PendleMarketV3Abi,
-          functionName: "readTokens",
-        });
-        yieldToken = (await publicClient.readContract({
-          address: syToken,
-          abi: PendleSyAbi,
-          functionName: "yieldToken",
-        })) as Address;
-        PENDLE_MARKET_TO_YIELD_TOKEN.set(market, yieldToken);
-      } catch (error) {
-        logger.error({ error, pt, market }, "Error getting Pendle yield token");
-        throw error;
-      }
-    }
+    const staticRouter = getPendleStaticRouterContract();
+    const [yieldToken, , yieldTokenRate] = await staticRouter.read.getYieldTokenAndPtRate([market]);
 
     const isFromTokenYieldToken = isAddressEqual(getAddress(fromAsset), getAddress(yieldToken));
 
@@ -196,17 +171,19 @@ const getPendleSwapExactTokenForPtQuote = async (
       underlyingAmountInForPt = underlyingSwapData.minAmountOut;
     }
 
-    const staticRouter = getPendleStaticRouterContract();
-    const pendleSlippage = DEX_SLIPPAGE_BPS * 100000000000000n;
-    const result = await staticRouter.read.swapExactTokenForPtStaticAndGenerateApproxParams([
-      market,
-      yieldToken,
-      underlyingAmountInForPt,
-      pendleSlippage,
-    ]);
-    const guessPtOut = result[5];
+    const ptDecimals = (await getTokenDecimals([pt]))[pt];
+    const ptAmountOut = (underlyingAmountInForPt * 10n ** BigInt(ptDecimals)) / yieldTokenRate;
+    const ptAmountOutWithSlippageDown = getDexSlippageAdjustedAmount(ptAmountOut);
+    const ptAmountOutWithSlippageUp = ptAmountOut * (10000n + DEX_SLIPPAGE_BPS) / 10000n;
 
-    const approxParams = guessPtOut;
+    const approxParams = {
+      guessMin: ptAmountOutWithSlippageDown,
+      guessMax: ptAmountOutWithSlippageUp,
+      guessOffchain: ptAmountOut,
+      maxIteration: 256n,
+      eps: DEX_SLIPPAGE_BPS * 100000000000000n,
+    };
+
     const tokenInput = createTokenInputSimple(yieldToken, underlyingAmountInForPt);
     const emptyLimit = createEmptyLimitOrderData();
     const calldata = encodeFunctionData({
@@ -223,8 +200,8 @@ const getPendleSwapExactTokenForPtQuote = async (
     });
 
     return {
-      amountOut: guessPtOut.guessOffchain,
-      minAmountOut: guessPtOut.guessMin,
+      amountOut: ptAmountOut,
+      minAmountOut: ptAmountOutWithSlippageDown,
       pendleSwapData: {
         amountIn: underlyingAmountInForPt,
         assetIn: yieldToken,
