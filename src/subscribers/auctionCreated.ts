@@ -127,6 +127,15 @@ const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollat
     CHAIN_ID === 1
   ) {
     return StakeType.LIDO_ETH_WSTETH;
+  } else if (
+    isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].SIUSD as Address) &&
+    isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].USDC as Address)
+  ) {
+    if (!isOverCollateralized) {
+      return StakeType.INFINIFI_SIUSD_UNSTAKE_AND_REDEEM;
+    } else {
+      return StakeType.INFINIFI_SIUSD_MINT_AND_STAKE;
+    }
   } else {
     return StakeType.NONE;
   }

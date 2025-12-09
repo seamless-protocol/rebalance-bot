@@ -16,6 +16,7 @@ import { getPendleSwapQuote } from "./pendle";
 import { getBalmyQuote, prepareBalmySwapCalldata } from "./balmy";
 import { CHAIN_ID } from "../../constants/chain";
 import { CONTRACT_ADDRESSES } from "../../constants/contracts";
+import { getInfinifiSiUSDMintAndStakeQuote, getInfinifiSiUSDUnstakeAndRedeemQuote, prepareInfinifiSiUSDMintAndStakeCalldata, prepareInfinifiSiUSDUnstakeAndRedeemCalldata } from "./infinifi";
 
 export const NoQuotesError = new Error('No quotes found');
 
@@ -24,7 +25,7 @@ const logger = createComponentLogger('getRebalanceSwapParams');
 export const getRebalanceSwapParams = async (
   input: GetRebalanceSwapParamsInput
 ): Promise<GetRebalanceSwapParamsOutput> => {
-  const { takeAmount, requiredAmountIn, stakeType } = input;
+  const { takeAmount, requiredAmountIn, stakeType, receiver } = input;
 
   // We first check if staking / custom route can be used to swap, which typically provides the best price
   if (stakeType === StakeType.ETHERFI_ETH_WEETH) {
@@ -45,6 +46,26 @@ export const getRebalanceSwapParams = async (
         isProfitable: true,
         amountOut: wstethAmountOut,
         swapCalls: prepareLidoEthStakeCalldata(takeAmount),
+      };
+    }
+  } else if (stakeType === StakeType.INFINIFI_SIUSD_MINT_AND_STAKE) {
+    const siUSDAmountOut = await getInfinifiSiUSDMintAndStakeQuote(takeAmount);
+
+    if (siUSDAmountOut >= requiredAmountIn) {
+      return {
+        isProfitable: true,
+        amountOut: siUSDAmountOut,
+        swapCalls: prepareInfinifiSiUSDMintAndStakeCalldata(receiver, takeAmount, siUSDAmountOut),
+      };
+    }
+  } else if (stakeType === StakeType.INFINIFI_SIUSD_UNSTAKE_AND_REDEEM) {
+    const usdcAmountOut = await getInfinifiSiUSDUnstakeAndRedeemQuote(takeAmount);
+
+    if (usdcAmountOut >= requiredAmountIn) {
+      return {
+        isProfitable: true,
+        amountOut: usdcAmountOut,
+        swapCalls: prepareInfinifiSiUSDUnstakeAndRedeemCalldata(receiver, takeAmount, usdcAmountOut),
       };
     }
   }
