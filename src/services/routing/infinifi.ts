@@ -11,11 +11,14 @@ export const getInfinifiSiUSDMintAndStakeQuote = async (usdcAmountIn: bigint) =>
       throw new Error('Native iUSD staking is only supported by the rebalance bot on Ethereum mainnet');
     }
 
+    // USDC and iUSD are 1:1, but iUSD has 18 decimals and USDC has 6 decimals
+    const iUSDAmountIn = usdcAmountIn * 10n ** 12n;
+
     const siUSDAmountOut = await publicClient.readContract({
       address: CONTRACT_ADDRESSES[CHAIN_ID].SIUSD as Address,
       abi: siUSDAbi,
       functionName: 'previewDeposit',
-      args: [usdcAmountIn], // USDC and iUSD are 1:1
+      args: [iUSDAmountIn],
     });
 
     return siUSDAmountOut;
@@ -33,10 +36,11 @@ export const getInfinifiSiUSDUnstakeAndRedeemQuote = async (siUSDAmountIn: bigin
       args: [siUSDAmountIn],
     });
 
-    return iUSDAmountOut; // iUSD and USDC are 1:1
+    // iUSD and USDC are 1:1, but iUSD has 18 decimals and USDC has 6 decimals
+    return iUSDAmountOut / 10n ** 12n;
 };
 
-export const prepareInfinifiSiUSDMintAndStakeCalldata = (receiver: Address, usdcAmountIn: bigint, siUSDAmountIn: bigint): Call[] => {
+export const prepareInfinifiSiUSDMintAndStakeCalldata = (receiver: Address, usdcAmountIn: bigint): Call[] => {
     const approveCalldata = encodeFunctionData({
         abi: erc20Abi,
         functionName: 'approve',
@@ -45,7 +49,7 @@ export const prepareInfinifiSiUSDMintAndStakeCalldata = (receiver: Address, usdc
     const mintAndStakeCalldata = encodeFunctionData({
         abi: infinifiGatewayAbi,
         functionName: 'mintAndStake',
-        args: [receiver, siUSDAmountIn],
+        args: [receiver, usdcAmountIn],
     });
 
     return [
@@ -62,7 +66,7 @@ export const prepareInfinifiSiUSDMintAndStakeCalldata = (receiver: Address, usdc
     ];
 };
 
-export const prepareInfinifiSiUSDUnstakeAndRedeemCalldata = (receiver: Address, siUSDAmountIn: bigint, iUsdAmountIn: bigint): Call[] => {
+export const prepareInfinifiSiUSDUnstakeAndRedeemCalldata = (receiver: Address, siUSDAmountIn: bigint, usdcAmountOut: bigint): Call[] => {
     const siUSDApproveCalldata = encodeFunctionData({
         abi: erc20Abi,
         functionName: 'approve',
@@ -74,15 +78,18 @@ export const prepareInfinifiSiUSDUnstakeAndRedeemCalldata = (receiver: Address, 
         args: [CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR, siUSDAmountIn],
     });
 
+    // iUSD and USDC are 1:1, but iUSD has 18 decimals and USDC has 6 decimals
+    const iUSDAmountIn = usdcAmountOut * 10n ** 12n;
+
     const iUSDApproveCalldata = encodeFunctionData({
         abi: erc20Abi,
         functionName: 'approve',
-        args: [CONTRACT_ADDRESSES[CHAIN_ID].INFINIFI_GATEWAY as Address, iUsdAmountIn],
+        args: [CONTRACT_ADDRESSES[CHAIN_ID].INFINIFI_GATEWAY as Address, iUSDAmountIn],
     });
     const redeemCalldata = encodeFunctionData({
         abi: infinifiGatewayAbi,
         functionName: 'redeem',
-        args: [receiver, iUsdAmountIn, iUsdAmountIn]
+        args: [receiver, iUSDAmountIn, usdcAmountOut]
     });
 
     return [
