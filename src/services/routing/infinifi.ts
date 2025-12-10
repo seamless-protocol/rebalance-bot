@@ -37,7 +37,8 @@ export const getInfinifiSiUSDUnstakeAndRedeemQuote = async (siUSDAmountIn: bigin
     });
 
     // iUSD and USDC are 1:1, but iUSD has 18 decimals and USDC has 6 decimals
-    return iUSDAmountOut / 10n ** 12n;
+    const usdcAmountOut = iUSDAmountOut / 10n ** 12n;
+    return [usdcAmountOut, iUSDAmountOut];
 };
 
 export const prepareInfinifiSiUSDMintAndStakeCalldata = (receiver: Address, usdcAmountIn: bigint): Call[] => {
@@ -66,7 +67,7 @@ export const prepareInfinifiSiUSDMintAndStakeCalldata = (receiver: Address, usdc
     ];
 };
 
-export const prepareInfinifiSiUSDUnstakeAndRedeemCalldata = (receiver: Address, siUSDAmountIn: bigint, usdcAmountOut: bigint): Call[] => {
+export const prepareInfinifiSiUSDUnstakeAndRedeemCalldata = (receiver: Address, siUSDAmountIn: bigint, iUSDAmountOut: bigint): Call[] => {
     const siUSDApproveCalldata = encodeFunctionData({
         abi: erc20Abi,
         functionName: 'approve',
@@ -78,18 +79,15 @@ export const prepareInfinifiSiUSDUnstakeAndRedeemCalldata = (receiver: Address, 
         args: [CONTRACT_ADDRESSES[CHAIN_ID].MULTICALL_EXECUTOR, siUSDAmountIn],
     });
 
-    // iUSD and USDC are 1:1, but iUSD has 18 decimals and USDC has 6 decimals
-    const iUSDAmountIn = usdcAmountOut * 10n ** 12n;
-
     const iUSDApproveCalldata = encodeFunctionData({
         abi: erc20Abi,
         functionName: 'approve',
-        args: [CONTRACT_ADDRESSES[CHAIN_ID].INFINIFI_GATEWAY as Address, iUSDAmountIn],
+        args: [CONTRACT_ADDRESSES[CHAIN_ID].INFINIFI_GATEWAY as Address, iUSDAmountOut],
     });
     const redeemCalldata = encodeFunctionData({
         abi: infinifiGatewayAbi,
         functionName: 'redeem',
-        args: [receiver, iUSDAmountIn, usdcAmountOut]
+        args: [receiver, iUSDAmountOut, 0n]
     });
 
     return [
