@@ -35,7 +35,7 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
-    "@balmy/sdk": "github:seamless-protocol/balmy-sdk#main",
+    "@seamless-defi/defi-sdk": "^0.0.3",
     "@slack/web-api": "^7.9.1",
     "@uniswap/sdk-core": "^7.7.2",
     "@uniswap/smart-order-router": "^4.20.10",
