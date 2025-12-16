@@ -41,7 +41,8 @@ export interface ContractAddresses {
   ETHERFI_LIQUIDITY_POOL?: Address;
   FLUID_DEX_RESERVES_RESOLVER?: Address;
   INFINIFI_GATEWAY?: Address;
-  IUSD?: Address;
+  INFINIFI_UNSTAKE_AND_REDEEM_HELPER?: Address;
+  IUSD_MINT_CONTROLLER?: Address;
   LEVERAGE_MANAGER: Address;
   MULTICALL_EXECUTOR: Address;
   PENDLE_ROUTER?: Address;

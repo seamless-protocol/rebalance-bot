@@ -61,15 +61,15 @@ export const getRebalanceSwapParams = async (
       };
     }
   } else if (stakeType === StakeType.INFINIFI_SIUSD_UNSTAKE_AND_REDEEM) {
-    const [usdcAmountOut, iUSDAmountOut] = await getInfinifiSiUSDUnstakeAndRedeemQuote(takeAmount);
+    const usdcAmountOut = await getInfinifiSiUSDUnstakeAndRedeemQuote(takeAmount);
 
-    logger.debug({ usdcAmountOut, iUSDAmountOut, requiredAmountIn, takeAmount }, 'Infinifi siUSD unstake and redeem quote');
+    logger.debug({ usdcAmountOut, requiredAmountIn, takeAmount }, 'Infinifi siUSD unstake and redeem quote');
 
     if (usdcAmountOut >= requiredAmountIn) {
       return {
         isProfitable: true,
         amountOut: usdcAmountOut,
-        swapCalls: prepareInfinifiSiUSDUnstakeAndRedeemCalldata(receiver, takeAmount, iUSDAmountOut),
+        swapCalls: prepareInfinifiSiUSDUnstakeAndRedeemCalldata(takeAmount),
       };
     }
   }
