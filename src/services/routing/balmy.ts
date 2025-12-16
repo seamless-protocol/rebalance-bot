@@ -54,6 +54,7 @@ export const getBalmyQuote = async (args: QuoteRequest, logger: ComponentLogger)
         const quote = await sdk.quoteService.getBestQuote({
             request: {
                 ...args,
+                filters: { excludeSources: ['swing'] },
                 sourceConfig: { global: { disableValidation: true } },
             },
             config: { choose: { by: "most-swapped", using: "max sell/min buy amounts" } }
