@@ -1,6 +1,6 @@
 import { ComponentLogger } from "../../utils/logger";
 import { encodeFunctionData, erc20Abi, zeroAddress } from "viem";
-import { buildSDK, QuoteRequest, QuoteResponse } from "@balmy/sdk";
+import { buildSDK, QuoteRequest, QuoteResponse } from "@seamless-defi/defi-sdk";
 import { Call } from "../../types";
 import { publicClient } from "../../utils/transactionHelpers";
 import { ALCHEMY_API_KEY } from "../../constants/chain";
@@ -54,6 +54,7 @@ export const getBalmyQuote = async (args: QuoteRequest, logger: ComponentLogger)
         const quote = await sdk.quoteService.getBestQuote({
             request: {
                 ...args,
+                filters: { excludeSources: ['swing', 'sushiswap', 'fly-trade'] },
                 sourceConfig: { global: { disableValidation: true } },
             },
             config: { choose: { by: "most-swapped", using: "max sell/min buy amounts" } }
