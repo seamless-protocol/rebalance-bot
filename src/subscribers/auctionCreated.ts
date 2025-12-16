@@ -121,13 +121,14 @@ const getStakeType = (collateralAsset: Address, debtAsset: Address, isOverCollat
   ) {
     return StakeType.ETHERFI_ETH_WEETH;
   } else if (
+    CHAIN_ID === 1 &&
     isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].WSTETH as Address) &&
     isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].WETH as Address) &&
-    isOverCollateralized &&
-    CHAIN_ID === 1
+    isOverCollateralized
   ) {
     return StakeType.LIDO_ETH_WSTETH;
   } else if (
+    CHAIN_ID === 1 &&
     isAddressEqual(collateralAsset, CONTRACT_ADDRESSES[CHAIN_ID].SIUSD as Address) &&
     isAddressEqual(debtAsset, CONTRACT_ADDRESSES[CHAIN_ID].USDC as Address)
   ) {
