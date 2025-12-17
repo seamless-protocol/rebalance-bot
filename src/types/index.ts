@@ -42,6 +42,7 @@ export interface ContractAddresses {
   FLUID_DEX_RESERVES_RESOLVER?: Address;
   INFINIFI_GATEWAY?: Address;
   INFINIFI_UNSTAKE_AND_REDEEM_HELPER?: Address;
+  INFINIFI_YIELD_SHARING?: Address;
   IUSD_MINT_CONTROLLER?: Address;
   LEVERAGE_MANAGER: Address;
   MULTICALL_EXECUTOR: Address;
