@@ -10,6 +10,8 @@ export enum StakeType {
   NONE = 0,
   ETHERFI_ETH_WEETH = 1,
   LIDO_ETH_WSTETH = 2,
+  INFINIFI_SIUSD_MINT_AND_STAKE = 3,
+  INFINIFI_SIUSD_UNSTAKE_AND_REDEEM = 4,
 }
 
 export enum RebalanceType {
@@ -38,14 +40,20 @@ export interface ContractAddresses {
   ETHERFI_L2_MODE_SYNC_POOL?: Address;
   ETHERFI_LIQUIDITY_POOL?: Address;
   FLUID_DEX_RESERVES_RESOLVER?: Address;
+  INFINIFI_GATEWAY?: Address;
+  INFINIFI_UNSTAKE_AND_REDEEM_HELPER?: Address;
+  INFINIFI_YIELD_SHARING?: Address;
+  IUSD_MINT_CONTROLLER?: Address;
   LEVERAGE_MANAGER: Address;
   MULTICALL_EXECUTOR: Address;
   PENDLE_ROUTER?: Address;
   PENDLE_ROUTER_STATIC?: Address;
   PRE_LIQUIDATION_REBALANCER: Address;
   WSTETH?: Address;
+  SIUSD?: Address;
   UNISWAP_SWAP_ROUTER_02: Address;
   UNISWAP_V2_ROUTER_02: Address;
+  USDC?: Address;
   WETH: Address;
   WEETH: Address;
 }
