@@ -156,6 +156,19 @@ export const LendingAdapterAbi = [
   },
   {
     type: "function",
+    name: "getLiquidationPenalty",
+    inputs: [],
+    outputs: [
+      {
+        name: "liquidationPenalty",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "postLeverageTokenCreation",
     inputs: [
       {

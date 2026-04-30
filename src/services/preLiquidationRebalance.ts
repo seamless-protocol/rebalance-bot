@@ -9,7 +9,7 @@ import {
   PRE_LIQUIDATION_TIMEOUT,
 } from "../constants/values";
 import { getRebalanceSwapParams } from "./routing/getSwapParams";
-import { LeverageTokenRebalanceData, LogLevel, RebalanceType, StakeType } from "../types";
+import { LogLevel, RebalanceType, StakeType } from "../types";
 import {
   getLeverageTokenCollateralAsset,
   getLeverageTokenDebtAsset,
@@ -31,13 +31,92 @@ import { createComponentLogger } from "../utils/logger";
 const executePreLiquidationRebalanceLogger = createComponentLogger('executePreLiquidationRebalance');
 const preLiquidationRebalanceIntervalLogger = createComponentLogger('preLiquidationRebalanceInterval');
 
+const REWARD_BASE = 10000n;
+const WAD = 10n ** 18n;
+
+
+interface RebalanceAmounts {
+  debtToRepay: bigint;
+  collateralToWithdraw: bigint;
+  collateralToWithdrawInDebtAsset: bigint;
+}
+
+const getPreLiquidationReward = async (
+  leverageToken: Address,
+  lendingAdapter: Address,
+  rebalanceAdapter: Address
+): Promise<bigint> => {
+  const [liquidationPenaltyResponse, rebalanceRewardResponse] = await publicClient.multicall({
+    contracts: [
+      {
+        address: lendingAdapter,
+        abi: LendingAdapterAbi,
+        functionName: "getLiquidationPenalty",
+      },
+      {
+        address: rebalanceAdapter,
+        abi: RebalanceAdapterAbi,
+        functionName: "getRebalanceReward",
+      },
+    ],
+  });
+
+  if (liquidationPenaltyResponse?.result === undefined || rebalanceRewardResponse?.result === undefined) {
+    throw new Error(`Failed to get liquidation penalty or rebalance reward for LeverageToken ${leverageToken}`);
+  }
+
+  const liquidationPenalty = liquidationPenaltyResponse.result;
+  const rebalanceReward = rebalanceRewardResponse.result;
+
+  return (liquidationPenalty * rebalanceReward) / REWARD_BASE;
+};
+
+const calculateRebalanceAmounts = async (
+  debtToRepay: bigint,
+  reward: bigint,
+  lendingAdapter: Address
+): Promise<RebalanceAmounts> => {
+  // Use the full reward for collateral calculation to withdraw maximum collateral per unit of debt.
+  const collateralToWithdrawInDebtAsset = (debtToRepay * (WAD + reward)) / WAD;
+
+  const collateralToWithdraw = await publicClient.readContract({
+    address: lendingAdapter,
+    abi: LendingAdapterAbi,
+    functionName: "convertDebtToCollateralAsset",
+    args: [collateralToWithdrawInDebtAsset],
+  });
+
+  return {
+    debtToRepay,
+    collateralToWithdraw,
+    collateralToWithdrawInDebtAsset,
+  };
+};
+
+const calculateMaxDebtToRepay = (
+  collateralInDebtAsset: bigint,
+  debt: bigint,
+  targetRatio: bigint
+): bigint => {
+  // Formula: debtRepaid = (CR_target × Debt - CollateralInDebt) / (CR_target - 1)
+  // With WAD scaling: (targetRatio * debt - collateralInDebtAsset * BASE_RATIO) / (targetRatio - BASE_RATIO)
+  const numerator = targetRatio * debt - collateralInDebtAsset * BASE_RATIO;
+  const denominator = targetRatio - BASE_RATIO;
+
+  return numerator / denominator;
+};
+
+interface PreLiquidationRebalanceData {
+  collateralInDebtAsset: bigint;
+  debt: bigint;
+  targetRatio: bigint;
+}
+
 const getLeverageTokenRebalanceData = async (
   leverageToken: Address,
   rebalanceAdapter: Address
-): Promise<LeverageTokenRebalanceData> => {
-  const lendingAdapter = getLeverageTokenLendingAdapter(leverageToken);
-
-  const [leverageTokenStateResponse, targetRatioResponse, collateralResponse] = await publicClient.multicall({
+): Promise<PreLiquidationRebalanceData> => {
+  const [leverageTokenStateResponse, targetRatioResponse] = await publicClient.multicall({
     contracts: [
       {
         address: CONTRACT_ADDRESSES[CHAIN_ID].LEVERAGE_MANAGER,
@@ -50,18 +129,12 @@ const getLeverageTokenRebalanceData = async (
         abi: RebalanceAdapterAbi,
         functionName: "getLeverageTokenTargetCollateralRatio",
       },
-      {
-        address: lendingAdapter,
-        abi: LendingAdapterAbi,
-        functionName: "getCollateral",
-      },
     ],
   });
 
   if (
     leverageTokenStateResponse?.result == undefined ||
-    targetRatioResponse?.result == undefined ||
-    collateralResponse?.result == undefined
+    targetRatioResponse?.result == undefined
   ) {
     const errorMsg = `Failed to get rebalance data for LeverageToken ${leverageToken}`;
     executePreLiquidationRebalanceLogger.error({ leverageToken, errorMsg }, "Failed to get rebalance data");
@@ -69,9 +142,8 @@ const getLeverageTokenRebalanceData = async (
   }
 
   return {
-    collateral: collateralResponse.result,
     collateralInDebtAsset: leverageTokenStateResponse.result.collateralInDebtAsset,
-    equity: leverageTokenStateResponse.result.equity,
+    debt: leverageTokenStateResponse.result.debt,
     targetRatio: targetRatioResponse.result,
   };
 };
@@ -84,35 +156,34 @@ const executePreLiquidationRebalance = async (
 ) => {
   try {
     const preLiquidationRebalancer = getPreLiquidationRebalancerContract();
-    const { collateral, collateralInDebtAsset, equity, targetRatio } = await getLeverageTokenRebalanceData(
+    const lendingAdapter = getLeverageTokenLendingAdapter(leverageToken);
+    const { collateralInDebtAsset, debt, targetRatio } = await getLeverageTokenRebalanceData(
       leverageToken,
       rebalanceAdapter
     );
 
-    const baseRatio = BASE_RATIO;
-    const targetCollateralInDebtAsset = (equity * targetRatio) / baseRatio;
+    const maxPreLiquidationReward = await getPreLiquidationReward(leverageToken, lendingAdapter, rebalanceAdapter);
+
+    let maxDebtToRepay = calculateMaxDebtToRepay(
+      collateralInDebtAsset,
+      debt,
+      targetRatio
+    );
+
+    // Scale down maxDebtToRepay to accommodate for potential redemptions between simulation and execution.
+    // If a redemption is confirmed between the preLiquidationRebalance simulation/gas estimation and the
+    // transaction execution, the max repay amount may decrease, causing the transaction to revert if the
+    // amount to repay is higher than the new max.
+    // Note: Interest accrual increases max debt to repay over time, so this scaling provides headroom
+    // for redemptions while interest naturally provides headroom in the other direction.
+    maxDebtToRepay = maxDebtToRepay * MAX_TAKE_AMOUNT_SCALING / MAX_TAKE_AMOUNT_SCALING_BASE;
 
     const assetIn = debtAsset;
     const assetOut = collateralAsset;
-    const maxAmountToTakeInDebtAsset = collateralInDebtAsset - targetCollateralInDebtAsset;
-
-    let maxAmountToTake = (collateral * maxAmountToTakeInDebtAsset) / collateralInDebtAsset;
-
-    // Decrease maxAmountToTake by 1% to accommodate for collateral ratio continuously decreasing due to borrow interest,
-    // causing the max take amount to continuously decrease as well.
-    // We do this to avoid preLiquidationRebalance transaction reverts due to take amounts being too high, which can occur if the
-    // latency between the preLiquidationRebalance simulation and the transaction execution is enough time to cause max take amounts to decrease
-    // for the reason mentioned above.
-    // The max take amount can also decrease due to redemptions. If a redemption is confirmed between the time of the preLiquidationRebalance
-    // simulation / gas estimation and the transaction execution, the preLiquidationRebalance transaction will still be submitted but will revert
-    // if the amount to take is higher than the new max take amount post redemption.
-    maxAmountToTake = maxAmountToTake * MAX_TAKE_AMOUNT_SCALING / MAX_TAKE_AMOUNT_SCALING_BASE;
-
     const rebalanceType = RebalanceType.REBALANCE_UP;
 
-    // Calculate for how much will amount to take decrease per step so we can check profitability with smaller slippage
     const stepCount = PRE_LIQUIDATION_STEP_COUNT;
-    const decreasePerStep = maxAmountToTake / BigInt(stepCount);
+    const decreasePerStep = maxDebtToRepay / BigInt(stepCount);
 
     for (let i = 0; i < stepCount; i++) {
       const isPreLiquidationEligible = await preLiquidationRebalancer.read.isEligibleForPreLiquidationRebalance([
@@ -127,8 +198,82 @@ const executePreLiquidationRebalance = async (
         return;
       }
 
-      const takeAmount = maxAmountToTake - decreasePerStep * BigInt(i);
-      const requiredAmountIn = await preLiquidationRebalancer.read.getAmountIn([leverageToken, takeAmount]);
+      const debtToRepay = maxDebtToRepay - decreasePerStep * BigInt(i);
+      const { collateralToWithdraw, collateralToWithdrawInDebtAsset: calculatedCollateralInDebtAsset } = await calculateRebalanceAmounts(
+        debtToRepay,
+        maxPreLiquidationReward,
+        lendingAdapter
+      );
+
+      // Convert collateral back to debt terms using oracle to match on-chain calculation
+      const actualCollateralToWithdrawInDebtAsset = await publicClient.readContract({
+        address: lendingAdapter,
+        abi: LendingAdapterAbi,
+        functionName: "convertCollateralToDebtAsset",
+        args: [collateralToWithdraw],
+      });
+
+      const expectedNewCollateralInDebtAsset = collateralInDebtAsset - actualCollateralToWithdrawInDebtAsset;
+      const expectedNewDebt = debt - debtToRepay;
+      // Collateral ratio = Collateral / Debt
+      const expectedCollateralRatioAfterRebalance = (expectedNewCollateralInDebtAsset * BASE_RATIO) / expectedNewDebt;
+
+      // Calculate equity values for isStateAfterRebalanceValid check
+      const currentEquity = collateralInDebtAsset - debt;
+      const expectedEquityAfter = expectedNewCollateralInDebtAsset - expectedNewDebt;
+      // maxEquityLoss = debtDelta * (liquidationPenalty * rebalanceReward / REWARD_BASE) / WAD
+      // maxPreLiquidationReward already equals (liquidationPenalty * rebalanceReward / REWARD_BASE)
+      const maxEquityLoss = (debtToRepay * maxPreLiquidationReward) / WAD;
+      const minRequiredEquity = currentEquity - maxEquityLoss;
+
+      executePreLiquidationRebalanceLogger.info({
+        leverageToken,
+        debtToRepay: debtToRepay.toString(),
+        collateralToWithdraw: collateralToWithdraw.toString(),
+        calculatedCollateralInDebtAsset: calculatedCollateralInDebtAsset.toString(),
+        actualCollateralToWithdrawInDebtAsset: actualCollateralToWithdrawInDebtAsset.toString(),
+        expectedNewCollateralInDebtAsset: expectedNewCollateralInDebtAsset.toString(),
+        expectedNewDebt: expectedNewDebt.toString(),
+        expectedCollateralRatioAfterRebalance: expectedCollateralRatioAfterRebalance.toString(),
+        targetRatio: targetRatio.toString(),
+        currentCollateralInDebtAsset: collateralInDebtAsset.toString(),
+        currentDebt: debt.toString(),
+        currentEquity: currentEquity.toString(),
+        expectedEquityAfter: expectedEquityAfter.toString(),
+        maxEquityLoss: maxEquityLoss.toString(),
+        minRequiredEquity: minRequiredEquity.toString(),
+      }, "Expected state after pre-liquidation rebalance");
+
+      if (expectedCollateralRatioAfterRebalance >= targetRatio) {
+        const errorMsg = `Expected collateral ratio after rebalance (${expectedCollateralRatioAfterRebalance}) is >= target ratio (${targetRatio}). This would cause the transaction to revert.`;
+        executePreLiquidationRebalanceLogger.error({
+          leverageToken,
+          expectedCollateralRatioAfterRebalance: expectedCollateralRatioAfterRebalance.toString(),
+          targetRatio: targetRatio.toString(),
+          debtToRepay: debtToRepay.toString(),
+          actualCollateralToWithdrawInDebtAsset: actualCollateralToWithdrawInDebtAsset.toString(),
+          maxPreLiquidationReward: maxPreLiquidationReward.toString(),
+        }, errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      // Check isStateAfterRebalanceValid: stateAfter.equity >= stateBefore.equity - maxEquityLoss
+      if (expectedEquityAfter < minRequiredEquity) {
+        const errorMsg = `Expected equity after rebalance (${expectedEquityAfter}) is < min required equity (${minRequiredEquity}). isStateAfterRebalanceValid would fail.`;
+        executePreLiquidationRebalanceLogger.error({
+          leverageToken,
+          expectedEquityAfter: expectedEquityAfter.toString(),
+          currentEquity: currentEquity.toString(),
+          maxEquityLoss: maxEquityLoss.toString(),
+          minRequiredEquity: minRequiredEquity.toString(),
+          debtToRepay: debtToRepay.toString(),
+          maxPreLiquidationReward: maxPreLiquidationReward.toString(),
+        }, errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      const requiredAmountIn = debtToRepay;
+      const takeAmount = collateralToWithdraw;
 
       const swapParams = await getRebalanceSwapParams({
         leverageToken,
@@ -145,6 +290,7 @@ const executePreLiquidationRebalance = async (
       if (!swapParams.isProfitable) {
         executePreLiquidationRebalanceLogger.debug({
           leverageToken,
+          debtToRepay: debtToRepay.toString(),
           takeAmount: takeAmount.toString(),
           assetIn
         }, "PreLiquidationRebalance is not profitable, skipping");
@@ -153,6 +299,7 @@ const executePreLiquidationRebalance = async (
 
       executePreLiquidationRebalanceLogger.info({
         leverageToken,
+        debtToRepay: debtToRepay.toString(),
         takeAmount: takeAmount.toString(),
         assetIn
       }, "PreLiquidationRebalance is profitable, participating in rebalance");
@@ -227,6 +374,7 @@ const executePreLiquidationRebalance = async (
           `*PreLiquidationRebalance executed successfully*\n• LeverageToken: \`${leverageToken}\`\n• New Collateral Ratio: \`${collateralRatioAfterRebalance}\`\n• Transaction Hash: \`${tx}\``,
           LogLevel.REBALANCED
         );
+        return;
       } catch (error) {
         if (error instanceof BaseError) {
           const revertError = error.walk((error) => error instanceof ContractFunctionRevertedError);
